@@ -1,0 +1,16 @@
+# Hospedagem no Render (https://render.com): New > Blueprint > aponte para o repositório.
+services:
+  - type: web
+    name: cyberarena
+    runtime: node
+    plan: free
+    buildCommand: echo ok
+    startCommand: node online-server/server.mjs
+    healthCheckPath: /api/health
+    envVars:
+      # Troféus/XP sobrevivem a reinícios guardados num Redis grátis (Upstash). Preencha os dois valores no painel do Render
+      # (veja PASSO_A_PASSO_CELULAR.md, passo 3). O anti-sono usa RENDER_EXTERNAL_URL, que o Render cria sozinho.
+      - key: UPSTASH_REDIS_REST_URL
+        sync: false
+      - key: UPSTASH_REDIS_REST_TOKEN
+        sync: false

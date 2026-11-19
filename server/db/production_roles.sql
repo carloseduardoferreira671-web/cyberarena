@@ -1,0 +1,12 @@
+-- Run manually as a PostgreSQL administrator after substituting a strong password.
+-- Do NOT execute this file with the application role.
+-- The application role should not be a superuser, owner of the database, or able to create extensions.
+-- Example pattern:
+-- CREATE ROLE cyberarena_app LOGIN PASSWORD 'REPLACE_ME';
+-- GRANT CONNECT ON DATABASE cyberarena TO cyberarena_app;
+-- GRANT USAGE ON SCHEMA public TO cyberarena_app;
+-- GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO cyberarena_app;
+-- GRANT USAGE, SELECT, UPDATE ON ALL SEQUENCES IN SCHEMA public TO cyberarena_app;
+-- ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO cyberarena_app;
+-- ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT, UPDATE ON SEQUENCES TO cyberarena_app;
+-- Review and narrow these privileges further if the deployed application does not need all of them.

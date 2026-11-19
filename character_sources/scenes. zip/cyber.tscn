@@ -1,0 +1,27 @@
+[gd_scene load_steps=4]
+
+[ext_resource type="Script" path="res://scripts/ciborgly.gd" id=1]
+[ext_resource type="PackedScene" path="res://assets/models/ciborgly.glb" id=2]
+
+[node name="Ciborgly" type="CharacterBody3D"]
+script = ExtResource("1")
+
+[node name="Model" parent="." instance=ExtResource("2")]
+
+[node name="Anim" type="AnimationPlayer" parent="."]
+autoplay = "idle"
+
+[node name="State" type="AnimationTree" parent="."]
+active = true
+
+[node name="Collision" type="CollisionShape3D" parent="."]
+shape = SphereShape3D {
+    radius = 0.6
+}
+
+[node name="HealthBar" type="Label3D" parent="."]
+text = "7500"
+billboard = 2
+offset = Vector3(0, 2.2, 0)
+pixel_size = 0.0035
+

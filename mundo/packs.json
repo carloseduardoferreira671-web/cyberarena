@@ -1,0 +1,785 @@
+{
+ "versao": 1,
+ "fontes": [
+  "https://cdn.jsdelivr.net/gh/carloseduardoferreira671-web/cyberarena@main/mundo/",
+  "{SITE}mundo/",
+  ""
+ ],
+ "packs": [
+  {
+   "id": "cyber",
+   "nome": "Cyber",
+   "desc": "Personagem Cyber (humanoide encapuzado)",
+   "essencial": true,
+   "tipo": "personagem",
+   "files": [
+    {
+     "path": "models/cyber_rig.glb",
+     "bytes": 7028076,
+     "sha256": "50168d86aa412db9cc1288ea32cc3f9e8ae96f05d740243885bcc68228c355dd"
+    }
+   ],
+   "bytes": 7028076
+  },
+  {
+   "id": "atlas",
+   "nome": "Atlas",
+   "desc": "Personagem Atlas (lutador)",
+   "essencial": false,
+   "tipo": "personagem",
+   "files": [
+    {
+     "path": "models/atlas_rig.glb",
+     "bytes": 8865600,
+     "sha256": "bf05ab047967edbc16f407a4ca711f380548f4640eb1167a271ac112cc775b78"
+    }
+   ],
+   "bytes": 8865600
+  },
+  {
+   "id": "nexus",
+   "nome": "Nexus",
+   "desc": "Personagem Nexus (robô)",
+   "essencial": false,
+   "tipo": "personagem",
+   "files": [
+    {
+     "path": "models/nexus_rig.glb",
+     "bytes": 12891796,
+     "sha256": "988eabdf76006435e7faf36e41cdc3d54dc366d00ac719374ebb37c9227de53e"
+    }
+   ],
+   "bytes": 12891796
+  },
+  {
+   "id": "mapa_1k",
+   "nome": "Mapa · Padrão (1K)",
+   "desc": "Texturas PBR do mapa em 1K + nuvens do céu, brilho da água e arbustos",
+   "essencial": true,
+   "tipo": "mapa",
+   "files": [
+    {
+     "path": "assets/map/1k/arbustos/color.webp",
+     "bytes": 660728,
+     "sha256": "03b66b02a4486bfc6a7ac4d033b0813cd77ea75ea773200d101dfbe06641ba17"
+    },
+    {
+     "path": "assets/map/1k/bloco_concreto/ao.webp",
+     "bytes": 337478,
+     "sha256": "a9b1af25962e2492bf683d76276be7a3109f48faa9400216c23d5295815fd52d"
+    },
+    {
+     "path": "assets/map/1k/bloco_concreto/color.webp",
+     "bytes": 320250,
+     "sha256": "602911ad7ffbf9a180dbf5ffbc2e6b4242eed1faa0164c03e790d22050d3f3c5"
+    },
+    {
+     "path": "assets/map/1k/bloco_concreto/normal.webp",
+     "bytes": 588520,
+     "sha256": "dd38906442ae9fb60ec8702919d4a8de560b6cc5ea25d3afbd11b989b58d4e8e"
+    },
+    {
+     "path": "assets/map/1k/bloco_concreto/rough.webp",
+     "bytes": 37310,
+     "sha256": "5fbf535de66d932d1276b379149c9dc886a53fb54f2e7e86f4410daf120194ab"
+    },
+    {
+     "path": "assets/map/1k/casca_arvore/ao.webp",
+     "bytes": 363602,
+     "sha256": "972a8dc7fe0f19c83fce1dd32b7cb4b5646a3e3738ad87fc893fdb7a15a35e7e"
+    },
+    {
+     "path": "assets/map/1k/casca_arvore/color.webp",
+     "bytes": 419562,
+     "sha256": "b530478cf15588368c08c870f94fa91cc17e5a4045bbe9d947318f68867407a7"
+    },
+    {
+     "path": "assets/map/1k/casca_arvore/normal.webp",
+     "bytes": 647622,
+     "sha256": "b1159ec46c2e86412bbb6b88232638ac18ee95f542d79f8231598d563424b38c"
+    },
+    {
+     "path": "assets/map/1k/casca_arvore/rough.webp",
+     "bytes": 332562,
+     "sha256": "7533c43f7088ed552b812641819adf84a824c5eaf89d261bce94db0d18f6db52"
+    },
+    {
+     "path": "assets/map/1k/caustica/color.webp",
+     "bytes": 119108,
+     "sha256": "4eb4859ab5c4dcbea452fecd8513fb025c65938e4918572ae8dd1216d67a8cbc"
+    },
+    {
+     "path": "assets/map/1k/ceu/color.webp",
+     "bytes": 105016,
+     "sha256": "06b1b9075295fdc302d3096a775fe77c2d6b45fb84fc7e2bae164c8a521c7525"
+    },
+    {
+     "path": "assets/map/1k/concreto_rachado/ao.webp",
+     "bytes": 390848,
+     "sha256": "154df3773d333a40a313359b47afc2db1c9cdd789b8dd8b9557a5ff264baf904"
+    },
+    {
+     "path": "assets/map/1k/concreto_rachado/color.webp",
+     "bytes": 214170,
+     "sha256": "d0753a8caefc40ee91a903727891e75c69e11e83fc339f00b487a5a8cc5cddbb"
+    },
+    {
+     "path": "assets/map/1k/concreto_rachado/normal.webp",
+     "bytes": 551534,
+     "sha256": "5077f5033b66388b95cd074fac12b05ae4088d6046c817fb82364a1c0f7e2c23"
+    },
+    {
+     "path": "assets/map/1k/concreto_rachado/rough.webp",
+     "bytes": 85236,
+     "sha256": "71ce8a71d823ee32bfe043b7c9c3d35148a3b1c56ed96ee401514d18d6d8a934"
+    },
+    {
+     "path": "assets/map/1k/decal_sujeira/opacity.webp",
+     "bytes": 60896,
+     "sha256": "aa519b12855ff73b5e7ddfaef3b6ff08f0eb0d2c63541560e909143532121591"
+    },
+    {
+     "path": "assets/map/1k/folha/ao.webp",
+     "bytes": 238242,
+     "sha256": "0816d747d8e9a89184fa3ffbb19cc120a2baa07157bbf7686d8343ee795a1c74"
+    },
+    {
+     "path": "assets/map/1k/folha/color.webp",
+     "bytes": 143376,
+     "sha256": "abb865bd2458142d0bc812df43608cee792835df78183aa61896debed6167c25"
+    },
+    {
+     "path": "assets/map/1k/folha/normal.webp",
+     "bytes": 250270,
+     "sha256": "1eec5f95898afb39e98e16d84acb010a77b926a9d6a00090372a56bb1afd32bb"
+    },
+    {
+     "path": "assets/map/1k/folha/rough.webp",
+     "bytes": 43920,
+     "sha256": "e0aeb46fcdef255650f09d04a84f2833b422bb85110b2484a2e4ce311ef43f33"
+    },
+    {
+     "path": "assets/map/1k/grama_flores/ao.webp",
+     "bytes": 320314,
+     "sha256": "bedd8ac6dd1fa715641f04177e3657fa319e47ac746440e8717020e5bb368f1d"
+    },
+    {
+     "path": "assets/map/1k/grama_flores/color.webp",
+     "bytes": 325306,
+     "sha256": "b838d761cd41e2fc5567bdaad734708be31476ce629e042d4c1cc24b3f22fee5"
+    },
+    {
+     "path": "assets/map/1k/grama_flores/normal.webp",
+     "bytes": 469962,
+     "sha256": "7e4e970460a5afe7dc0f7cc70af465cb774903a1246b59575db3057041ed0cdb"
+    },
+    {
+     "path": "assets/map/1k/grama_flores/rough.webp",
+     "bytes": 73258,
+     "sha256": "e65f61a422f076c899bbcdded58cf7889e2d9f073b1a2d2d962a3e67931e58c6"
+    },
+    {
+     "path": "assets/map/1k/montanhas/color.webp",
+     "bytes": 655818,
+     "sha256": "4d598ad3d16ccf74657d007b3a4691f4cd67b92482049b1a18fc5873ea4da9a8"
+    },
+    {
+     "path": "assets/map/1k/mosaico_seixos/ao.webp",
+     "bytes": 27134,
+     "sha256": "1973a93ce735e8fc8c597f1bb749ca724ff103f0b47d4c526c322106dd0c1b94"
+    },
+    {
+     "path": "assets/map/1k/mosaico_seixos/color.webp",
+     "bytes": 367078,
+     "sha256": "79b4a1f7e3b09bfb29c6abde3b24b04160d636a1c3a1495073598e42dfd9d095"
+    },
+    {
+     "path": "assets/map/1k/mosaico_seixos/normal.webp",
+     "bytes": 413404,
+     "sha256": "f1b62309e82bee4035fb0a501389cb6adad4271368afd20767c4640e9a958fe1"
+    },
+    {
+     "path": "assets/map/1k/mosaico_seixos/rough.webp",
+     "bytes": 45236,
+     "sha256": "ebe2a58d44007976b5f7d22079a2a93c54f673a5de632e2ccd01d0ab166b6dd7"
+    },
+    {
+     "path": "assets/map/1k/muro_pedra/ao.webp",
+     "bytes": 69094,
+     "sha256": "dbb4e34ad76868f564a679cceab19806b134c7b36dcdd964f51af48a0fd80434"
+    },
+    {
+     "path": "assets/map/1k/muro_pedra/color.webp",
+     "bytes": 352486,
+     "sha256": "92ae11ffb6ef9d857e452b945a94a289b9d8ef683710d0bbe6cf471a70e7bd23"
+    },
+    {
+     "path": "assets/map/1k/muro_pedra/normal.webp",
+     "bytes": 697070,
+     "sha256": "c6deebf3802254ae13c6d5f3757fcc2d4483e00425645808339e3f92b4a96979"
+    },
+    {
+     "path": "assets/map/1k/muro_pedra/rough.webp",
+     "bytes": 62414,
+     "sha256": "c5f249c38e555a407e9b9747d80c04eedfe15bc603b39a3e7f7722f343205942"
+    },
+    {
+     "path": "assets/map/1k/piso_circular/ao.webp",
+     "bytes": 222870,
+     "sha256": "82c6d9a4708ac252a84efdf78589736cf7900f72715ff7027ed731bfda6e40ab"
+    },
+    {
+     "path": "assets/map/1k/piso_circular/color.webp",
+     "bytes": 292252,
+     "sha256": "26fc9196ccbf6521b065d8c63acace8c619275b2957e49fb0b15533fc90b1100"
+    },
+    {
+     "path": "assets/map/1k/piso_circular/normal.webp",
+     "bytes": 487540,
+     "sha256": "b6b6f128cba67561843e75f43e78bcfba80c39cdc50e0154f36c1fd58c1c9d84"
+    },
+    {
+     "path": "assets/map/1k/piso_circular/rough.webp",
+     "bytes": 213976,
+     "sha256": "28316afad3c9f5a0a4281f2748ac0e7b03c39e45c703d971193d594e2ed9b4b3"
+    },
+    {
+     "path": "assets/map/1k/piso_losango/ao.webp",
+     "bytes": 208918,
+     "sha256": "9b11eaa307ec965fa8119e7aced91ae035bc0931d58434e1ecb6c73a68167d26"
+    },
+    {
+     "path": "assets/map/1k/piso_losango/color.webp",
+     "bytes": 273604,
+     "sha256": "47d67a5e14db8b845ff834a2b911312c894acf11f01beff7d2f16ed4504843da"
+    },
+    {
+     "path": "assets/map/1k/piso_losango/normal.webp",
+     "bytes": 543442,
+     "sha256": "5505338ed417d10ed53e6d3c38031c55febd1ac172cc73cf42fcc2c40ee7c546"
+    },
+    {
+     "path": "assets/map/1k/piso_losango/rough.webp",
+     "bytes": 70066,
+     "sha256": "d548f9839a853f4f4fe7d4f0a308720275524525e3ac9aa6dc4893c0eec5808e"
+    },
+    {
+     "path": "assets/map/1k/rocha/ao.webp",
+     "bytes": 174796,
+     "sha256": "fa37fb1b1658e1a0221950daa6f07d0877508d5d1e87cc2bf1bf06effd49275c"
+    },
+    {
+     "path": "assets/map/1k/rocha/color.webp",
+     "bytes": 561536,
+     "sha256": "722b056cd2b79eabc7c0c10c70b46018254be225afa1ec4466d42bc6590c6515"
+    },
+    {
+     "path": "assets/map/1k/rocha/normal.webp",
+     "bytes": 904186,
+     "sha256": "2b5cc9f7591b0fe4ed0eb97adcc50c93a7431d4bd3e655c4323203153b662226"
+    },
+    {
+     "path": "assets/map/1k/rocha/rough.webp",
+     "bytes": 420924,
+     "sha256": "3c0d665dc6360bf65ad0f6b32bad2ca05f7051d2f648dbbf9cddf04168b2cde8"
+    },
+    {
+     "path": "assets/map/1k/terra_raizes/ao.webp",
+     "bytes": 293376,
+     "sha256": "ba62022599f42ac2fc1c1852d541fa85892f99f9d638d3c232bb02acb6a20031"
+    },
+    {
+     "path": "assets/map/1k/terra_raizes/color.webp",
+     "bytes": 302888,
+     "sha256": "570417692fc9a7dc632b36cac5a8c05aea7bda284006157ab0019b32594b31e0"
+    },
+    {
+     "path": "assets/map/1k/terra_raizes/normal.webp",
+     "bytes": 655460,
+     "sha256": "0347e97b337cadef502a18489105567f0106bd40c16bee538af98e4e7db58a2e"
+    },
+    {
+     "path": "assets/map/1k/terra_raizes/rough.webp",
+     "bytes": 103924,
+     "sha256": "cf581a61343dc0a30d3a993f08c638be1150a25fdb546f7f1aa50b7da75582d8"
+    },
+    {
+     "path": "assets/map/1k/tijolo_parquet/ao.webp",
+     "bytes": 284428,
+     "sha256": "6cfc6b36e5f06ee999e788223ad2d3cfe8cd8532a94916b04feb4186513fbefb"
+    },
+    {
+     "path": "assets/map/1k/tijolo_parquet/color.webp",
+     "bytes": 353172,
+     "sha256": "51c667c29016f12ad9aef9b69c7f334c739c77af2fb8ce9fdbbe5a564c8a4c0e"
+    },
+    {
+     "path": "assets/map/1k/tijolo_parquet/normal.webp",
+     "bytes": 667290,
+     "sha256": "9a523a58315301b352709290654d652e8f8204280411bcd17a5d2b13ea4eb15a"
+    },
+    {
+     "path": "assets/map/1k/tijolo_parquet/rough.webp",
+     "bytes": 80654,
+     "sha256": "cbe7aebaa5ac34672170f8c784993563266a7492390a36fc2113ed74e6e17489"
+    },
+    {
+     "path": "assets/map/1k/tronco_corte/ao.webp",
+     "bytes": 353904,
+     "sha256": "852ad39de5fd459a2521febad846a14d2ef2cef44909259a26806ff1b1aa3b1a"
+    },
+    {
+     "path": "assets/map/1k/tronco_corte/color.webp",
+     "bytes": 591728,
+     "sha256": "f018323cd4542d46d1f05dae5f14a79e2f48d5a41c19f8af3f6956086f946ca2"
+    },
+    {
+     "path": "assets/map/1k/tronco_corte/normal.webp",
+     "bytes": 743336,
+     "sha256": "98d738e4ea209fda996695cfbf8b4567fe7377fb47ba6e5ff18dcca0d8ed6da0"
+    },
+    {
+     "path": "assets/map/1k/tronco_corte/rough.webp",
+     "bytes": 153866,
+     "sha256": "5ada2d1c467ab644ecf2763c0bf3f2621217e5641d3608247ec7d83eb03dead6"
+    },
+    {
+     "path": "assets/map/1k/vitoria/color.webp",
+     "bytes": 127086,
+     "sha256": "54cd9f23a8f7ad2d92279a587798f68f5cbc60f7559f4ee838d3f2f4b2644b85"
+    }
+   ],
+   "bytes": 18874046
+  },
+  {
+   "id": "mapa_2k",
+   "nome": "Mapa · HD (2K)",
+   "desc": "Texturas PBR do mapa em 2K + nuvens, água e arbustos (celulares com 6 GB ou mais de RAM)",
+   "essencial": false,
+   "tipo": "mapa",
+   "files": [
+    {
+     "path": "assets/map/2k/arbustos/color.webp",
+     "bytes": 660728,
+     "sha256": "03b66b02a4486bfc6a7ac4d033b0813cd77ea75ea773200d101dfbe06641ba17"
+    },
+    {
+     "path": "assets/map/2k/bloco_concreto/ao.webp",
+     "bytes": 1388552,
+     "sha256": "b3081fc5a02f6c961d36086453761eafffe8a3f51039b3df86f5ec00a679a7c3"
+    },
+    {
+     "path": "assets/map/2k/bloco_concreto/color.webp",
+     "bytes": 1327746,
+     "sha256": "6ae3a0eab82add435f6a4f2e43af864c38a530cecb4f8890012ac263caf4ce7e"
+    },
+    {
+     "path": "assets/map/2k/bloco_concreto/normal.webp",
+     "bytes": 2585188,
+     "sha256": "25a6b1f45c6c3326b2a2c65505ef605138d792e79fca196b790c29515d35e493"
+    },
+    {
+     "path": "assets/map/2k/bloco_concreto/rough.webp",
+     "bytes": 106366,
+     "sha256": "59fae061ff50228708923485ee7f919b4d9e66557095eef62300ec61cc2b9a3d"
+    },
+    {
+     "path": "assets/map/2k/casca_arvore/ao.webp",
+     "bytes": 1291798,
+     "sha256": "fba6b514ac43ddc742822b7948917d7bd6e26dd9d9ba8aabab3ba1355c591c4e"
+    },
+    {
+     "path": "assets/map/2k/casca_arvore/color.webp",
+     "bytes": 1519726,
+     "sha256": "4caa9eae8a317a9a1e992d7be507917cd3324c1af35cf0c6b8ac673e25689d06"
+    },
+    {
+     "path": "assets/map/2k/casca_arvore/normal.webp",
+     "bytes": 2609914,
+     "sha256": "0c13a2ac2ed40402ecdf43d43ef1601f222897c5e78d8e3a951bd669f8e82dad"
+    },
+    {
+     "path": "assets/map/2k/casca_arvore/rough.webp",
+     "bytes": 1150244,
+     "sha256": "0e0dd764ec67c18189cb4d49838a7065451f5ce274d0bfbfebca5ad9c0666eaa"
+    },
+    {
+     "path": "assets/map/2k/caustica/color.webp",
+     "bytes": 459896,
+     "sha256": "41106b0ae36ea185050751ac69fa7a5449027eb6c8108babf53a67f012f16ba3"
+    },
+    {
+     "path": "assets/map/2k/ceu/color.webp",
+     "bytes": 105016,
+     "sha256": "06b1b9075295fdc302d3096a775fe77c2d6b45fb84fc7e2bae164c8a521c7525"
+    },
+    {
+     "path": "assets/map/2k/concreto_rachado/ao.webp",
+     "bytes": 1313568,
+     "sha256": "806419c97d0860633800addc369465a113a5825b65d7adf44ce996cdad83e543"
+    },
+    {
+     "path": "assets/map/2k/concreto_rachado/color.webp",
+     "bytes": 633938,
+     "sha256": "7e337048963bb48f5fe3ab5ded02af969d43004e101045eb7430f34adbd615c8"
+    },
+    {
+     "path": "assets/map/2k/concreto_rachado/normal.webp",
+     "bytes": 2150318,
+     "sha256": "ee551e31a5ad256688138feced810c891070bc66ca4b932ab0cdd03221fc1548"
+    },
+    {
+     "path": "assets/map/2k/concreto_rachado/rough.webp",
+     "bytes": 221614,
+     "sha256": "d3c576d0e3851f9ede553b07282ab5cbfe9dc45309d1f1378c46aee4912219da"
+    },
+    {
+     "path": "assets/map/2k/decal_sujeira/opacity.webp",
+     "bytes": 148626,
+     "sha256": "28cf5714ac713ce64f0b97f621e53b3a50cb97a5a9b70eb5bb0d0bf9ad7a1657"
+    },
+    {
+     "path": "assets/map/2k/folha/ao.webp",
+     "bytes": 563676,
+     "sha256": "21101505ade4ac09240d413c62ee9a56f417e8d6185c75dd0cfe9cabc6f49d39"
+    },
+    {
+     "path": "assets/map/2k/folha/color.webp",
+     "bytes": 351862,
+     "sha256": "cddc734117d103f64d266995f2e73d7dbaa7533b4d88797eb8ffce6d6b0004bc"
+    },
+    {
+     "path": "assets/map/2k/folha/normal.webp",
+     "bytes": 649340,
+     "sha256": "bd6188caa3e57668b894b33b696f2b8482cd3096c9f1908a2695c4ce7b40f98d"
+    },
+    {
+     "path": "assets/map/2k/folha/rough.webp",
+     "bytes": 121832,
+     "sha256": "48c870e4cc1082a32d553ce925e8adebac7cfa2752830460d052525f46aa27a0"
+    },
+    {
+     "path": "assets/map/2k/grama_flores/ao.webp",
+     "bytes": 833206,
+     "sha256": "68802b26dcf052a97d6b54a82c7dd86883f2a4ffc9569d855b17ebe4faca2a37"
+    },
+    {
+     "path": "assets/map/2k/grama_flores/color.webp",
+     "bytes": 790586,
+     "sha256": "15a424c50434cedfaf5b15a47ab5058375905c9c325d5af073aa87e6e77206d0"
+    },
+    {
+     "path": "assets/map/2k/grama_flores/normal.webp",
+     "bytes": 1385976,
+     "sha256": "abf2ec62906a5ece98ba931f49333e0e9cd4c81c2a0cae997b357d6e15ae3a33"
+    },
+    {
+     "path": "assets/map/2k/grama_flores/rough.webp",
+     "bytes": 177490,
+     "sha256": "a79cc429848ff3fd5e6284eba94d31fb7c3c6284f12a38562029ed105998419d"
+    },
+    {
+     "path": "assets/map/2k/montanhas/color.webp",
+     "bytes": 655818,
+     "sha256": "4d598ad3d16ccf74657d007b3a4691f4cd67b92482049b1a18fc5873ea4da9a8"
+    },
+    {
+     "path": "assets/map/2k/mosaico_seixos/ao.webp",
+     "bytes": 79214,
+     "sha256": "7217d5963f847c9df88c20bd01da6a251392683bd48af426140c21fe8f1b840b"
+    },
+    {
+     "path": "assets/map/2k/mosaico_seixos/color.webp",
+     "bytes": 1419598,
+     "sha256": "cce6fd64973e48767806c1372f93ca58777e45e067765c85cf001f1f5fa969b1"
+    },
+    {
+     "path": "assets/map/2k/mosaico_seixos/normal.webp",
+     "bytes": 1480000,
+     "sha256": "cf899ebc34afa2bf4d992961f66cbf4cf7dd4c064a944eb09c18515b89266957"
+    },
+    {
+     "path": "assets/map/2k/mosaico_seixos/rough.webp",
+     "bytes": 166278,
+     "sha256": "666b6cdc1f69de9394e0e36052dece5607fe20963706072ae665d04e4705e07c"
+    },
+    {
+     "path": "assets/map/2k/muro_pedra/ao.webp",
+     "bytes": 210622,
+     "sha256": "266f23801e3af18c2c8fb992d72419961cdc486ad9ef780ba855e8c530b0eb59"
+    },
+    {
+     "path": "assets/map/2k/muro_pedra/color.webp",
+     "bytes": 1200600,
+     "sha256": "f9c0758481d087731ea467571602f480c604edb081c1102a203a0688aa119f78"
+    },
+    {
+     "path": "assets/map/2k/muro_pedra/normal.webp",
+     "bytes": 2447926,
+     "sha256": "a45efa4507b1a2f54ab33b18fb5d0b63c9ff96b66c2e070040c38c57f6df6014"
+    },
+    {
+     "path": "assets/map/2k/muro_pedra/rough.webp",
+     "bytes": 198986,
+     "sha256": "e39e6e58f22fa5ab82e106460ee2f45709b895c43e3a425674e110327d4794af"
+    },
+    {
+     "path": "assets/map/2k/piso_circular/ao.webp",
+     "bytes": 569702,
+     "sha256": "93f95f3b529e561601f2a82d0c5543c1ffd64900f7432cf932d221442370b44e"
+    },
+    {
+     "path": "assets/map/2k/piso_circular/color.webp",
+     "bytes": 936460,
+     "sha256": "6d7f0357ea3acac87fe05f303c69d06da1874a48e10c118859e8bd02e33555a5"
+    },
+    {
+     "path": "assets/map/2k/piso_circular/normal.webp",
+     "bytes": 1903938,
+     "sha256": "ebcf8e2c29247704afe6265ab24b422104f3ff64044ab6b619471c28f14ac411"
+    },
+    {
+     "path": "assets/map/2k/piso_circular/rough.webp",
+     "bytes": 578252,
+     "sha256": "71595449d8977b8c6838afb3859d7630ce4799c41f167e326717e047e3c8d31a"
+    },
+    {
+     "path": "assets/map/2k/piso_losango/ao.webp",
+     "bytes": 677642,
+     "sha256": "5849577f487b597c96275c963a79b53968430e0fd6bc82839c639e4cb470f1eb"
+    },
+    {
+     "path": "assets/map/2k/piso_losango/color.webp",
+     "bytes": 938220,
+     "sha256": "b17888f74cd0d1eac9b5ed324d25aa77b3406faeb68f76b8d91c6390346898e2"
+    },
+    {
+     "path": "assets/map/2k/piso_losango/normal.webp",
+     "bytes": 2070934,
+     "sha256": "97e807347447b5169d261ad44a1a8d2a0475cfe6f302f9e08756a800baa44c2c"
+    },
+    {
+     "path": "assets/map/2k/piso_losango/rough.webp",
+     "bytes": 199918,
+     "sha256": "db7c295032333510d67c818ed86fbfc274bc115cf56db7aa29f7a62439cf50d7"
+    },
+    {
+     "path": "assets/map/2k/rocha/ao.webp",
+     "bytes": 332872,
+     "sha256": "3c187cf091e0841dd267863133aa54290ba33307da5440dee1239a8d1fc30c50"
+    },
+    {
+     "path": "assets/map/2k/rocha/color.webp",
+     "bytes": 1880000,
+     "sha256": "119da8f8e36568bfb975fcd3257ec7c0d7feaedf65f390d5b50ebcb2086b413b"
+    },
+    {
+     "path": "assets/map/2k/rocha/normal.webp",
+     "bytes": 10674736,
+     "sha256": "def2939409240fb633f9a4c29e4cf7e4d24b622b8c37bbc0ca6b82346eaa9b76"
+    },
+    {
+     "path": "assets/map/2k/rocha/rough.webp",
+     "bytes": 1300172,
+     "sha256": "4f887cfb798dd93f76df8e765401e829303711d8c28564930f8c316002033092"
+    },
+    {
+     "path": "assets/map/2k/terra_raizes/ao.webp",
+     "bytes": 1048498,
+     "sha256": "6e857c5e01a5c55bf918f32c6620d1a2e20bd3a63c445707a58a543d965ce9a3"
+    },
+    {
+     "path": "assets/map/2k/terra_raizes/color.webp",
+     "bytes": 942518,
+     "sha256": "c982d51fb6bc81732a84aa176fa5fbde555c6ea2fc00b2ca51eb2e9272b052fe"
+    },
+    {
+     "path": "assets/map/2k/terra_raizes/normal.webp",
+     "bytes": 2732890,
+     "sha256": "2ac42d665a62e6daff38f0a2e3141fb2a923a467e90dc4566b29ebfbf77d5d61"
+    },
+    {
+     "path": "assets/map/2k/terra_raizes/rough.webp",
+     "bytes": 502824,
+     "sha256": "a6714202ecaccb4ffa171d59b32fb8d7f89a052e67d5cb046170a3dcfcd89747"
+    },
+    {
+     "path": "assets/map/2k/tijolo_parquet/ao.webp",
+     "bytes": 909222,
+     "sha256": "f599e2880db93932a06d537e9d326fbecc957b7b21b201103c69d3be6d99c982"
+    },
+    {
+     "path": "assets/map/2k/tijolo_parquet/color.webp",
+     "bytes": 1252008,
+     "sha256": "ab041ca550cfd4e07413402e589a8db69b03be14aeffee8dbef96ff4ed45ee56"
+    },
+    {
+     "path": "assets/map/2k/tijolo_parquet/normal.webp",
+     "bytes": 2663426,
+     "sha256": "b26a7dea349171013b1958cb5dac9e530c57fadf85360a355b938441e59933dc"
+    },
+    {
+     "path": "assets/map/2k/tijolo_parquet/rough.webp",
+     "bytes": 247010,
+     "sha256": "4faaa818a4328e04831231a6b2a9a8c5c0f11e092ebbbe6411272521c1213796"
+    },
+    {
+     "path": "assets/map/2k/tronco_corte/ao.webp",
+     "bytes": 1182218,
+     "sha256": "e9fcdf3e44fcfc34324146d6288254726b87f9e43a0771ed60b6ff76e863ff04"
+    },
+    {
+     "path": "assets/map/2k/tronco_corte/color.webp",
+     "bytes": 2099058,
+     "sha256": "a3a23277011dde7a0d9e987c9d3692faa81e75e0ba81bf8dc61a7bd763561241"
+    },
+    {
+     "path": "assets/map/2k/tronco_corte/normal.webp",
+     "bytes": 2889818,
+     "sha256": "f4d508a9002a3dc2a6d67ddb6194ee984dae12ec20c3729e2cf8ab1690eb894b"
+    },
+    {
+     "path": "assets/map/2k/tronco_corte/rough.webp",
+     "bytes": 357484,
+     "sha256": "2139c9126e62f9684d978393e9e291685ef0b9a8662983a28e8e59fbb53a937c"
+    },
+    {
+     "path": "assets/map/2k/vitoria/color.webp",
+     "bytes": 127086,
+     "sha256": "54cd9f23a8f7ad2d92279a587798f68f5cbc60f7559f4ee838d3f2f4b2644b85"
+    }
+   ],
+   "bytes": 69423154
+  },
+  {
+   "id": "mapa_4k",
+   "nome": "Mapa · ULTRA (4K)",
+   "desc": "Grama, terra, calçada, pedra, ruínas, piso, tijolo e casca do mapa em 4K sem perda (celulares com 8 GB ou mais; precisa do HD 2K também)",
+   "essencial": false,
+   "tipo": "mapa",
+   "files": [
+    {
+     "path": "assets/map/4k/bloco_concreto/color.webp",
+     "bytes": 5157884,
+     "sha256": "5fbab3a4d9451eea7855752c7a602b325d1e70eafa6a4b9276a7bd72b17eaf30"
+    },
+    {
+     "path": "assets/map/4k/bloco_concreto/normal.webp",
+     "bytes": 39979500,
+     "sha256": "9a4263b0406686c66270ce5c860794368b7a8da401325e229a3eae6b634fe213"
+    },
+    {
+     "path": "assets/map/4k/casca_arvore/color.webp",
+     "bytes": 5018478,
+     "sha256": "4bb2363357f9a3b92cb84ef2713368af7395dc5fdd35fc9538bd5cda9bc0a8d0"
+    },
+    {
+     "path": "assets/map/4k/casca_arvore/normal.webp",
+     "bytes": 36314274,
+     "sha256": "037a1527681f06d382062388b104dc1f91c1008370c10456ea4848e1065db9db"
+    },
+    {
+     "path": "assets/map/4k/concreto_rachado/color.webp",
+     "bytes": 1733286,
+     "sha256": "281c0309f2edbed019ddff675bbb4a3928b7cd648c785e9254929f3a160c1dff"
+    },
+    {
+     "path": "assets/map/4k/concreto_rachado/normal.webp",
+     "bytes": 34345480,
+     "sha256": "bbd6058846a33f8cc0d27103105ea17b813b1ef1f1e7532497d770b3c097b761"
+    },
+    {
+     "path": "assets/map/4k/folha/color.webp",
+     "bytes": 1146662,
+     "sha256": "3216cd5de3822fa9e55f3a291e73ef82dfb458d9d15d0ee2db7bb81eb510a16e"
+    },
+    {
+     "path": "assets/map/4k/folha/normal.webp",
+     "bytes": 11836072,
+     "sha256": "968bff3980248d3b11a9c18e74926b3eae5fd79f2fa393e4ea704128c4889baf"
+    },
+    {
+     "path": "assets/map/4k/grama_flores/color.webp",
+     "bytes": 1927854,
+     "sha256": "16482ab9e3a4490d2f169ce034710068f5f3bc9d52ed28dd777004439ed2167f"
+    },
+    {
+     "path": "assets/map/4k/grama_flores/normal.webp",
+     "bytes": 20953658,
+     "sha256": "cb9c960e552cf045cc0b95e345ac4e5fd1db9f4d9c9dc8a017179b597b0144f8"
+    },
+    {
+     "path": "assets/map/4k/mosaico_seixos/color.webp",
+     "bytes": 5026226,
+     "sha256": "d7f1cd6d17852f2c1ab251c041f82203d7d7b32551f2a39df1cc1fd339e975fe"
+    },
+    {
+     "path": "assets/map/4k/mosaico_seixos/normal.webp",
+     "bytes": 21808176,
+     "sha256": "e929d3d365c8cf81afd6975c623f5758f8eed103b4329f1a4e67de1db721d401"
+    },
+    {
+     "path": "assets/map/4k/muro_pedra/color.webp",
+     "bytes": 3485412,
+     "sha256": "79e2dad6257d08d4fb83242d53760400428d11354d6639b22e63667c992ab679"
+    },
+    {
+     "path": "assets/map/4k/muro_pedra/normal.webp",
+     "bytes": 31632852,
+     "sha256": "adbf3a841e3647d8a76bba704362f6d5f8db539382ab9a0fa14dedd4f5997d38"
+    },
+    {
+     "path": "assets/map/4k/piso_circular/color.webp",
+     "bytes": 3299872,
+     "sha256": "4ca8599fcec0181dbe26f2c07f72da1a24eeda6c10dd6f7ea38a3f42155063cc"
+    },
+    {
+     "path": "assets/map/4k/piso_circular/normal.webp",
+     "bytes": 29959488,
+     "sha256": "12ee8de023df4b355daac7e6d2e78b28aa626a7e95fb18c7da0c381b32750987"
+    },
+    {
+     "path": "assets/map/4k/piso_losango/color.webp",
+     "bytes": 3048614,
+     "sha256": "dccb6bb7e12982a7e0c7e7b15a7fee2424d7282a5bcff1f63ff6f2b42c13fb4b"
+    },
+    {
+     "path": "assets/map/4k/piso_losango/normal.webp",
+     "bytes": 12377240,
+     "sha256": "5fbbd5fc7b2271dad53ee09c986ca6bfdb272cdad8ff317b6cd0398ef11a66f1"
+    },
+    {
+     "path": "assets/map/4k/terra_raizes/color.webp",
+     "bytes": 3177128,
+     "sha256": "5b89bcbb459cef12083dfc14ba8ee7310bad7d47fa0af6b5ee0ea48650cac10f"
+    },
+    {
+     "path": "assets/map/4k/terra_raizes/normal.webp",
+     "bytes": 40550126,
+     "sha256": "9f25b557aa24c1e94b15d30e34fdd0b9ead3469fa40c95de1ee69e473f7d680a"
+    },
+    {
+     "path": "assets/map/4k/tijolo_parquet/color.webp",
+     "bytes": 3863548,
+     "sha256": "52c59322c3bb02db89a16d0737b0971ad76bf1426ef98e6530cd0d47dbd2d5d5"
+    },
+    {
+     "path": "assets/map/4k/tijolo_parquet/normal.webp",
+     "bytes": 34279108,
+     "sha256": "4273a15d91199a562a5b5e603e8f64de64bc67fc6b733ef2590b9d464971b232"
+    },
+    {
+     "path": "assets/map/4k/tronco_corte/color.webp",
+     "bytes": 7844986,
+     "sha256": "ea6442bc628a200360967b1b1b9baee3022bff547421ee481ff8495a878cd067"
+    },
+    {
+     "path": "assets/map/4k/tronco_corte/normal.webp",
+     "bytes": 38352862,
+     "sha256": "0f8dd12155748ffc2a0d82bdedd161a155b9a11d4aee7115123012f7d281f96b"
+    }
+   ],
+   "bytes": 397118786
+  }
+ ]
+}

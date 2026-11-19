@@ -1,0 +1,93 @@
+/* CyberArena · amigos + grupo no lobby (party.js) */
+/* botão AMIGOS na coluna da esquerda */
+#lobby .lobby-left #btnFriends{position:relative;border-color:rgba(80,255,170,.55)!important}
+.pf-badge{position:absolute;top:-5px;right:-5px;min-width:17px;height:17px;padding:0 4px;box-sizing:border-box;border-radius:9px;background:#ff3b5c;color:#fff;font:900 10px/17px system-ui;text-align:center;box-shadow:0 0 8px rgba(255,59,92,.7)}
+.pf-badge.hidden{display:none}
+/* palco: colegas do grupo ao lado do meu personagem */
+#pStage{position:absolute;inset:0;pointer-events:none;z-index:5}
+.pslot{position:absolute;top:0;bottom:clamp(54px,12vh,80px);transform:translateX(-50%);pointer-events:none}
+.mate-hero{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.mate-hero canvas{pointer-events:none}
+.ptag{position:absolute;left:50%;top:1%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:3px;pointer-events:auto;cursor:pointer;z-index:3}
+.pt-main{position:relative;display:flex;flex-direction:column;align-items:center;padding:3px 11px 4px;border-radius:11px;background:linear-gradient(180deg,rgba(6,16,32,.88),rgba(2,8,18,.88));border:1px solid rgba(0,220,255,.5);box-shadow:0 4px 12px rgba(0,0,0,.45);white-space:nowrap;transition:box-shadow .15s,border-color .15s}
+.pslot.me .pt-main{border-color:rgba(255,211,77,.65)}
+.pt-n{font:900 13px/1.15 system-ui;color:#fff;letter-spacing:.04em;max-width:128px;overflow:hidden;text-overflow:ellipsis}
+.pt-n em{font-style:normal;margin-right:3px}
+.pt-main small{font:800 8.5px/1.2 system-ui;color:#9fe9ff;opacity:.85;letter-spacing:.06em}
+.pt-v{position:absolute;right:-9px;top:-9px;font-size:12px;background:rgba(0,40,60,.95);border:1px solid rgba(0,234,255,.6);border-radius:50%;width:20px;height:20px;line-height:19px;text-align:center}
+.pslot.speak .pt-main{border-color:#5dff9a;box-shadow:0 0 0 2px rgba(93,255,154,.45),0 0 16px rgba(93,255,154,.7)}
+.pslot.speak .pt-v{border-color:#5dff9a;animation:ptPulse .6s ease-in-out infinite alternate}
+@keyframes ptPulse{from{transform:scale(1)}to{transform:scale(1.25)}}
+.pt-bub{max-width:170px;padding:5px 9px;border-radius:11px 11px 11px 3px;background:rgba(255,255,255,.95);color:#06101c;font:800 11px/1.25 system-ui;opacity:0;transform:translateY(-4px) scale(.9);transition:.2s;pointer-events:none;word-break:break-word;text-align:center}
+.pt-bub.on{opacity:1;transform:none}
+.pmenu{position:absolute;top:calc(1% + 54px);transform:translateX(-50%);display:flex;flex-direction:column;gap:5px;padding:7px;border-radius:12px;background:rgba(3,10,22,.96);border:1px solid rgba(0,220,255,.5);pointer-events:auto;z-index:9;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.pmenu.hidden{display:none}
+.pmenu button{border:1px solid rgba(0,200,255,.35);background:rgba(0,234,255,.1);color:#e6faff;border-radius:9px;padding:7px 11px;font:800 11px system-ui;cursor:pointer;white-space:nowrap;text-align:left}
+/* barra do grupo (canto superior direito, abaixo das moedas) */
+.pbar{position:absolute;z-index:45;top:58px;right:12px;display:flex;align-items:center;gap:5px;padding:5px 7px;border-radius:13px;background:rgba(2,8,20,.82);border:1px solid rgba(0,220,255,.45);box-shadow:0 6px 18px rgba(0,0,0,.4)}
+.pbar.hidden{display:none}
+.pb-count{font:900 11px system-ui;color:#bff6ff;letter-spacing:.06em;padding:0 5px}
+.pbar button{position:relative;display:flex;flex-direction:column;align-items:center;min-width:42px;padding:4px 5px 3px;border:1px solid rgba(0,200,255,.4);background:rgba(0,234,255,.1);color:#e6faff;border-radius:9px;cursor:pointer;line-height:1}
+.pbar button .ic{font-size:14px}
+.pbar button small{font:900 6.5px system-ui;letter-spacing:.08em;margin-top:2px;opacity:.8}
+.pbar button.on{background:linear-gradient(180deg,#38ff9a,#0aa05e);color:#04140c;border-color:#b6ffd8}
+.pbar button.muted{background:rgba(255,59,92,.28);border-color:#ff6b86}
+.pbar button.hidden{display:none}
+/* convite recebido */
+#pInv{position:absolute;z-index:60;top:60px;left:50%;transform:translateX(-50%)}
+.pinv{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:13px;background:linear-gradient(180deg,rgba(14,26,48,.97),rgba(6,12,24,.97));border:1px solid rgba(80,255,170,.6);box-shadow:0 8px 26px rgba(0,0,0,.55);color:#eaf6ff;font:700 12px system-ui;animation:pinvIn .25s ease-out}
+@keyframes pinvIn{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:none}}
+.pinv button{border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:#fff;border-radius:9px;padding:7px 10px;font:900 11px system-ui;cursor:pointer}
+.pinv button.y{background:linear-gradient(180deg,#38ff9a,#0aa05e);color:#04140c;border-color:#b6ffd8}
+/* chat do grupo */
+.pchat{position:absolute;z-index:55;left:88px;top:122px;width:min(300px,42vw);height:min(210px,52vh);display:flex;flex-direction:column;border-radius:14px;background:rgba(2,8,20,.9);border:1px solid rgba(0,220,255,.45);box-shadow:0 8px 24px rgba(0,0,0,.5);overflow:hidden}
+.pchat.hidden{display:none}
+.pc-head{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;border-bottom:1px solid rgba(255,255,255,.08);font:900 10px system-ui;letter-spacing:.14em;color:#00eaff}
+.pc-head button{border:0;background:rgba(255,255,255,.1);color:#fff;border-radius:7px;padding:2px 8px;cursor:pointer}
+.pc-list{flex:1;overflow:auto;padding:6px 10px;font:600 12px/1.35 system-ui;color:#eaf6ff;user-select:text;-webkit-user-select:text}
+.pc-m{margin:2px 0;word-break:break-word}.pc-m b{color:#ffd34d;margin-right:3px}.pc-m.mine b{color:#5dff9a}.pc-m.sys{opacity:.6;font-style:italic;font-size:11px}
+.pc-in{display:flex;gap:6px;padding:6px;border-top:1px solid rgba(255,255,255,.08)}
+.pc-in input{flex:1;min-width:0;border-radius:9px;border:1px solid rgba(0,200,255,.4);background:#0a1426;color:#fff;padding:7px 9px;font:700 12px system-ui;user-select:text;-webkit-user-select:text}
+.pc-in button{border:1px solid rgba(0,200,255,.4);background:rgba(0,234,255,.14);color:#dff8ff;border-radius:9px;padding:7px 10px;font:900 10px system-ui;cursor:pointer}
+/* membro do grupo: só o líder escolhe o modo */
+.mode-card.pmember .mc-tabs{opacity:.55;pointer-events:none}
+#lobby .play-button.pwait{filter:saturate(.35) brightness(.85);font-size:13px!important}
+/* painel de amigos */
+.pf-card{width:min(560px,94vw)!important;text-align:left!important}
+.pf-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.pf-head h2{margin:2px 0 6px!important}
+.pf-x{padding:6px 11px!important}
+.pf-note{margin:6px 0;padding:8px 10px;border-radius:10px;background:rgba(255,160,40,.14);border:1px solid rgba(255,190,80,.5);color:#ffe0a8;font:700 11px/1.35 system-ui}
+.pf-note.hidden{display:none}
+.pf-me{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px}
+@media(max-width:560px){.pf-me{grid-template-columns:1fr}}
+.pf-me>div{padding:8px 10px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1)}
+.pf-me small,.pf-info small{display:block;font:800 8.5px system-ui;letter-spacing:.14em;opacity:.65}
+.pf-code b{display:block;font:900 26px monospace;letter-spacing:.22em;color:#ffd34d;margin:3px 0}
+.pf-code span,.pf-name span{display:flex;gap:6px;margin-top:4px}
+.pf-name input,.pf-add input{flex:1;min-width:0;border-radius:10px;border:1px solid rgba(0,200,255,.4);background:#0a1426;color:#fff;padding:8px 10px;font:800 13px system-ui;user-select:text;-webkit-user-select:text}
+.pf-add{display:flex;gap:8px;margin-top:10px}
+.pf-add input{text-transform:uppercase;letter-spacing:.2em}
+.pf-sec{margin-top:12px}
+.pf-empty{margin:8px 0 2px;font-size:11px;opacity:.7;text-align:center}
+.pf-row{display:flex;align-items:center;gap:8px;padding:7px 4px;border-bottom:1px solid rgba(255,255,255,.07)}
+.pf-info{flex:1;min-width:0}.pf-info b{display:block;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pf-av{flex:none;width:32px;height:32px;border-radius:50%;background:radial-gradient(circle at 35% 30%,var(--a),var(--c) 60%,#000);box-shadow:0 0 9px var(--a)}
+.pf-st{flex:none;font:900 8.5px system-ui;letter-spacing:.06em;text-align:right;max-width:110px}
+.pf-st.on{color:#5dff9a}.pf-st.play{color:#ffd34d}.pf-st.off{color:#7d8794}
+.pf-row button{flex:none;padding:7px 10px!important;font-size:10px!important}
+.pf-row button.sm{padding:7px 8px!important;opacity:.8}
+.pf-row button:disabled{opacity:.45;cursor:default}
+@media(max-height:430px){.pbar{top:50px}.pbar button{min-width:36px;padding:3px 4px 2px}.pbar button small{display:none}.pchat{top:104px;height:min(150px,46vh)}.pt-n{font-size:11px}.pt-main small{font-size:7.5px}}
+#lobby.pgroup #dailyOffer{display:none!important}
+
+/* botão ＋ (convidar amigo) ao lado do personagem */
+.pplus{position:absolute;top:50%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:5px;border:0;background:none;color:#eaffff;cursor:pointer;pointer-events:auto;z-index:4;padding:0}
+.pplus.hidden{display:none}
+.pplus span{display:grid;place-items:center;width:62px;height:62px;border-radius:50%;border:2px dashed rgba(0,234,255,.75);background:rgba(0,40,70,.45);font:900 38px/1 system-ui;color:#00eaff;text-shadow:0 0 12px rgba(0,234,255,.8);box-shadow:0 0 18px rgba(0,234,255,.3),inset 0 0 14px rgba(0,234,255,.18);animation:ppl 2s ease-in-out infinite}
+.pplus small{font:900 8px system-ui;letter-spacing:.14em;color:#bff6ff;text-shadow:0 1px 4px #000}
+.pplus:active span{transform:scale(.92)}
+@keyframes ppl{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
+/* em grupo o cartão de modos encolhe para não cobrir os personagens */
+#lobby.pgroup .lc3d .mode-card{transform:scale(.7);transform-origin:bottom right}
+@media(max-height:430px){.pplus span{width:50px;height:50px;font-size:30px}}

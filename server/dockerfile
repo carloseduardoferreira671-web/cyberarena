@@ -1,0 +1,20 @@
+FROM node:20-alpine AS deps
+WORKDIR /build/server
+COPY server/package.json ./
+RUN npm install --omit=dev
+
+FROM node:20-alpine
+ENV NODE_ENV=production
+WORKDIR /app
+COPY --from=deps /build/server/node_modules ./server/node_modules
+COPY server/package.json ./server/package.json
+COPY server/server.mjs ./server/server.mjs
+COPY server/db ./server/db
+COPY server/scripts ./server/scripts
+COPY server/security ./server/security
+COPY Index.html main.js style.css assests sounds ./
+COPY server/docker/entrypoint.sh ./server/docker/entrypoint.sh
+RUN chmod +x ./server/docker/entrypoint.sh
+WORKDIR /app/server
+ENTRYPOINT ["/bin/sh", "/app/server/docker/entrypoint.sh"]
+CMD ["sh", "-c", "npm run audit && node server.mjs"]

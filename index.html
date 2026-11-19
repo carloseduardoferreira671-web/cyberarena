@@ -1,0 +1,256 @@
+<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Cyber Arena</title><script src="paisagem.js"></script><link rel="stylesheet" href="style.css"><link rel="stylesheet" href="lobby3d.css"><link rel="stylesheet" href="party.css"><link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#0b1220"><link rel="icon" href="assests/ui/icon-192.png"><link rel="apple-touch-icon" href="assests/ui/icon-192.png"><link rel="stylesheet" href="ui2/ui2.css"><link rel="stylesheet" href="ui2/shop2.css"><link rel="stylesheet" href="ui2/pass2.css"><link rel="stylesheet" href="ui2/inbox2.css"><link rel="stylesheet" href="ui2/boot.css"><link rel="stylesheet" href="ui2/visual138.css"></head><body>
+<svg xmlns="http://www.w3.org/2000/svg" width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-home" viewBox="0 0 24 24"><path d="M12 3 2.5 11.2h2.7V20h5.1v-5.6h3.4V20h5.1v-8.8h2.7L12 3Z"/></symbol>
+<symbol id="i-hero" viewBox="0 0 24 24"><path d="M12 2.6a4.2 4.2 0 1 1 0 8.4 4.2 4.2 0 0 1 0-8.4ZM4.5 21c0-4.4 3.3-7.4 7.5-7.4s7.5 3 7.5 7.4v.4h-15V21Z"/></symbol>
+<symbol id="i-shop" viewBox="0 0 24 24"><path d="M5.2 8.2h13.6l1.4 12.3H3.8L5.2 8.2Zm3.1 2.6v1.6h1.8v-1.6H8.3Zm5.6 0v1.6h1.8v-1.6h-1.8ZM8.2 8V7a3.8 3.8 0 0 1 7.6 0v1h-1.9V7a1.9 1.9 0 0 0-3.8 0v1H8.2Z"/></symbol>
+<symbol id="i-box" viewBox="0 0 24 24"><path d="M12 2.4 20.6 7v10L12 21.6 3.4 17V7L12 2.4Zm0 2.2L6.2 7.7 12 10.8l5.8-3.1L12 4.6ZM5.4 9.5v6.3l5.7 3.1v-6.3L5.4 9.5Zm13.2 0-5.7 3.1v6.3l5.7-3.1V9.5Z"/></symbol>
+<symbol id="i-users" viewBox="0 0 24 24"><path d="M9 4.2a3.6 3.6 0 1 1 0 7.2 3.6 3.6 0 0 1 0-7.2Zm7.4 1.2a3 3 0 1 1 0 6 3 3 0 0 1 0-6ZM1.8 20c0-3.7 3-6.2 7.2-6.2s7.2 2.5 7.2 6.2v.4H1.8V20Zm15.2.4c0-2.2-.7-4-1.9-5.3.4-.1.9-.1 1.3-.1 3.2 0 5.7 2 5.7 5v.4H17Z"/></symbol>
+<symbol id="i-target" viewBox="0 0 24 24"><path d="M12 2.5a9.5 9.5 0 1 1 0 19 9.5 9.5 0 0 1 0-19Zm0 2.3a7.2 7.2 0 1 0 0 14.4 7.2 7.2 0 0 0 0-14.4Zm0 2.7a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9Zm0 2.3a2.2 2.2 0 1 0 0 4.4 2.2 2.2 0 0 0 0-4.4Z"/></symbol>
+<symbol id="i-pass" viewBox="0 0 24 24"><path d="M12 2 20 5v6.2c0 5-3.3 8.5-8 10.8-4.7-2.3-8-5.8-8-10.8V5l8-3Zm0 5-1.7 3.5-3.8.5 2.8 2.7-.7 3.8 3.4-1.8 3.4 1.8-.7-3.8 2.8-2.7-3.8-.5L12 7Z"/></symbol>
+<symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 20.5h18v1.8H3v-1.8Zm1.5-7h3.6v6H4.5v-6Zm5.7-4.5h3.6v10.5h-3.6V9Zm5.7-5.5h3.6v16h-3.6v-16Z"/></symbol>
+<symbol id="i-key" viewBox="0 0 24 24"><path d="M8.5 5a5.5 5.5 0 0 1 5.3 7l7.2 7.2V22h-3.2v-2h-2v-2h-2v-1.6l-2.4-2.4A5.5 5.5 0 1 1 8.5 5Zm-1.4 2.4a1.7 1.7 0 1 0 0 3.4 1.7 1.7 0 0 0 0-3.4Z"/></symbol>
+<symbol id="i-mail" viewBox="0 0 24 24"><path d="M2.5 5h19v14h-19V5Zm2.6 2 6.9 5.2L18.9 7H5.1Zm-.6 1.9v8.1h15V8.9L12 14.6 4.5 8.9Z"/></symbol>
+<symbol id="i-gear" viewBox="0 0 24 24"><path d="M10.2 2h3.6l.6 2.7c.6.2 1.1.5 1.6.9l2.6-.9 1.8 3.1-2 1.8c.1.6.1 1.2 0 1.8l2 1.8-1.8 3.1-2.6-.9c-.5.4-1 .7-1.6.9L13.8 22h-3.6l-.6-2.7c-.6-.2-1.1-.5-1.6-.9l-2.6.9-1.8-3.1 2-1.8c-.1-.6-.1-1.2 0-1.8l-2-1.8 1.8-3.1 2.6.9c.5-.4 1-.7 1.6-.9L10.2 2ZM12 8.6a3.4 3.4 0 1 0 0 6.8 3.4 3.4 0 0 0 0-6.8Z"/></symbol>
+<symbol id="i-play" viewBox="0 0 24 24"><path d="M6 3.5 20.5 12 6 20.5v-17Z"/></symbol>
+<symbol id="i-sword" viewBox="0 0 24 24"><path d="M20.5 2.5v5.2L11 17.2l-1.6-1.6L18.9 6l-.1-3.5h1.7ZM3.4 16.9l3.7 3.7-1.9 1.9-3.7-3.7 1.9-1.9Zm4.4-2.7 3.6 3.6-2.2 2.2L5.6 16.4l2.2-2.2Zm-6 6 2 2-1.5 1.5-.5-.5V21l-.5-.8Z"/><path d="M13.5 3.8 10 7.3 8.5 5.8l3.5-3.5 1.5 1.5Z" opacity=".001"/></symbol>
+<symbol id="i-globe" viewBox="0 0 24 24"><path d="M12 2.5a9.5 9.5 0 1 1 0 19 9.5 9.5 0 0 1 0-19Zm-1 2.2a7.3 7.3 0 0 0-3.9 3.2l1.3 1.6 2.6.6V12H8.6l-.9 2.4L9 16.2l2 .2.4 2.6c.2.1.4.1.6.1V4.7Zm2 .1v2.6l2.1.8 1.4 1.9-1.3 1.6-2.2.5v2.8l3.2 1.5a7.3 7.3 0 0 0-3.2-11.7Z"/></symbol>
+<symbol id="i-planet" viewBox="0 0 24 24"><path d="M12 5.5a6.5 6.5 0 1 1 0 13 6.5 6.5 0 0 1 0-13Zm9.6 1.9c.9 1.6-1.2 4.4-5.1 6.8-3.9 2.4-7.8 3.4-8.7 1.8-.1-.2-.1-.4-.1-.7.2.1.4.2.6.2 1.4.4 4.2-.4 6.9-2 2.7-1.6 4.8-3.7 5.2-5.1.1-.4.1-.8-.2-1.1.9.2 1.1.5 1.4.9ZM3.6 16.6c-.9-1.6 1.2-4.4 5.1-6.8 3.9-2.4 7.8-3.4 8.7-1.8.1.2.1.4.1.7-.2-.1-.4-.2-.6-.2-1.4-.4-4.2.4-6.9 2-2.7 1.6-4.8 3.7-5.2 5.1-.1.4-.1.8.2 1.1-.9-.2-1.1-.5-1.4-.9Z"/></symbol>
+<symbol id="i-trophy" viewBox="0 0 24 24"><path d="M6 3h12v2.5h3V9c0 2.3-1.8 4.1-4.1 4.2-.7 1.1-1.7 1.9-2.9 2.2V18h3v3H7v-3h3v-2.6c-1.2-.3-2.2-1.1-2.9-2.2C4.8 13.1 3 11.3 3 9V5.5h3V3Zm-.1 4.5H5v1.4c0 1 .6 1.9 1.4 2.2-.3-.8-.5-1.7-.5-2.6V7.5Zm12.2 0v1c0 .9-.2 1.8-.5 2.6.8-.3 1.4-1.2 1.4-2.2V7.5h-.9Z"/></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24"><path d="M10.2 4h3.6v6.2H20v3.6h-6.2V20h-3.6v-6.2H4v-3.6h6.2V4Z"/></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="m9.2 16.6-4.6-4.6L3 13.6l6.2 6.2L21 8l-1.6-1.6-10.2 10.2Z"/></symbol>
+<symbol id="i-close" viewBox="0 0 24 24"><path d="m5.4 3.6 6.6 6.6 6.6-6.6 1.8 1.8-6.6 6.6 6.6 6.6-1.8 1.8-6.6-6.6-6.6 6.6-1.8-1.8 6.6-6.6-6.6-6.6 1.8-1.8Z"/></symbol>
+<symbol id="i-back" viewBox="0 0 24 24"><path d="M14.5 3.5 6 12l8.5 8.5 2-2L10 12l6.5-6.5-2-2Z"/></symbol>
+<symbol id="i-lock" viewBox="0 0 24 24"><path d="M12 2a5 5 0 0 1 5 5v3h2v12H5V10h2V7a5 5 0 0 1 5-5Zm0 2.2A2.8 2.8 0 0 0 9.2 7v3h5.6V7A2.8 2.8 0 0 0 12 4.2Zm-1.2 9.3v3.5h2.4v-3.5h-2.4Z"/></symbol>
+<symbol id="i-gift" viewBox="0 0 24 24"><path d="M12 7.2c-.6-2.6-2.2-4.2-4-4.2a2.6 2.6 0 0 0-.9 5H3v5h18V8h-4.1a2.6 2.6 0 0 0-.9-5c-1.8 0-3.4 1.600-4 4.200Zm-4.100-2.200c.9 0 1.800 1.100 2.300 3h-2.300a1.050 1.050 0 0 1 0-3Zm8.200 0a1.050 1.050 0 0 1 0 3h-2.300c.5-1.900 1.400-3 2.300-3ZM4 14h7v7H4v-7Zm9 0h7v7h-7v-7Z"/></symbol>
+<symbol id="i-mic" viewBox="0 0 24 24"><path d="M12 2.5a3.600 3.600 0 0 1 3.600 3.600v5.800a3.600 3.600 0 0 1-7.200 0V6.100A3.600 3.600 0 0 1 12 2.500ZM5.500 11h2c0 2.500 1.800 4.200 4.500 4.200s4.500-1.700 4.500-4.200h2c0 3.400-2.400 5.900-5.500 6.200V21h-2v-3.800C7.900 16.900 5.500 14.400 5.500 11Z"/></symbol>
+<symbol id="i-star" viewBox="0 0 24 24"><path d="m12 2.5 2.900 6 6.600.9-4.800 4.600 1.200 6.500L12 17.400l-5.900 3.100 1.200-6.500L2.500 9.400l6.600-.9L12 2.500Z"/></symbol>
+<symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13.500 2 4.500 13.500h6L9.500 22l9-11.500h-6L13.500 2Z"/></symbol>
+<symbol id="i-pause" viewBox="0 0 24 24"><path d="M6 4h4.500v16H6V4Zm7.500 0H18v16h-4.500V4Z"/></symbol>
+<symbol id="i-download" viewBox="0 0 24 24"><path d="M10.500 3h3v8h3.400L12 16.500 7.100 11h3.400V3ZM4 18h16v3H4v-3Z"/></symbol>
+<symbol id="i-info" viewBox="0 0 24 24"><path d="M12 2.500a9.500 9.500 0 1 1 0 19 9.500 9.500 0 0 1 0-19Zm-1.200 8h2.400V17h-2.400v-6.500Zm1.200-4.100a1.400 1.400 0 1 1 0 2.800 1.400 1.400 0 0 1 0-2.800Z"/></symbol>
+</defs></svg>
+
+<audio id="lobbyMusic" src="sounds/lobby_theme.mp3" preload="auto"></audio><audio id="lobbyMusicB" src="sounds/lobby_theme.mp3" preload="auto"></audio>
+<div id="splash">
+  <img src="assests/ui/splash.png" class="splash-back" alt="">
+  <div class="splash-vignette"></div>
+  <div class="splash-center">
+    <div class="splash-image-wrap"><img src="assests/ui/splash.png" class="splash-image" alt="Cyber Arena"></div>
+  </div>
+</div>
+<div id="startGate" class="start-gate hidden" role="button" tabindex="0" aria-label="Clique para começar">
+  <img src="assests/ui/lobby_bg.png" class="start-gate-bg" alt="">
+  <div class="start-gate-vignette"></div>
+  <div class="start-gate-center">
+    <div class="start-gate-image-wrap"><img src="assests/ui/lobby_bg.png" class="start-gate-image" alt="Lobby CyberArena"><div class="start-gate-prompt"><span class="start-gate-line"></span><strong>CLIQUE PARA COMEÇAR</strong><small>A arena está esperando por você</small><span class="start-gate-line"></span></div></div>
+  </div>
+</div>
+
+<div id="lobby" class="screen hidden"><img src="assests/ui/lobby_bg.png" class="bg"><div class="l2-vig"></div><div class="screen-safe">
+<header class="topbar l2-top"><div id="profileCard" class="profile-card l2-profile" role="button" tabindex="0" onclick="openScreen('profile')"><div class="avatar l2-avatar">CA</div><div class="profile-text"><strong id="playerName">CYBER</strong><div class="l2-lvl"><em>NÍVEL</em><b id="levelValue">1</b><div class="level-mini"><div id="xpMini" class="xp-fill"></div></div></div></div></div>
+<div class="currencies l2-cur"><button class="currency coin" onclick="event.stopPropagation();infoCurrency('coin')"><span class="currency-icon"><img src="assests/ui/coin_logo.svg" alt="Moedas"></span><b id="coinsValue">500</b><i class="l2-add"><svg class="ic"><use href="#i-plus"/></svg></i></button><button class="currency token" onclick="event.stopPropagation();infoCurrency('token')"><span class="currency-icon"><img src="assests/ui/token_logo.svg" alt="Cyber Fichas"></span><b id="tokensValue">0</b><i class="l2-add"><svg class="ic"><use href="#i-plus"/></svg></i></button><button class="currency gem" onclick="event.stopPropagation();infoCurrency('gem')"><span class="currency-icon"><img src="assests/ui/gem_logo.svg" alt="Gemas"></span><b id="gemsValue">50</b><i class="l2-add"><svg class="ic"><use href="#i-plus"/></svg></i></button></div>
+<button class="lobby-settings l2-gear" aria-label="Configurações"><svg class="ic"><use href="#i-gear"/></svg></button></header>
+<div id="dailyOffer" class="offer-card l2-offer"><span class="l2-offer-ic"><svg class="ic"><use href="#i-gift"/></svg></span><div class="l2-offer-tx"><em>GRÁTIS · DIÁRIA</em><strong>OFERTA DIÁRIA</strong><span id="freeOfferText">100 moedas + 10 XP</span></div><button id="freeOfferButton" class="l2-claim" onclick="claimFreeOffer()">PEGAR</button></div>
+<div class="lobby-center"><div class="welcome panel"><small>CYBERARENA</small><h1>PRONTO PARA A ARENA?</h1></div></div>
+<nav class="lobby-side lobby-left l2-rail"><button onclick="openScreen('shop')"><svg class="ic"><use href="#i-shop"/></svg><small>LOJA</small></button><button onclick="showBoxInfo('mini')"><svg class="ic"><use href="#i-box"/></svg><small>CAIXAS</small></button><button onclick="openScreen('codes')"><svg class="ic"><use href="#i-key"/></svg><small>CÓDIGOS</small></button><button onclick="openScreen('inbox')"><svg class="ic"><use href="#i-mail"/></svg><small>CAIXA</small><b id="inboxBadge">0</b></button></nav>
+<nav class="lobby-side lobby-right l2-rail l2-rail-r"><button onclick="openScreen('missions')"><svg class="ic"><use href="#i-target"/></svg><small>MISSÕES</small></button><button onclick="openScreen('pass')"><svg class="ic"><use href="#i-pass"/></svg><small>PASSE</small></button><button onclick="openScreen('progress')"><svg class="ic"><use href="#i-chart"/></svg><small>PROGRESSÃO</small></button></nav>
+<div class="lobby-actions l2-actions"><button class="main-button play-button l2-play" onclick="startGame()"><svg class="ic"><use href="#i-play"/></svg><span class="l2-lab">JOGAR</span></button></div>
+<div id="accountXpButton" class="bottom-info l2-acct" role="button" tabindex="0" onclick="openScreen('progress')"><div class="l2-acct-xp"><span>XP DA CONTA</span><div class="xp-bar"><div id="xpBar" class="xp-fill"></div></div><small id="xpText">0 / 200 XP</small></div><button class="l2-chars" onclick="event.stopPropagation();openScreen('characters')"><svg class="ic"><use href="#i-hero"/></svg><span><b>PERSONAGENS</b><small>ESCOLHER</small></span></button></div>
+</div></div>
+
+<div id="shop" class="screen hidden"><img src="assests/ui/shop_bg.png" class="bg"><div class="screen-safe shop-content">
+<aside class="shop-sidebar">
+  <button class="active" onclick="setShopPage(0)"><span><svg class="ic"><use href="#i-gift"/></svg></span>OFERTAS</button>
+  <button onclick="setShopPage(1)"><span><svg class="ic"><use href="#i-box"/></svg></span>CAIXAS</button>
+  <button onclick="setShopPage(2)"><span><svg class="ic"><use href="#i-target"/></svg></span>RECURSOS</button>
+</aside>
+<nav class="ca-nav">
+  <button onclick="openScreen('lobby')"><span class="nav-ico"><svg class="ic"><use href="#i-home"/></svg></span><small>LOBBY</small></button>
+  <button onclick="openScreen('characters')"><span class="nav-ico"><svg class="ic"><use href="#i-hero"/></svg></span><small>PERSONAGEM</small></button>
+  <button onclick="openScreen('shop')"><span class="nav-ico"><svg class="ic"><use href="#i-shop"/></svg></span><small>LOJA</small></button>
+  <button onclick="openScreen('pass')"><span class="nav-ico"><svg class="ic"><use href="#i-pass"/></svg></span><small>PASS</small></button>
+  <button onclick="openScreen('progress')"><span class="nav-ico"><svg class="ic"><use href="#i-chart"/></svg></span><small>PROGRESSÃO</small></button>
+</nav>
+<div class="screen-resourcebar"><button class="res coin" onclick="infoCurrency('coin')"><img src="assests/ui/coin_logo.svg" alt="Moedas"> <b class="screenCoins">0</b></button><button class="res token" onclick="infoCurrency('token')"><img src="assests/ui/token_logo.svg" alt="Cyber Fichas"> <b class="screenTokens">0</b></button><button class="res gem" onclick="infoCurrency('gem')"><img src="assests/ui/gem_logo.svg" alt="Gemas"> <b class="screenGems">0</b></button><button class="screen-settings"><svg class="ic"><use href="#i-gear"/></svg></button></div>
+<div class="shop-topline"><div class="shop-currency-row"><button class="currency coin" onclick="infoCurrency('coin')"><span class="currency-icon"><img src="assests/ui/coin_logo.svg" alt="Moedas"></span><b id="shopCoins">0</b><small>MOEDAS</small></button><button class="currency token" onclick="infoCurrency('token')"><span class="currency-icon"><img src="assests/ui/token_logo.svg" alt="Cyber Fichas"></span><b id="shopTokens">0</b><small>FICHAS</small></button><button class="currency gem" onclick="infoCurrency('gem')"><span class="currency-icon"><img src="assests/ui/gem_logo.svg" alt="Gemas"></span><b id="shopGems">0</b><small>GEMAS</small></button></div><button class="back-button" onclick="openScreen('lobby')">VOLTAR</button></div>
+<div class="shop-title-row"><div><h1>LOJA</h1><small>Deslize para os lados para explorar a loja</small></div></div>
+<div class="shop-page-controls"><button onclick="shiftShop(-1)">◀</button><span id="shopRange">LOJA · 1 / 3</span><button onclick="shiftShop(1)">▶</button></div>
+<div id="shopViewport" class="shop-viewport"><div id="shopTrack" class="shop-track">
+<section class="shop-page shop-page-offers">
+  <div class="offers-head"><div><h2>OFERTAS</h2><small>Aproveite as melhores promoções!</small></div><span id="offerCycle">ROTACIONANDO</span></div>
+  <div id="offersViewport" class="offers-viewport"><div id="offersTrack" class="offers-track"></div></div>
+  <div class="shop-page-caption panel"><b>OFERTAS ROTACIONANDO</b><span>Arraste para o lado para ver todas.</span></div>
+</section>
+<section class="shop-page shop-page-boxes">
+  <div class="shop-page-title"><h2>CAIXAS</h2><small>5 por dia em cada tipo</small></div>
+  <div class="shop-grid"><div id="gem_free_offer" class="box panel gem-free-box"><div class="gem-logo shop-gem-logo">◆</div><strong>30 GEMAS GRÁTIS</strong><small>coleta única · 180 dias</small><span class="box-luck">Oferta gratuita da Loja</span><span class="box-count" id="gemOfferStatus">DISPONÍVEL</span><button id="gemOfferButton" class="box-action" onclick="claimGemOffer()">COLETAR</button></div>
+  <div id="box_mini" class="box panel" onclick="showBoxInfo('mini')"><img src="assests/ui/mini_box.png"><strong>MINI CAIXA</strong><small>5 grátis por dia</small><span class="box-luck">60% moedas · 30% fichas · 10% gemas</span><span class="box-count">0/5 hoje</span><button class="box-action" onclick="event.stopPropagation();openBox('mini')">COMPRAR · 85</button></div>
+  <div id="box_cyber" class="box panel" onclick="showBoxInfo('cyber')"><img src="assests/ui/cyber_box.png"><strong>CYBER CAIXA</strong><small>5 por dia · 15 gemas</small><span class="box-luck">50% moedas · 30% fichas · 20% gemas</span><span class="box-count">0/5 hoje</span><button class="box-action" onclick="event.stopPropagation();openBox('cyber')">COMPRAR · 15</button></div>
+  <div id="box_mecha" class="box panel" onclick="showBoxInfo('mecha')"><img src="assests/ui/mecha_box.png"><strong>MECHA CAIXA</strong><small>5 por dia · 40 gemas</small><span class="box-luck">40% moedas · 30% fichas · 30% gemas</span><span class="box-count">0/5 hoje</span><button class="box-action" onclick="event.stopPropagation();openBox('mecha')">COMPRAR · 40</button></div></div>
+  <div class="shop-note panel"><b>GARANTIDO EM TODAS AS CAIXAS</b><span>+10–100 moedas e +10–100 Cyber fichas.</span></div>
+</section>
+<section class="shop-page shop-page-exchange">
+  <div class="exchange-title"><span class="offer-tag">TROCA DE RECURSOS</span><h2>CONVERTA GEMAS EM RECURSOS</h2><p>Escolha de 1 a 100 gemas.</p></div>
+  <div class="gem-exchange panel"><div class="exchange-copy"><h2>QUANTOS DESEJA TROCAR?</h2><p>1 gema = 100 moedas + 100 Cyber Fichas.</p></div><div class="exchange-controls"><div class="range-row"><input id="gemBundleAmount" type="range" min="1" max="100" value="1" oninput="updateGemBundle()"><b><span id="gemBundleGems">1</span> GEMAS</b></div><strong id="gemBundleReward">100 moedas + 100 Cyber Fichas</strong><button onclick="buyGemBundle()">TROCAR</button></div></div>
+  <div class="exchange-info panel"><b>COMO FUNCIONA?</b><span>Receba 100 moedas e 100 Cyber Fichas por gema.</span></div>
+</section>
+</div></div></div></div>
+<div id="missions" class="screen hidden simple-screen"><img src="assests/ui/lobby_bg.png" class="bg simple-bg"><div class="screen-safe"><nav class="ca-nav">
+  <button onclick="openScreen('lobby')"><span class="nav-ico"><svg class="ic"><use href="#i-home"/></svg></span><small>LOBBY</small></button>
+  <button onclick="openScreen('characters')"><span class="nav-ico"><svg class="ic"><use href="#i-hero"/></svg></span><small>PERSONAGEM</small></button>
+  <button onclick="openScreen('shop')"><span class="nav-ico"><svg class="ic"><use href="#i-shop"/></svg></span><small>LOJA</small></button>
+  <button onclick="openScreen('pass')"><span class="nav-ico"><svg class="ic"><use href="#i-pass"/></svg></span><small>PASS</small></button>
+  <button onclick="openScreen('progress')"><span class="nav-ico"><svg class="ic"><use href="#i-chart"/></svg></span><small>PROGRESSÃO</small></button>
+</nav><div class="screen-resourcebar"><button class="res coin" onclick="infoCurrency('coin')"><img src="assests/ui/coin_logo.svg" alt="Moedas"> <b class="screenCoins">0</b></button><button class="res token" onclick="infoCurrency('token')"><img src="assests/ui/token_logo.svg" alt="Cyber Fichas"> <b class="screenTokens">0</b></button><button class="res gem" onclick="infoCurrency('gem')"><img src="assests/ui/gem_logo.svg" alt="Gemas"> <b class="screenGems">0</b></button><button class="screen-settings"><svg class="ic"><use href="#i-gear"/></svg></button></div><div class="section-head"><div><h1>MISSÕES</h1><small>Complete objetivos para receber 100 XP em cada missão.</small></div><button class="back-button" onclick="openScreen('lobby')">VOLTAR</button></div><div class="missions-list" id="missionsList"></div></div></div>
+
+<div id="pass" class="screen hidden simple-screen"><img src="assests/ui/lobby_bg.png" class="bg simple-bg"><div class="screen-safe"><div class="screen-resourcebar"><button class="res coin" onclick="infoCurrency('coin')"><img src="assests/ui/coin_logo.svg" alt="Moedas"> <b class="screenCoins">0</b></button><button class="res token" onclick="infoCurrency('token')"><img src="assests/ui/token_logo.svg" alt="Cyber Fichas"> <b class="screenTokens">0</b></button><button class="res gem" onclick="infoCurrency('gem')"><img src="assests/ui/gem_logo.svg" alt="Gemas"> <b class="screenGems">0</b></button><button class="screen-settings"><svg class="ic"><use href="#i-gear"/></svg></button></div>
+<div class="section-head pass-head"><div><h1>CYBER PASS</h1><small>Temporada · 20 dias · TRIPLE XP · 100 patamares</small></div><button class="back-button" onclick="openScreen('lobby')">VOLTAR</button></div>
+<div class="pass-progress panel"><div><span>PATAMAR</span><b id="passLevel">1</b></div><div class="pass-xp"><strong id="passXpText">0 / 100 XP · TRIPLE XP</strong><div class="big-xp"><div id="passXpBar" class="xp-fill"></div></div></div></div>
+<input id="passStart" type="hidden" value="1"><div class="pass-lane" id="passFreeLane"><button class="pass-tier-tab free active" onclick="showPassTotals()"><span>✦</span><b>GRÁTIS</b></button><div class="lane-range"><button onclick="shiftPass(-1)">◀</button><span id="passRange">PATAMARES 1–20 / 100</span><button onclick="shiftPass(1)">▶</button></div><div class="side-path"><div class="reward-track" id="rewardTrack"></div></div></div>
+<div class="pass-lane" id="passPremiumLane"><button class="pass-tier-tab premium" onclick="showPassTotals()"><span>⬟</span><b>PREMIUM</b><small>🔒</small></button><div class="lane-range"><button onclick="shiftPass(-1)">◀</button><span id="premiumRange">PATAMARES 1–20 / 100</span><button onclick="shiftPass(1)">▶</button></div><div class="side-path"><div class="reward-track premium-reward-track" id="premiumRewardTrack"></div></div></div>
+<div class="premium-offer panel"><div><b>CYBER PASS PREMIUM</b><span>Desbloqueie a trilha Premium da temporada.</span></div><strong>◆ 100 GEMAS</strong><button id="premiumBuyButton" onclick="buyPremiumPass()">COMPRAR · 140 GEMAS</button></div>
+</div></div>
+<div id="passTotalsModal" class="modal hidden"><div class="modal-card panel pass-totals-card"><span>CYBER PASS</span><h2>RECOMPENSAS</h2><div class="pass-total-block"><b>GRÁTIS</b><span id="modalFreeCoins">0 MOEDAS</span><span id="modalFreeTokens">0 CYBER FICHAS</span><span id="modalFreeGems">0 GEMAS</span><span id="modalFreeBoxes">0 CAIXAS</span></div><div class="pass-total-block premium"><b>PREMIUM</b><span id="modalPremiumCoins">0 MOEDAS</span><span id="modalPremiumTokens">0 CYBER FICHAS</span><span id="modalPremiumGems">0 GEMAS</span><span id="modalPremiumBoxes">0 CAIXAS</span></div><button onclick="closePassTotals()">CONTINUAR</button></div></div>
+
+<div id="progress" class="screen hidden simple-screen"><img src="assests/ui/lobby_bg.png" class="bg simple-bg"><div class="screen-safe"><nav class="ca-nav">
+  <button onclick="openScreen('lobby')"><span class="nav-ico"><svg class="ic"><use href="#i-home"/></svg></span><small>LOBBY</small></button>
+  <button onclick="openScreen('characters')"><span class="nav-ico"><svg class="ic"><use href="#i-hero"/></svg></span><small>PERSONAGEM</small></button>
+  <button onclick="openScreen('shop')"><span class="nav-ico"><svg class="ic"><use href="#i-shop"/></svg></span><small>LOJA</small></button>
+  <button onclick="openScreen('pass')"><span class="nav-ico"><svg class="ic"><use href="#i-pass"/></svg></span><small>PASS</small></button>
+  <button onclick="openScreen('progress')"><span class="nav-ico"><svg class="ic"><use href="#i-chart"/></svg></span><small>PROGRESSÃO</small></button>
+</nav><div class="screen-resourcebar"><button class="res coin" onclick="infoCurrency('coin')"><img src="assests/ui/coin_logo.svg" alt="Moedas"> <b class="screenCoins">0</b></button><button class="res token" onclick="infoCurrency('token')"><img src="assests/ui/token_logo.svg" alt="Cyber Fichas"> <b class="screenTokens">0</b></button><button class="res gem" onclick="infoCurrency('gem')"><img src="assests/ui/gem_logo.svg" alt="Gemas"> <b class="screenGems">0</b></button><button class="screen-settings"><svg class="ic"><use href="#i-gear"/></svg></button></div><div class="section-head"><div><h1>PROGRESSÃO DA CONTA</h1><small>1000 patamares · 200 XP por patamar</small></div><button class="back-button" onclick="openScreen('lobby')">VOLTAR</button></div><div class="progress-card panel"><div class="level-big"><span>NÍVEL</span><b id="progressLevel">1</b></div><div class="progress-main"><strong id="progressXpText">0 / 200 XP</strong><div class="big-xp"><div id="progressXpBar" class="xp-fill"></div></div><small>A progressão continua até o patamar 1000, com recompensas espalhadas pelo caminho.</small></div></div><div class="path-controls"><button onclick="shiftAccount(-1)">◀</button><span id="accountRange">PATAMARES 1–20 / 1000</span><button onclick="shiftAccount(1)">▶</button></div><input id="accountStart" type="hidden" value="1"><div class="side-path"><div class="reward-track account-track" id="accountTrack"></div></div><div class="progress-legend panel"><b>9–10:</b> 2 MINI · <b>19–20:</b> MINI + CYBER · <b>21–1000:</b> MINI → CYBER → MECHA em sequência; demais patamares: 300 MOEDAS ou 200 FICHAS.</div></div></div>
+
+<div id="profile" class="screen hidden simple-screen"><img src="assests/ui/lobby_bg.png" class="bg simple-bg"><div class="screen-safe"><nav class="ca-nav">
+  <button onclick="openScreen('lobby')"><span class="nav-ico"><svg class="ic"><use href="#i-home"/></svg></span><small>LOBBY</small></button>
+  <button onclick="openScreen('characters')"><span class="nav-ico"><svg class="ic"><use href="#i-hero"/></svg></span><small>PERSONAGEM</small></button>
+  <button onclick="openScreen('shop')"><span class="nav-ico"><svg class="ic"><use href="#i-shop"/></svg></span><small>LOJA</small></button>
+  <button onclick="openScreen('pass')"><span class="nav-ico"><svg class="ic"><use href="#i-pass"/></svg></span><small>PASS</small></button>
+  <button onclick="openScreen('progress')"><span class="nav-ico"><svg class="ic"><use href="#i-chart"/></svg></span><small>PROGRESSÃO</small></button>
+</nav><div class="screen-resourcebar"><button class="res coin" onclick="infoCurrency('coin')"><img src="assests/ui/coin_logo.svg" alt="Moedas"> <b class="screenCoins">0</b></button><button class="res token" onclick="infoCurrency('token')"><img src="assests/ui/token_logo.svg" alt="Cyber Fichas"> <b class="screenTokens">0</b></button><button class="res gem" onclick="infoCurrency('gem')"><img src="assests/ui/gem_logo.svg" alt="Gemas"> <b class="screenGems">0</b></button><button class="screen-settings"><svg class="ic"><use href="#i-gear"/></svg></button></div><div class="section-head"><div><h1>PERFIL</h1><small>Conta e nome</small></div><button class="back-button" onclick="openScreen('lobby')">VOLTAR</button></div><div class="profile-large panel"><div class="avatar big">CA</div><div class="profile-main"><label>NOME</label><div><input id="nameInput" maxlength="16" placeholder="Seu nome"><button onclick="saveName()">SALVAR · <span id="nameCost">10 GEMAS</span></button></div><small>1ª troca: 10 gemas · próximas: 50 gemas.</small><label class="profile-xp-label">XP DA CONTA · NÍVEL <b id="profileLevel">1</b></label><div class="big-xp"><div id="profileXpBar" class="xp-fill"></div></div><small id="profileXpText">0 / 200 XP</small></div></div><div class="stats-grid"><div class="panel"><b id="statCoins">500</b><span>MOEDAS</span></div><div class="panel"><b id="statGems">50</b><span>GEMAS</span></div><div class="panel"><b id="statTokens">0</b><span>CYBER FICHAS</span></div><div class="panel"><b id="statXp">0</b><span>XP TOTAL</span></div></div></div>
+<div class="profile-tools">
+</div></div>
+
+<div id="characters" class="screen hidden simple-screen"><img src="assests/ui/lobby_bg.png" class="bg simple-bg"><div class="screen-safe character-screen-safe">
+<nav class="ca-nav">
+  <button onclick="openScreen('lobby')"><span class="nav-ico"><svg class="ic"><use href="#i-home"/></svg></span><small>LOBBY</small></button>
+  <button class="active" onclick="openScreen('characters')"><span class="nav-ico"><svg class="ic"><use href="#i-hero"/></svg></span><small>PERSONAGEM</small></button>
+  <button onclick="openScreen('shop')"><span class="nav-ico"><svg class="ic"><use href="#i-shop"/></svg></span><small>LOJA</small></button>
+  <button onclick="openScreen('pass')"><span class="nav-ico"><svg class="ic"><use href="#i-pass"/></svg></span><small>PASS</small></button>
+  <button onclick="openScreen('progress')"><span class="nav-ico"><svg class="ic"><use href="#i-chart"/></svg></span><small>PROGRESSÃO</small></button>
+</nav>
+<div class="screen-resourcebar"><button class="res coin" onclick="infoCurrency('coin')"><img src="assests/ui/coin_logo.svg" alt="Moedas"> <b class="screenCoins">0</b></button><button class="res token" onclick="infoCurrency('token')"><img src="assests/ui/token_logo.svg" alt="Cyber Fichas"> <b class="screenTokens">0</b></button><button class="res gem" onclick="infoCurrency('gem')"><img src="assests/ui/gem_logo.svg" alt="Gemas"> <b class="screenGems">0</b></button><button class="screen-settings"><svg class="ic"><use href="#i-gear"/></svg></button></div>
+<div class="section-head"><div><h1>PERSONAGEM</h1><small>CYBER · personagem atual</small></div><button class="back-button" onclick="openScreen('lobby')">VOLTAR</button></div>
+<div class="character-page character-page-v3 character-coming-soon"><div class="character-card panel character-card-v3"><div class="character-coming-icon">?</div><div class="character-info character-info-v3"><div class="character-title character-title-v3"><div><small>CYBERIANO</small><h2>PERSONAGEM</h2><span class="character-role">SISTEMA EM DESENVOLVIMENTO</span></div><span class="rarity rarity-v3">EM BREVE</span></div><p class="character-description character-description-v3">A área de personagens está sendo preparada. O Cyber e suas animações serão adicionados em uma etapa posterior.</p><div class="character-release-note"><i></i><span>PERSONAGEM EM DESENVOLVIMENTO</span></div></div></div></div></div></div>
+</div>
+
+<div id="codes" class="screen hidden simple-screen"><img src="assests/ui/lobby_bg.png" class="bg simple-bg"><div class="screen-safe"><div class="screen-resourcebar"><button class="res coin" onclick="infoCurrency('coin')"><img src="assests/ui/coin_logo.svg" alt="Moedas"> <b class="screenCoins">0</b></button><button class="res token" onclick="infoCurrency('token')"><img src="assests/ui/token_logo.svg" alt="Cyber Fichas"> <b class="screenTokens">0</b></button><button class="res gem" onclick="infoCurrency('gem')"><img src="assests/ui/gem_logo.svg" alt="Gemas"> <b class="screenGems">0</b></button><button class="screen-settings"><svg class="ic"><use href="#i-gear"/></svg></button></div><div class="section-head"><div><h1>CÓDIGOS</h1><small>Resgate códigos oficiais do CyberArena.</small></div><button class="back-button" onclick="openScreen('lobby')">VOLTAR</button></div><div class="codes-card panel"><div class="code-icon">⌁</div><h2>RESGATAR CÓDIGO</h2><p>Os códigos podem ter uso único por Cyber Account. Recompensas resgatadas ficam na Caixa de Entrada.</p><div class="code-input-row"><input id="redeemCodeInput" maxlength="32" autocomplete="off" placeholder="Digite seu código"><button onclick="redeemCommunityCode()">RESGATAR</button></div><small id="codeStatus" class="code-status"></small><button id="localCodeResetButton" class="local-test-code-button" onclick="if(window.CyberArenaTest?.resetFirstCodeForLocalTest()){ $('codeStatus').textContent='Teste local reiniciado. Você pode resgatar o código novamente.'; playUISound('open'); vibratePattern([25,40],1); }else{ $('codeStatus').textContent='Esse teste só funciona no modo local com uma Cyber Account.'; }">REPETIR CÓDIGO · TESTE LOCAL</button><div class="code-note">Código disponível: <b>CYBERARENA001</b></div></div></div></div>
+<div id="inbox" class="screen hidden simple-screen"><img src="assests/ui/lobby_bg.png" class="bg simple-bg"><div class="screen-safe"><div class="screen-resourcebar"><button class="res coin" onclick="infoCurrency('coin')"><img src="assests/ui/coin_logo.svg" alt="Moedas"> <b class="screenCoins">0</b></button><button class="res token" onclick="infoCurrency('token')"><img src="assests/ui/token_logo.svg" alt="Cyber Fichas"> <b class="screenTokens">0</b></button><button class="res gem" onclick="infoCurrency('gem')"><img src="assests/ui/gem_logo.svg" alt="Gemas"> <b class="screenGems">0</b></button><button class="screen-settings"><svg class="ic"><use href="#i-gear"/></svg></button></div><div class="section-head"><div><h1>CAIXA DE ENTRADA</h1><small>Suas recompensas pendentes aparecem aqui.</small></div><button class="back-button" onclick="openScreen('lobby')">VOLTAR</button></div><div id="inboxList" class="inbox-list"></div></div></div>
+
+<div id="accountGate" class="account-overlay hidden" role="dialog" aria-modal="true" aria-label="Conta CyberArena">
+  <div class="account-card panel">
+    <div class="account-orb">CA</div>
+    <small class="account-kicker">CYBERARENA</small>
+    <h2 id="accountGateTitle">CRIE SUA CYBER ACCOUNT</h2>
+    <p id="accountGateText">Sua conta fica salva neste dispositivo. Crie um nome, uma senha e receba um identificador único.</p>
+    <div id="accountCreateForm" class="account-form">
+      <label>NOME <input id="accountNameInput" maxlength="16" autocomplete="off" placeholder="Seu nome"></label>
+      <label>SENHA <input id="accountPasswordInput" type="password" maxlength="32" autocomplete="new-password" placeholder="Sua senha"></label>
+      <div class="cyber-id-preview"><span>CYBER ACCOUNT</span><b id="cyberIdPreview">CA-------</b></div>
+      <button class="account-primary" onclick="createCyberAccount()">CRIAR CYBER ACCOUNT</button>
+      <button class="account-secondary" onclick="enterGuest()">ENTRAR COMO CONVIDADO</button>
+      <button class="account-link" onclick="showAccountLogin()">JÁ TENHO UMA CONTA</button>
+    </div>
+    <div id="accountLoginForm" class="account-form hidden">
+      <label>CYBER ACCOUNT <input id="loginCyberIdInput" maxlength="16" autocomplete="off" placeholder="CA-123ABC"></label>
+      <label>SENHA <input id="loginPasswordInput" type="password" maxlength="32" autocomplete="current-password" placeholder="Sua senha"></label>
+      <button class="account-primary" onclick="loginCyberAccount()">ENTRAR</button>
+      <button class="account-link" onclick="showAccountCreate()">CRIAR UMA NOVA CONTA</button>
+      <button class="account-secondary" onclick="enterGuest()">ENTRAR COMO CONVIDADO</button>
+    </div>
+    <div id="accountSwitchForm" class="account-form hidden">
+      <div id="accountList" class="account-list"></div>
+      <button class="account-primary" onclick="showAccountCreate()">CRIAR NOVA CYBER ACCOUNT</button>
+      <button class="account-secondary" onclick="enterGuest()">ENTRAR COMO CONVIDADO</button>
+    </div>
+    <div id="accountMessage" class="account-message"></div>
+  </div>
+</div>
+
+<div id="settingsOverlay" class="settings-overlay hidden" role="dialog" aria-modal="true" aria-label="Configurações">
+  <div class="settings-card panel">
+    <div class="settings-head"><div><small>CYBERARENA</small><h2>CONFIGURAÇÕES</h2></div><button class="settings-close" onclick="closeSettings()">×</button></div>
+    <div class="settings-list">
+      <div class="setting-row"><div><b>Música</b><small>Volume da música do jogo</small></div><div class="setting-control"><output id="musicVolumeValue">100</output><input id="musicVolume" type="range" min="0" max="200" value="100" step="1" oninput="setMusicVolume(this.value)"><span>0–200</span></div></div>
+      <div class="setting-row"><div><b>Efeitos sonoros</b><small>Botões, coleta, caixas e recompensas</small></div><div class="setting-control"><output id="effectsVolumeValue">100</output><input id="effectsVolume" type="range" min="0" max="200" value="100" step="1" oninput="setEffectsVolume(this.value)"><span>0–200</span></div></div>
+      <div class="setting-row"><div><b>Resposta tátil</b><small>Toques e botões</small></div><label class="switch"><input id="tactileToggle" type="checkbox" checked onchange="setTactile(this.checked)"><span></span></label></div>
+      <div class="setting-row"><div><b>Vibração</b><small>Recompensas, raridade e eventos especiais</small></div><label class="switch"><input id="vibrationToggle" type="checkbox" checked onchange="setVibration(this.checked)"><span></span></label></div>
+            <div class="setting-row account-switch-row"><div><b>Conta</b><small id="activeCyberAccountLabel">Convidado · salvo neste aparelho</small></div><button class="settings-account-button" onclick="openAccountSwitcher()">TROCAR CONTA</button></div>
+    </div>
+    <div class="setting-row game-control-setting"><div><b>Controles da partida</b><small>Altere tamanho e posição do joystick e botões.</small></div><div class="setting-control game-control-tools"><output id="gameControlScaleValue">100</output><input id="gameControlScale" type="range" min="70" max="140" value="100" step="1" oninput="setGameControlScale(this.value)"><button type="button" onclick="beginGameControlEdit()">EDITAR POSIÇÕES</button></div></div><button class="settings-owner" onclick="openOwnerPanel()">ÁREA DO DONO</button><button class="settings-done" onclick="closeSettings()">PRONTO</button>
+  </div>
+</div>
+<div id="rewardSequence" class="reward-sequence hidden" role="dialog" aria-modal="true"><div class="reward-sequence-card panel"><span id="rewardSeqKicker" class="reward-sequence-kicker">CAIXA DE ENTRADA</span><div id="rewardSeqIcon" class="reward-sequence-icon"></div><h2 id="rewardSeqTitle">RECOMPENSA</h2><p id="rewardSeqText">Toque para coletar.</p><button id="rewardSeqButton" onclick="advanceRewardSequence()">COLETAR</button><div id="rewardSeqCount" class="reward-sequence-count">1 / 1</div></div></div>
+<div id="ownerOverlay" class="owner-overlay hidden" role="dialog" aria-modal="true"><div class="owner-card panel"><div class="owner-head"><div><small>ACESSO RESTRITO</small><h2>PAINEL DO DONO</h2></div><button onclick="closeOwnerPanel()">×</button></div><div id="ownerLockArea"><p class="owner-status">Acesso administrativo protegido. No servidor, somente uma Cyber Account marcada como DONO pelo bootstrap seguro pode entrar. Em modo local, você pode vincular a área do dono à Cyber Account deste dispositivo.</p><div class="owner-lock"><input id="ownerKeyInput" type="password" maxlength="64" placeholder="Senha da Cyber Account do dono"><button onclick="unlockOwnerPanel()">DESBLOQUEAR</button></div><div id="ownerLockStatus" class="owner-status"></div></div><div id="ownerPanelBody" class="hidden"><div class="owner-actions"><button onclick="toggleCommunityCode()">ATIVAR / DESATIVAR CÓDIGO</button><button id="ownerChangeKeyButton" onclick="setOwnerKeyAgain()">TROCAR CHAVE</button></div><div id="ownerCodeStatus" class="owner-status"></div><h3>CYBER ACCOUNTS</h3><div id="ownerAccountList" class="owner-list"></div></div></div></div>
+<div id="premiumAcquired" class="premium-acquired hidden"><div class="premium-acquired-card"><small>VOCÊ ADQUIRIU...</small><h2>PASSE PREMIUM</h2><div class="premium-shine">✦</div></div></div><div id="arenaPreview" class="arena-preview hidden" aria-label="Prévia da arena">
+  <div class="arena-loading" id="arenaLoading">
+    <div class="arena-loading-card"><div class="arena-loading-kicker">CYBERARENA</div><div class="arena-loading-title">PREPARANDO A ARENA</div><div class="arena-loading-percent" id="arenaLoadingPercent">0%</div><div class="arena-loading-bar"><i id="arenaLoadingFill"></i></div><div class="arena-loading-tip" id="arenaLoadingTip">Carregando o mundo 27×...</div></div>
+  </div>
+  <canvas id="arenaPreviewCanvas" width="1280" height="720"></canvas>
+  <div class="arena-preview-ui hidden" id="arenaPreviewUI"><div class="arena-preview-title"><b>ARENA · MUNDO 27×</b><small>PRÉVIA DO MUNDO</small></div><button class="arena-exit" id="arenaExit" type="button">SAIR</button><div class="arena-pan-help">1 DEDO: OLHAR · 2 DEDOS: MOVER/ZOOM · WASD / SETAS</div></div>
+</div>
+<canvas id="game" width="1280" height="720" class="hidden"></canvas>
+<div id="gameHud" class="game-hud hidden">
+  <div class="game-top">
+    <div class="game-hp-wrap"><div class="game-name">CYBER</div><div class="game-hp"><i id="gameHpFill"></i></div><b id="gameHpText">7.500</b></div>
+    <div class="game-mode-chip"><span id="gameModeLabel">TREINO SOLO</span><strong id="gameTimer">2:30</strong><small id="gameWave"></small></div>
+    <div class="game-exit-wrap"><button class="game-settings-button" onclick="openSettings()">⚙</button><button id="gameExitButton" onclick="exitTraining()">SAIR</button></div>
+  </div>
+  <div class="game-bottom">
+    <div class="game-joystick" id="gameJoystick" aria-label="Movimento"><div class="joystick-ring"><div class="joystick-cross"></div><div class="joystick-knob" id="joystickKnob"></div></div></div>
+    <div class="game-actions">
+      <div class="game-ammo" id="gameAmmo" aria-label="Munição"><span></span><span></span></div>
+      <button class="game-btn laser" id="gameLaser" aria-label="Laser" onclick="gameUseAttack('laser')"><span class="skill-icon laser-icon"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M9 43h46M17 34h30M27 25h10"/><path d="M38 12l-8 16h10l-8 18"/></svg></span><small>LASER</small></button>
+      <button class="game-btn attack" id="gameAttack" aria-label="Ataque" onclick="gameUseAttack('punch')"><span class="skill-icon fist-icon"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M18 31V18c0-4 6-4 6 0v10M24 27V13c0-4 6-4 6 0v14M30 27V11c0-4 6-4 6 0v17M36 29V16c0-4 6-4 6 0v16c0 6-5 13-12 17-7 4-14-1-14-7V31c0-4 8-5 8 0Z"/></svg></span><small>ATAQUE</small></button>
+      <button class="game-btn super" id="gameSuper" aria-label="Super" onclick="gameUseSuper()"><span class="skill-icon super-icon"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M36 5 14 35h15l-4 24 25-33H35z"/></svg></span><small>SUPER</small><em id="superChargeText">0/5</em></button>
+    </div>
+  </div>
+  <div class="game-status" id="gameStatus">PREPARE-SE</div><button id="gameControlDone" class="game-control-done">PRONTO</button>
+  <div class="game-crosshair hidden" id="gameCrosshair"></div>
+</div>
+<div id="characterTestMenu" class="modal hidden character-test-overlay"><div class="modal-card panel character-test-card"><span>CYBER · ÁREA DE TESTE</span><h2>ESCOLHA O MODO</h2><p>O personagem mantém a mesma movimentação, mira, munição, regeneração e combate nos dois testes.</p><div class="test-mode-buttons"><button onclick="startTraining('bot')">PARTIDA COM BOT<small>7 bots · arena 5× a tela</small></button><button onclick="startTraining('solo')">TREINO SOLO<small>4 bots parados · arena 5× a tela</small></button></div><button class="test-cancel" onclick="closeCharacterTestMenu()">VOLTAR</button></div></div>
+
+<div id="chestOpening" class="chest-overlay hidden">
+  <div class="chest-backdrop">
+    <img id="chestGlowImage" src="assests/ui/mini_box.png" alt="">
+  </div>
+  <div class="chest-opening-card">
+    <div class="chest-heading"><span id="chestSource">CAIXA DA LOJA</span><strong id="chestPhase">ABRINDO CAIXA...</strong></div>
+    <div id="chestMain" class="chest-main" onclick="activateChestOpening()" role="button" tabindex="0">
+      <div class="chest-ring ring-a"></div><div class="chest-ring ring-b"></div>
+      <img id="chestMainImage" src="assests/ui/mini_box.png" alt="Caixa">
+    </div>
+    <h2 id="chestName">MINI CAIXA</h2>
+    <div id="chestRewardReveal" class="chest-reward-reveal hidden">
+      <div class="reward-section-title">GARANTIDO</div>
+      <div id="chestGuaranteed" class="chest-rewards"></div>
+      <div class="reward-section-title luck-title">SORTE</div>
+      <div class="lucky-card"><span id="chestLuckyType">RECOMPENSA</span><b id="chestLuckyReward">+0</b></div>
+      <button id="chestContinue" class="chest-continue hidden" onclick="closeChest()">CONTINUAR</button>
+    </div>
+    <div class="chest-skip">Toque na caixa para iniciar a abertura. Depois, continue para voltar à interface.</div>
+  </div>
+</div>
+<div id="chestAcquired" class="chest-overlay hidden">
+  <div class="chest-backdrop"><img id="acquiredGlowImage" src="assests/ui/mini_box.png" alt=""></div>
+  <div class="chest-opening-card acquired-card">
+    <div class="chest-heading"><span id="acquiredSource">RECOMPENSA</span><strong>VOCÊ RECEBEU UMA CAIXA!</strong></div>
+    <div id="acquiredChest" class="chest-main acquired-chest" onclick="continueAcquiredChest()" role="button" tabindex="0">
+      <div class="chest-ring ring-a"></div><div class="chest-ring ring-b"></div>
+      <img id="acquiredMainImage" src="assests/ui/mini_box.png" alt="Caixa recebida">
+    </div>
+    <h2 id="acquiredName">MINI CAIXA</h2>
+    <p class="acquired-hint">TOQUE NA CAIXA PARA CONTINUAR</p>
+  </div>
+</div>
+<div id="offerReward" class="modal hidden"><div class="modal-card panel offer-reward-card"><span id="offerRewardType">OFERTA</span><h2 id="offerRewardTitle">COMPRA CONCLUÍDA!</h2><div id="offerRewardItems" class="offer-reward-items"></div><button onclick="closeOfferReward()">CONTINUAR</button></div></div>
+<div id="rewardModal" class="modal hidden"><div class="modal-card panel"><div id="modalBoxLogo" class="modal-box-logo hidden"><img id="modalBoxLogoImage" src="assests/ui/mini_box.png" alt=""></div><div class="modal-content-front"><span id="modalType">RECOMPENSA</span><h2 id="modalTitle">Você recebeu!</h2><div id="modalText"></div><button onclick="closeModal()">CONTINUAR</button></div></div></div><script src="main.js"></script><script type="module" src="lobby3d.js"></script><script>document.addEventListener('keydown',e=>{if((e.key==='Enter'||e.key===' ')&&(e.target.id==='profileCard'||e.target.id==='accountXpButton')){e.preventDefault();e.target.click();}});</script><script src="ui2/ui2.js"></script><script src="ui2/mech.js"></script><script src="ui2/econ.js"></script><script src="ui2/shop2.js"></script><script src="ui2/pass2.js"></script><script src="ui2/inbox2.js"></script><script src="ui2/profile.js"></script><script type="module" src="ui2/boot.js"></script></body></html>

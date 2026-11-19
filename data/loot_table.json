@@ -1,0 +1,31 @@
+{
+  "authoritative_note": "Design reference only. In server mode, main.js does not decide the final loot; server/server.mjs performs the roll.",
+  "guaranteed": {
+    "moedas": [10, 100],
+    "cyber_fichas": [10, 100]
+  },
+  "mini_caixa": {
+    "chance_moedas": 60,
+    "moedas": [50, 100],
+    "chance_cyber_fichas": 30,
+    "cyber_fichas": [100, 300],
+    "chance_gemas": 10,
+    "gemas": [5, 10]
+  },
+  "cyber_caixa": {
+    "chance_moedas": 50,
+    "moedas": [100, 160],
+    "chance_cyber_fichas": 30,
+    "cyber_fichas": [200, 600],
+    "chance_gemas": 20,
+    "gemas": [10, 40]
+  },
+  "mecha_caixa": {
+    "chance_moedas": 40,
+    "moedas": [500, 800],
+    "chance_cyber_fichas": 30,
+    "cyber_fichas": [400, 900],
+    "chance_gemas": 30,
+    "gemas": [30, 80]
+  }
+}

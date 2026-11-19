@@ -1,0 +1,229 @@
+CYBERARENA — ESPECIFICAÇÃO DE SEGURANÇA E AUTORIDADE DO SERVIDOR
+Versão de referência: v79
+
+OBJETIVO
+O servidor é a autoridade final. O navegador/cliente NUNCA pode decidir sozinho valores de economia, recompensas, inventário, códigos, Pass, Progressão, banimentos ou permissões administrativas.
+
+1. ARQUITETURA OFICIAL
+Cliente (HTML/JS)
+    ↓ HTTPS
+API CyberArena
+    ↓ transações PostgreSQL
+PostgreSQL (dados principais)
+    ↓ backup independente
+Armazenamento externo/versionado de backups
+
+Em produção, não confiar em localStorage para dados críticos. Ele pode existir como cache/offline, mas nunca é fonte de verdade.
+
+2. SEGREDOS
+- Nenhum segredo real pode entrar no ZIP público, JavaScript, HTML, CSS ou banco como texto puro.
+- DATABASE_URL, senhas do banco e chaves de sessão ficam em variáveis/secrets do servidor.
+- Nunca registrar senha, token de sessão, cookie ou segredo em logs.
+- Produção exige HTTPS e COOKIE_SECURE=true.
+
+3. AUTENTICAÇÃO
+- Senhas: scrypt/algoritmo resistente a brute force, salt aleatório único por conta.
+- Sessões: token aleatório forte; somente hash do token no banco.
+- Cookie: HttpOnly + Secure + SameSite=Strict.
+- Expiração e revogação de sessões.
+- Banimento revoga imediatamente todas as sessões da conta.
+- Rate limit para login, criação, recuperação e endpoints sensíveis.
+- Mensagens de login não devem revelar se o Cyber Account existe.
+
+4. CONTA DO DONO
+- Existe uma única conta marcada is_owner=true.
+- O cliente nunca recebe uma chave administrativa.
+- Todas as rotas /api/admin exigem sessão autenticada + is_owner=true.
+- O dono não pode ser banido por uma operação normal de banimento.
+- Ações administrativas geram audit_log com ator, ação, alvo, horário e metadados mínimos.
+- Recomenda-se MFA/WebAuthn para o painel do dono quando o backend de produção for implantado.
+- Não colocar senha/chave do dono em server_tmp.txt, README público ou código-fonte.
+
+5. ECONOMIA — REGRA ABSOLUTA
+O cliente não envia valores finais de recursos.
+ERRADO: {"gems":999999}
+CORRETO: {"action":"claim_reward","rewardId":"...","idempotencyKey":"..."}
+
+O servidor calcula e valida:
+- moedas;
+- gemas;
+- Cyber Fichas;
+- XP;
+- XP/nível do Pass;
+- XP/nível da conta;
+- inventário;
+- caixas;
+- ofertas e compras;
+- recompensas de missão;
+- recompensas de Pass/Progressão;
+- recompensas de códigos.
+
+Cada alteração crítica deve ocorrer em transação PostgreSQL e deixar registro de auditoria/economia.
+
+6. IDEMPOTÊNCIA E ANTI-REPLAY
+- Toda operação que concede, compra, resgata, coleta ou consome algo deve aceitar uma idempotency key aleatória do cliente.
+- A chave é única por conta/operação e tem resultado persistido.
+- Repetição da mesma requisição retorna o mesmo resultado, sem duplicar recompensa.
+- Código comunitário usa restrição única (account_id, code_id).
+- Compras e claims usam UPDATE ... WHERE com versão ou bloqueio transacional conforme o caso.
+- Nunca confiar em um "já cliquei" do cliente.
+
+7. CAIXA DE ENTRADA
+REGRA DO PROJETO:
+Somente recompensas provenientes do RESGATE DE CÓDIGO entram na Caixa de Entrada.
+
+Não entram na Caixa de Entrada:
+- Pass;
+- Progressão da Conta;
+- Missões;
+- compras normais;
+- caixas compradas/ganhas fora de código.
+
+O servidor cria a mensagem de Inbox no resgate do código. O cliente apenas exibe e solicita o resgate de cada item.
+
+8. CÓDIGOS
+- Código armazenado no servidor.
+- Ativo/inativo controlado exclusivamente pelo dono.
+- Recompensa definida no banco/servidor, nunca pelo cliente.
+- Um código pode ser usado uma vez por Cyber Account.
+- CYBERARENA001:
+  200 gemas
+  2 Mini Caixas
+  2 Cyber Caixas
+  3 Mecha Caixas
+- Desativação deve ser imediata no servidor.
+- Resgate é transacional e atômico.
+
+9. CAIXAS
+O cliente nunca calcula a recompensa final.
+O servidor sorteia a recompensa usando uma fonte de aleatoriedade apropriada e grava o resultado na mesma transação que registra a abertura.
+
+O cliente recebe somente o resultado autorizado pelo servidor e executa a animação.
+
+As garantias e probabilidades do jogo devem existir no servidor. Alterar loot_table.json no cliente não pode alterar a recompensa real.
+
+10. PASS / PROGRESSÃO / MISSÕES
+- O servidor determina temporada, tempo restante, XP, nível e elegibilidade.
+- Horário de referência: UTC.
+- O cliente não pode avançar o relógio alterando o dispositivo.
+- Coleta de recompensa deve ser validada no servidor e ser idempotente.
+- Premium deve ser uma permissão/estado concedido pelo servidor após compra válida.
+
+11. COMPRAS
+Para qualquer compra:
+1. cliente envia intenção + item/offerId + idempotencyKey;
+2. servidor verifica preço e oferta ativa;
+3. servidor verifica saldo/permissão;
+4. transação debita e concede;
+5. registra evento;
+6. retorna resultado assinado/validado pelo estado do servidor.
+
+Nunca aceitar preço, quantidade ou recompensa enviados pelo cliente.
+
+12. BANIMENTOS
+- Somente owner.
+- Alvo identificado por Cyber Account/ID interno.
+- Transação bloqueia a conta.
+- Revoga todas as sessões.
+- Registra auditoria.
+- Toda requisição autenticada verifica banned antes de executar ações protegidas.
+
+13. AUDITORIA
+Registrar no mínimo:
+- criação de conta;
+- login administrativo relevante;
+- resgate de código;
+- ativação/desativação de código;
+- ban/unban;
+- compras;
+- concessões e consumos de economia;
+- alterações de permissões.
+
+Nunca registrar segredos ou conteúdo sensível desnecessário.
+
+14. BANCO
+- PostgreSQL como fonte de verdade.
+- Foreign keys e UNIQUE constraints para invariantes.
+- Índices nos campos de autenticação, sessão, código e auditoria.
+- Transações para operações econômicas.
+- Backups automáticos em armazenamento separado.
+- Teste periódico de restauração; backup não testado não é considerado confiável.
+- Retenção e versionamento de backups fora do mesmo volume do banco.
+
+15. PRODUÇÃO
+Antes de abrir para jogadores:
+- HTTPS obrigatório;
+- COOKIE_SECURE=true;
+- PUBLIC_ORIGIN apontando para o domínio real;
+- segredos fortes e únicos;
+- bootstrap do dono executado uma única vez;
+- banco não exposto diretamente à internet;
+- PostgreSQL com usuário de aplicação sem privilégios administrativos desnecessários;
+- firewall/rede restringindo banco ao backend;
+- backups externos;
+- monitoramento e alertas de falhas;
+- atualização regular de Node, Express, PostgreSQL e dependências.
+
+16. LIMITAÇÃO IMPORTANTE DO PROTÓTIPO
+Se o jogo for aberto como arquivo local, não existe segurança global. Qualquer jogador controla o próprio navegador e pode alterar o cliente.
+A segurança global só existe quando o jogo usa o backend hospedado e o backend é a autoridade sobre os dados críticos.
+
+17. REGRA PARA FUTURAS ALTERAÇÕES
+Antes de adicionar qualquer sistema que altere progresso/recurso, perguntar:
+"O cliente consegue fabricar ou alterar o resultado sem o servidor?"
+Se sim, a implementação está incompleta.
+
+18. IMPLEMENTAÇÃO SERVER-AUTHORITATIVE ATUAL
+As operações críticas do cliente já usam comandos server-authoritative em servidor conectado:
+- abrir/comprar caixas;
+- coletar Pass;
+- coletar Progressão;
+- coletar missões;
+- compras de Loja;
+- compra do Premium;
+- troca de recursos;
+- alteração de nome;
+- coletas individuais da Caixa de Entrada;
+- progresso das missões que já possui comando.
+
+O cliente recebe o novo estado do servidor depois de cada comando.
+
+19. V79 HARDENING IMPLEMENTED
+- Session rows now support server-side revocation timestamps and active-session filtering.
+- Sensitive API responses use no-store cache headers.
+- API requests receive a cryptographically random request ID for correlation.
+- Production startup refuses insecure cookie configuration or non-HTTPS PUBLIC_ORIGIN.
+- Production uses a __Host- prefixed session cookie when COOKIE_SECURE=true.
+- Strict Origin enforcement is used for unsafe API methods when PUBLIC_ORIGIN is configured.
+- JSON state writes are size-limited and allowlisted; password-like fields are stripped.
+- Economic/state mutation primitives include persistent idempotency keys and an economy ledger.
+- Security events store hashes of IP/user-agent rather than raw values for the event record.
+- Owner administration now requires a short-lived server-side step-up admin session after re-authentication with the owner's Cyber Account password. LocalStorage owner locks are not the authority in server mode.
+- Owner admin sessions expire after 10 minutes and can be explicitly locked/revoked.
+- Fresh production deployments can use server/docker-compose.prod.yml with Caddy TLS, private PostgreSQL networking and Docker secrets.
+- server/scripts/migrate.mjs applies numbered DB migrations safely.
+- server/scripts/security-audit.mjs verifies required hardening markers before launch.
+- server/scripts/maintenance.mjs cleans expired sessions, admin sessions and idempotency records.
+
+20. SECURITY LIMITS THAT MUST REMAIN EXPLICIT
+- No client-side JavaScript can make a copied ZIP globally secure. The hosted backend is mandatory for global enforcement.
+- A password alone is not phishing-resistant MFA. Before public owner administration, enable a phishing-resistant second factor such as WebAuthn/passkeys or an equivalent managed MFA system.
+- In-memory rate limiting is not sufficient for a multi-instance deployment; use a shared/distributed limiter at the edge or a dedicated store.
+- Backups must be encrypted, off-host, versioned and restore-tested.
+- PostgreSQL must never be directly exposed to the public Internet.
+
+21. REQUIRED SERVER-AUTHORITATIVE ECONOMY CONTRACT
+Every future mutation endpoint must follow this pipeline:
+request authentication -> authorization -> schema validation -> idempotency check -> transaction -> server-side calculation -> ledger/audit -> commit -> response.
+The client must never submit the final reward amount, final balance, loot roll, discount, timer expiry, ownership flag, ban flag or premium entitlement as authoritative data.
+
+22. V79 LIMITE ANTI-CHEAT
+O endpoint genérico /api/state não existe mais. Não há uma rota genérica de gravação que aceite balances, inventário, XP, Pass, Progressão ou recompensas fabricadas pelo navegador.
+
+As operações econômicas passam pelo endpoint explícito /api/game/command, que valida a operação, bloqueia a conta em transação, calcula o resultado no servidor, registra ledger/auditoria, grava idempotência e retorna o estado autoritativo.
+
+
+## v79 review notes
+The current release was reviewed for stale references, duplicate functions, missing HTML IDs, asset references, CSS balance, JSON/SVG validity, media validity, Node syntax, server/client Pass-rule parity, reward distribution, UTC daily timing, remote account switching, Inbox sequencing, and server-authoritative economic mutations.
+
+The active browser runtime no longer depends on the old Godot/Java prototype files; those artifacts are preserved under `legacy/original-godot/` for reference.

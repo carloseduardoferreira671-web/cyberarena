@@ -1,0 +1,24 @@
+[parameters]
+
+idle = "idle"
+move = "walk"
+attack = "attack"
+super = "super"
+hit = "hit"
+death = "death"
+
+[state_machine]
+
+start_node = "idle"
+
+transitions = {
+    ("idle","move"): "if moving",
+    ("move","idle"): "if not moving",
+    ("idle","attack"): "on attack",
+    ("move","attack"): "on attack",
+    ("attack","idle"): "finished",
+    ("idle","super"): "on super",
+    ("move","super"): "on super",
+    ("hit","idle"): "finished",
+    ("idle","death"): "on death"
+}

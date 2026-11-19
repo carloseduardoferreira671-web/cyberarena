@@ -1,0 +1,20 @@
+{
+  "version": 2,
+  "production": {
+    "httpsRequired": true,
+    "secureCookiesRequired": true,
+    "publicDatabase": false,
+    "serverAuthoritativeEconomy": true,
+    "genericClientStateEconomy": false,
+    "cryptographicLootRolls": true,
+    "serverUtcClock": true,
+    "ownerPasswordStepUp": true,
+    "ownerMfaRequiredBeforePublicLaunch": true,
+    "offHostBackupsRequired": true,
+    "restoreTestingRequired": true
+  },
+  "economicMutationsRequire": ["authorization", "transaction", "rowLock", "idempotency", "audit", "ledger"],
+  "clientNeverSuppliesFinalRewardValues": true,
+  "codeInboxOnly": true,
+  "codeRedeemOncePerAccount": true
+}

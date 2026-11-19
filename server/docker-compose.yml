@@ -1,0 +1,62 @@
+# Local development only. Do not expose this stack as production.
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-cyberarena}
+      POSTGRES_USER: ${POSTGRES_USER:-cyberarena}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD for local development}
+    volumes:
+      - cyberarena_db:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cyberarena} -d ${POSTGRES_DB:-cyberarena}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [backend]
+
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD for local development}
+      DATABASE_URL: postgresql://${POSTGRES_USER:-cyberarena}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-cyberarena}
+    volumes:
+      - cyberarena_backups:/backups
+    command: >-
+      sh -c "while true; do pg_dump \"$DATABASE_URL\" --format=custom --no-owner --file=/backups/cyberarena-$$(date -u +%Y%m%dT%H%M%SZ).dump && find /backups -type f -mtime +14 -delete; sleep 86400; done"
+    networks: [backend]
+
+  app:
+    image: node:20-alpine
+    working_dir: /app/server
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: development
+      PORT: 8080
+      DATABASE_URL: postgresql://${POSTGRES_USER:-cyberarena}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-cyberarena}
+      COOKIE_SECURE: "false"
+      PUBLIC_ORIGIN: http://localhost:8080
+      TRUSTED_PROXY_HOPS: 0
+    volumes:
+      - ..:/app
+    command: sh -c "npm install --omit=dev && npm run migrate && npm run audit && node server.mjs"
+    ports:
+      - "127.0.0.1:8080:8080"
+    networks: [backend]
+
+volumes:
+  cyberarena_db:
+  cyberarena_backups:
+
+networks:
+  backend:
+    internal: true

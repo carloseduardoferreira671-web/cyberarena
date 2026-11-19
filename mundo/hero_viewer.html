@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>CyberArena · Personagem</title>
+<style>html,body{margin:0;height:100%;background:transparent;overflow:hidden}canvas{width:100%;height:100%;display:block;touch-action:none}
+#ld{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);color:#9ff4ff;font:800 11px system-ui;letter-spacing:.2em;opacity:.8}
+#dbg{position:fixed;left:6px;top:6px;display:none;gap:4px;flex-wrap:wrap;max-width:420px;font:12px system-ui}#dbg button{padding:4px 8px}</style></head>
+<body><canvas id="c"></canvas><div id="ld">CARREGANDO…</div><div id="dbg"></div>
+<script type="module">
+import { createPortrait, SKINS, Hero } from './js/hero.js';
+import { loadClassic, makeCharacter, loadAtlasGLB } from './js/classic.js';
+const q = new URLSearchParams(location.search), debug = q.get('debug') === '1';
+if (debug) document.body.style.background = '#556677';
+let char = ['nexus','cyber','atlas'].includes(q.get('char')) ? q.get('char') : 'nexus', skin = q.get('skin') || 'cyber';
+async function factoryFor(c) { if (c === 'cyber') { try { await loadClassic(); } catch (e) { console.error(e); } } if (c === 'atlas' || c === 'nexus' || c === 'cyber') { try { await loadAtlasGLB(); } catch (e) { console.warn('Atlas GLB', e); } } return id => makeCharacter(c, id); }
+const P = createPortrait(document.getElementById('c'), skin, Object.assign({ factory: await factoryFor(char) }, debug ? { actions: [] } : {}));
+document.getElementById('ld').remove();
+window.__portrait = P;
+addEventListener('message', async e => {
+  const d = e.data; if (!d) return;
+  if (d.type === 'skin') { skin = d.id; P.setSkin(d.id); }
+  if (d.type === 'char' && d.id !== char) { char = d.id; P.setFactory(await factoryFor(char), skin); }
+  if (d.type === 'play') P.play(d.name);
+});
+if (debug) { const d = document.getElementById('dbg'); d.style.display = 'flex';
+  for (const n of ['punch','kick','laser','super','hit','jump','land','vault','death','revive','wave','dance']) { const b = document.createElement('button'); b.textContent = n; b.onclick = () => P.play(n); d.appendChild(b); }
+  for (const c of ['nexus','cyber','atlas']) { const b = document.createElement('button'); b.textContent = '#' + c; b.onclick = async () => { char = c; P.setFactory(await factoryFor(c), skin); }; d.appendChild(b); } }
+</script></body></html>

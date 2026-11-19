@@ -1,0 +1,15 @@
+{
+  "name": "cyberarena-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {"start":"node server.mjs","migrate":"node scripts/migrate.mjs","security:audit":"node scripts/security-audit.mjs","maintenance":"node scripts/maintenance.mjs","audit":"node scripts/full-audit.mjs","owner:setup":"node scripts/owner-setup.mjs"},
+  "engines": {"node": ">=20"},
+  "dependencies": {
+    "cookie-parser": "^1.4.7",
+    "express": "^5.1.0",
+    "express-rate-limit": "^8.2.1",
+    "helmet": "^8.1.0",
+    "pg": "^8.16.3"
+  }
+}

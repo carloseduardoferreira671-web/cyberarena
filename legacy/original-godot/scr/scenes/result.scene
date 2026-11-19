@@ -1,0 +1,11 @@
+Se Resultado = "VITÓRIA" → XP += 90
+Se Resultado = "EMPATE" → XP += 50
+Se Resultado = "DERROTA" → XP += 30
+
+PasseXP += XP
+Se PasseXP >= 200 →
+  PasseNivel += 1
+  PasseXP = 0
+
+Sempre →
+  Player.Angle += 180 * TimeDelta()

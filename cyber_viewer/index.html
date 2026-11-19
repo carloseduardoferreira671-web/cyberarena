@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Cyber · Teste de personagem</title>
+<style>
+  html,body{margin:0;height:100%;background:#0a0c14;color:#dfe8f5;font:13px/1.3 system-ui,sans-serif;overflow:hidden;touch-action:none;-webkit-user-select:none;user-select:none}
+  canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
+  #bar{position:fixed;left:0;right:0;bottom:0;padding:6px 8px calc(6px + env(safe-area-inset-bottom));display:flex;gap:6px;flex-wrap:wrap;justify-content:center;background:linear-gradient(transparent,rgba(5,8,16,.85) 40%)}
+  button{background:rgba(20,32,56,.85);color:#cfe6ff;border:1px solid rgba(110,190,255,.35);border-radius:8px;padding:7px 10px;font:inherit;cursor:pointer}
+  button.on{background:#14507a;border-color:#6fd0ff;color:#fff}
+  #hud{position:fixed;left:8px;top:calc(6px + env(safe-area-inset-top));font-size:12px;opacity:.9;pointer-events:none;text-shadow:0 1px 2px #000}
+  #log{position:fixed;right:8px;top:calc(6px + env(safe-area-inset-top));text-align:right;font-size:12px;color:#8fe3ff;pointer-events:none;text-shadow:0 1px 2px #000;white-space:pre}
+  #msg{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;font-size:15px;pointer-events:none}
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud"></div><div id="log"></div><div id="msg">Carregando Cyber…</div>
+<div id="bar"></div>
+<script src="cyber_rig.js"></script>
+<script>
+(async function () {
+  const CR = window.CyberRig, canvas = document.getElementById('c');
+  const gl = canvas.getContext('webgl', { antialias: true, alpha: false, preserveDrawingBuffer: true }) || canvas.getContext('experimental-webgl');
+  const msg = document.getElementById('msg');
+  if (!gl) { msg.textContent = 'WebGL indisponível neste navegador.'; return; }
+  const R = new CR.Renderer(gl);
+  let inline = null;
+  if (window.CYBER_INLINE) {                  // versão de arquivo único: dados embutidos em base64
+    const I = window.CYBER_INLINE, b64 = x => Uint8Array.from(atob(x), c => c.charCodeAt(0)).buffer;
+    inline = { json: I.json, bin: b64(I.bin), tex: 'data:image/webp;base64,' + I.tex };
+  }
+  try { await R.load('assets/', inline); } catch (e) { msg.textContent = 'Erro ao carregar: ' + e.message; console.error(e); return; }
+  msg.remove();
+  const rig = new CR.Rig(); window.__rig = rig;
+  const BLOCK = 1.9 / 3;                       // Cyber tem 3 blocos de altura
+  const cam = { yaw: 0.35, pitch: 0.18, dist: 4.2 };
+  const state = { paused: false, speed: 1, names: Object.keys(CR.CLIPS), fx: [], log: [], auto: true };
+
+  /* ---- efeitos ligados a eventos da animação ---- */
+  function spawn(ev, age) {
+    const f = state.fx, A = age || 0;
+    if (ev.name === 'laser_R' || ev.name === 'laser_L') {
+      const h = rig.muzzle(ev.name === 'laser_R' ? 'R' : 'L'), a = h.pos, b = [a[0]+h.dir[0]*12, a[1]+h.dir[1]*12, a[2]+h.dir[2]*12];
+      f.push({ kind: 'beam', a, b, w: .045, col: [.2, .95, 1], life: .22, age: A }, { kind: 'flash', c: a, r: .28, col: [.5, 1, 1], life: .16, age: A });
+    } else if (ev.name === 'hit' || ev.name === 'uppercut') {
+      const h = rig.bonePoint(ev.arm === 'L' ? 'hand_L' : 'hand_R'), c = h.pos;
+      f.push({ kind: 'flash', c, r: ev.heavy || ev.name === 'uppercut' ? .55 : .4, col: [1, .75, .35], life: .18, age: A });
+    } else if (ev.name === 'slam') {
+      const p = rig.world[0], c = [p[12], R.meta.bounds.min[1] + .02, p[14]];
+      f.push({ kind: 'ring', c, r: (ev.radius || 3) * BLOCK, col: [.6, .85, 1], life: .45, age: A }, { kind: 'flash', c: [c[0], c[1] + .3, c[2]], r: .9, col: [1, .8, .5], life: .2, age: A });
+    }
+  }
+  rig.player.onEvent = ev => { state.log.unshift(ev.name + (ev.index != null ? ' #' + (ev.index + 1) : '') + '  @' + rig.player.t.toFixed(2) + 's'); state.log.length = Math.min(state.log.length, 7); spawn(ev, 0); };
+
+  /* ---- UI ---- */
+  const LABEL = { idle: 'Parado', run: 'Correr', punch_R: 'Soco D', punch_L: 'Soco E', punch_R2: 'Soco D forte', laser: 'Laser D→E', super_single: 'Super 1 alvo', super_multi: 'Super vários', hit: 'Golpe', death: 'Morte' };
+  const bar = document.getElementById('bar'), btns = {};
+  function mkBtn(label, fn) { const b = document.createElement('button'); b.textContent = label; b.onclick = fn; bar.appendChild(b); return b; }
+  state.names.forEach(n => { btns[n] = mkBtn(LABEL[n] || n, () => play(n)); });
+  const bPause = mkBtn('Pausar', () => { state.paused = !state.paused; bPause.textContent = state.paused ? 'Continuar' : 'Pausar'; });
+  const bSlow = mkBtn('Lento ×0.25', () => { state.speed = state.speed === 1 ? .25 : 1; bSlow.classList.toggle('on', state.speed !== 1); });
+  function play(n) { state.fx.length = 0; rig.player.play(n, { restart: true }); rig.player.name = n; Object.keys(btns).forEach(k => btns[k].classList.toggle('on', k === n)); state.auto = !['idle', 'run'].includes(n); }
+  play('idle');
+
+  /* ---- câmera orbital (arraste = girar, pinça/roda = zoom) ---- */
+  const ptr = new Map();
+  canvas.addEventListener('pointerdown', e => { canvas.setPointerCapture(e.pointerId); ptr.set(e.pointerId, { x: e.clientX, y: e.clientY }); });
+  canvas.addEventListener('pointermove', e => {
+    if (!ptr.has(e.pointerId)) return; const p = ptr.get(e.pointerId);
+    if (ptr.size === 1) { cam.yaw -= (e.clientX - p.x) * .008; cam.pitch = Math.max(-.2, Math.min(1.3, cam.pitch + (e.clientY - p.y) * .006)); }
+    else { const o = [...ptr.entries()].find(([id]) => id !== e.pointerId)[1], d0 = Math.hypot(p.x - o.x, p.y - o.y), d1 = Math.hypot(e.clientX - o.x, e.clientY - o.y); if (d0 > 10) cam.dist = Math.max(1.8, Math.min(12, cam.dist * d0 / d1)); }
+    p.x = e.clientX; p.y = e.clientY;
+  });
+  const up = e => ptr.delete(e.pointerId); canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up);
+  canvas.addEventListener('wheel', e => { e.preventDefault(); cam.dist = Math.max(1.8, Math.min(12, cam.dist * Math.exp(e.deltaY * .001))); }, { passive: false });
+
+  /* ---- loop ---- */
+  function resize() { const d = Math.min(window.devicePixelRatio || 1, 2), w = Math.floor(innerWidth * d), h = Math.floor(innerHeight * d); if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; } }
+  function draw() {
+    resize(); const w = canvas.width, h = canvas.height, p = rig.world[0];
+    const tx = p ? p[12] : 0, tz = p ? p[14] : 0, ty = -.05;
+    const eye = [tx + Math.sin(cam.yaw) * Math.cos(cam.pitch) * cam.dist, ty + Math.sin(cam.pitch) * cam.dist, tz + Math.cos(cam.yaw) * Math.cos(cam.pitch) * cam.dist];
+    const vp = CR.mmul(CR.perspective(45 * CR.D2R, w / h, .05, 200), CR.lookAt(eye, [tx, ty, tz], [0, 1, 0]), new Float32Array(16));
+    R.beginFrame(vp, eye, w, h); R.drawGround(tx, tz);
+    R.drawCyber(rig, CR.modelMat(0, 0, 0, 0, 1), [.2, .7, 1], 0);
+    R.drawFx(state.fx.map(f => { const k = Math.max(0, 1 - f.age / f.life); return Object.assign({}, f, { col: f.col.map(c => c * k), alpha: f.kind === 'ring' ? Math.min(1, f.age / f.life) : k }); }));
+  }
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(.05, (now - last) / 1000); last = now;
+    if (!state.paused) { rig.player.speed = state.speed; rig.update(dt); for (const f of state.fx) f.age += dt * state.speed; state.fx = state.fx.filter(f => f.age < f.life); if (rig.player.done && state.auto) setTimeout(() => play('idle'), 350), state.auto = false; }
+    draw();
+    document.getElementById('hud').textContent = (rig.player.name || '') + '  t=' + rig.player.t.toFixed(2) + 's / ' + (rig.player.clip ? rig.player.clip.dur.toFixed(2) : '') + 's';
+    document.getElementById('log').textContent = state.log.join('\n');
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  /* ---- API de teste determinística (usada nos testes automatizados) ---- */
+  window.__v = {
+    names: state.names, cam,
+    pose(name, t, yawDeg) {
+      state.paused = true; state.fx.length = 0; if (rig.player.name !== name) { rig.player.play(name, { fade: 0, restart: true }); rig.player.name = name; }
+      const c = rig.player.clip;
+      for (const ev of c.events) { const age = t - ev.t; if (age >= 0 && age < .4) { rig.player.setTime(ev.t); rig.apply(rig.player.pose); spawn(ev, age); } }
+      rig.player.setTime(t); rig.apply(rig.player.pose); if (yawDeg != null) cam.yaw = yawDeg * CR.D2R; draw();
+    },
+    boneInfo(n) { return rig.bonePoint(n); },
+    duration(n) { return CR.CLIPS[n].dur; }, events(n) { return CR.CLIPS[n].events; },
+  };
+  window.__ready = true;
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,124 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: cyberarena
+      POSTGRES_USER: cyberarena_admin
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_password
+    volumes:
+      - cyberarena_db:/var/lib/postgresql/data
+      - ./db/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+      - ./docker/init-app-role.sh:/docker-entrypoint-initdb.d/02-app-role.sh:ro
+    secrets:
+      - db_password
+      - app_db_password
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cyberarena_admin -d cyberarena"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [backend]
+
+  migrate:
+    build:
+      context: ..
+      dockerfile: server/Dockerfile
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DB_USER: cyberarena_admin
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: cyberarena
+      DB_PASSWORD_FILE: /run/secrets/db_password
+      COOKIE_SECURE: "true"
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:?Set PUBLIC_ORIGIN=https://your-domain}
+      TRUSTED_PROXY_HOPS: 1
+    entrypoint: ["/bin/sh", "/app/server/docker/entrypoint.sh"]
+    command: ["npm", "run", "migrate"]
+    secrets:
+      - db_password
+    networks: [backend]
+
+  app:
+    build:
+      context: ..
+      dockerfile: server/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      NODE_ENV: production
+      PORT: 8080
+      DB_USER: cyberarena_app
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: cyberarena
+      DB_PASSWORD_FILE: /run/secrets/app_db_password
+      SESSION_TTL_DAYS: 30
+      COOKIE_SECURE: "true"
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:?Set PUBLIC_ORIGIN=https://your-domain}
+      TRUSTED_PROXY_HOPS: 1
+      PGSSL: "false"
+    secrets:
+      - app_db_password
+    expose: ["8080"]
+    networks: [backend, edge]
+
+  owner-bootstrap:
+    profiles: ["bootstrap"]
+    build:
+      context: ..
+      dockerfile: server/Dockerfile
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    environment:
+      NODE_ENV: production
+      DB_USER: cyberarena_admin
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: cyberarena
+      DB_PASSWORD_FILE: /run/secrets/db_password
+      OWNER_NAME: ${OWNER_NAME:?Set OWNER_NAME}
+      OWNER_PASSWORD: ${OWNER_PASSWORD:?Set OWNER_PASSWORD only for one-shot bootstrap}
+    entrypoint: ["/bin/sh", "/app/server/docker/bootstrap-owner.sh"]
+    secrets:
+      - db_password
+    networks: [backend]
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on: [app]
+    environment:
+      CADDY_DOMAIN: ${CADDY_DOMAIN:?Set CADDY_DOMAIN=example.com}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./docker/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [edge]
+
+volumes:
+  cyberarena_db:
+  caddy_data:
+  caddy_config:
+
+networks:
+  backend:
+    internal: true
+  edge:
+
+secrets:
+  db_password:
+    file: ./secrets/db_password.txt
+  app_db_password:
+    file: ./secrets/app_db_password.txt

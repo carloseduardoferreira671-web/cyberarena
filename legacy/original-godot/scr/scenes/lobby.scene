@@ -1,0 +1,6 @@
+Botão Oferta →
+  Se OfertaColetada = false →
+    Gemas += 200
+    OfertaColetada = true
+LANÇAMENTO GLOBAL
+200 Gemas – 160 dias

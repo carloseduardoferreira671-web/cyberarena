@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cyber Arena — Batalha 3D online</title>
+<meta name="description" content="Cyber Arena: batalha 3D para 16 jogadores com matchmaking por rank, mundo aberto social e ranking. Jogue no navegador ou no Android.">
+<meta name="theme-color" content="#0b1220">
+<link rel="icon" href="/site/icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@500;600;700&family=Russo+One&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#070b16;--bg2:#0e1530;--panel:#111a3a;--line:#25316b;--text:#e9ecff;--mute:#9aa4d6;--red:#ff2a4d;--red2:#c4163a;--vio:#7b5cff;--ok:#3ddc97}
+*{box-sizing:border-box;margin:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font:500 18px/1.55 Rajdhani,system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:inherit}
+.wrap{max-width:1080px;width:100%;margin:0 auto;padding:0 20px}
+h1,h2,h3{font-family:"Russo One",Impact,sans-serif;font-weight:400;letter-spacing:.02em;line-height:1.1}
+nav{position:fixed;inset:0 0 auto;z-index:10;background:linear-gradient(#070b16ee,#070b1600);backdrop-filter:blur(6px)}
+nav .wrap{display:flex;align-items:center;gap:20px;height:60px}
+nav b{font-family:"Russo One";color:var(--red);font-size:20px;margin-right:auto;display:flex;align-items:center;gap:10px}
+nav b img{width:30px;height:30px;border-radius:7px}
+nav a{text-decoration:none;color:var(--mute);font-weight:600}
+nav a:hover{color:var(--text)}
+.btn{display:inline-block;text-decoration:none;font:700 20px Rajdhani;letter-spacing:.06em;text-transform:uppercase;padding:14px 30px;border-radius:6px;border:2px solid var(--red);background:var(--red);color:#fff;cursor:pointer;transition:transform .15s,background .15s}
+.btn:hover{transform:translateY(-2px);background:#ff4565}
+.btn.ghost{background:transparent;border-color:var(--line);color:var(--text)}
+.btn.ghost:hover{border-color:var(--vio);background:#7b5cff22}
+.btn[aria-disabled=true]{opacity:.55;pointer-events:none}
+.hero{min-height:100svh;display:grid;align-items:end;position:relative;background:linear-gradient(#070b16 0,#070b1600 22%,#070b1688 45%,#070b16ee 80%,#070b16 100%),url(/site/hero.webp) center/cover}
+.hero .wrap{padding-bottom:9vh;padding-top:120px}
+.hero h1{font-size:clamp(46px,9vw,104px);color:var(--red);text-shadow:0 4px 0 #5a0a1c,0 0 40px #ff2a4d44}
+.hero p{max-width:560px;font-size:22px;margin:16px 0 28px;color:#d8defa}
+.cta{display:flex;flex-wrap:wrap;gap:14px}
+.live{display:flex;flex-wrap:wrap;gap:10px 26px;margin-top:30px;color:var(--mute);font-size:17px}
+.live span{display:flex;align-items:center;gap:8px}
+.live b{color:var(--text);font-size:22px}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--mute)}
+.on .dot{background:var(--ok);box-shadow:0 0 10px var(--ok)}
+section{padding:84px 0}
+h2{font-size:clamp(28px,4.5vw,44px);margin-bottom:12px}
+.lead{color:var(--mute);max-width:640px;margin-bottom:38px}
+.grid{display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}
+.card{background:linear-gradient(180deg,var(--panel),var(--bg2));border:1px solid var(--line);border-radius:10px;padding:26px}
+.card h3{font-size:21px;margin-bottom:8px}
+.card p{color:var(--mute)}
+.card .n{font:400 14px "Russo One";color:var(--red);letter-spacing:.1em;margin-bottom:10px;display:block}
+.band{background:var(--bg2);border-block:1px solid var(--line)}
+.ranks{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 30px}
+.ranks span{padding:7px 16px;border:1px solid var(--line);border-radius:99px;font-weight:700;background:var(--panel)}
+.ranks span:last-child{border-color:var(--red);color:var(--red)}
+table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+th,td{padding:11px 16px;text-align:left}
+th{color:var(--mute);font-size:14px;letter-spacing:.1em;text-transform:uppercase;background:var(--bg2)}
+tr+tr td{border-top:1px solid #1d2756}
+td:first-child{width:56px;color:var(--red);font-family:"Russo One"}
+.empty{padding:30px;text-align:center;color:var(--mute)}
+.dl{display:grid;gap:18px;grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+.dl .card{display:flex;flex-direction:column;gap:16px;align-items:flex-start}
+small{color:var(--mute);font-size:15px}
+footer{padding:36px 0 60px;color:var(--mute);border-top:1px solid var(--line);font-size:15px}
+@media (max-width:600px){nav a.h{display:none}body{font-size:17px}section{padding:60px 0}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+</style>
+</head>
+<body>
+<nav><div class="wrap"><b><img src="/site/icon.png" alt="">CYBER ARENA</b><a class="h" href="#modos">Modos</a><a class="h" href="#matchmaking">Matchmaking</a><a class="h" href="#ranking">Ranking</a><a href="#baixar">Baixar</a></div></nav>
+
+<header class="hero"><div class="wrap">
+  <h1>CYBER<br>ARENA</h1>
+  <p>Batalha 3D para 16 jogadores. Entre numa sala do seu nível, sobreviva à zona que fecha e suba no ranking até Cyber Lenda.</p>
+  <div class="cta"><a class="btn" href="/">Jogar agora</a><a class="btn ghost" href="#baixar">Baixar para Android</a></div>
+  <div class="live" id="live" aria-live="polite">
+    <span id="liveOn"><i class="dot"></i><b id="sOnline">–</b> online agora</span>
+    <span><b id="sWait">–</b> na fila de batalha</span>
+    <span><b id="sOpen">–</b> no mundo aberto</span>
+  </div>
+</div></header>
+
+<section id="modos"><div class="wrap">
+  <h2>Três jeitos de jogar</h2>
+  <p class="lead">Sem cadastro para começar: seu perfil é criado no aparelho e guarda troféus e XP no servidor.</p>
+  <div class="grid">
+    <div class="card"><span class="n">01</span><h3>Batalha 16</h3><p>Até 16 jogadores por partida de 6 minutos. A zona fecha, os poderes decidem. Salas incompletas são completadas com bots para a partida nunca ficar vazia.</p></div>
+    <div class="card"><span class="n">02</span><h3>Mundo aberto</h3><p>O Vale da Casona como espaço social: explore, converse no chat e jogue com quem estiver online.</p></div>
+    <div class="card"><span class="n">03</span><h3>Sala com amigos</h3><p>Crie uma sala com código de até 8 caracteres e mande para quem quiser jogar junto, sem misturar com desconhecidos.</p></div>
+  </div>
+</div></section>
+
+<section id="matchmaking" class="band"><div class="wrap">
+  <h2>Matchmaking por rank</h2>
+  <p class="lead">Partidas públicas juntam jogadores de rank parecido. Quanto mais a sala espera para começar, maior a tolerância — assim você nunca fica parado sozinho na fila.</p>
+  <div class="ranks"><span>Bronze</span><span>Prata</span><span>Ouro</span><span>Platina</span><span>Diamante</span><span>Mestre</span><span>Cyber Lenda</span></div>
+  <div class="grid">
+    <div class="card"><h3>Sala mais cheia primeiro</h3><p>Você entra na sala do seu nível com mais gente e que começa mais cedo.</p></div>
+    <div class="card"><h3>Troféus e XP</h3><p>Colocação e abates valem troféus (1º lugar +32) e XP. O resultado é calculado pelo servidor, não pelo celular.</p></div>
+    <div class="card"><h3>Sem conexão? Joga offline</h3><p>Se o servidor não responder, o jogo abre uma partida local contra bots e sincroniza o perfil depois.</p></div>
+  </div>
+</div></section>
+
+<section id="ranking"><div class="wrap">
+  <h2>Top jogadores</h2>
+  <p class="lead">Os 10 melhores por troféus, ao vivo.</p>
+  <table><thead><tr><th>#</th><th>Jogador</th><th>Rank</th><th>Troféus</th></tr></thead><tbody id="board"><tr><td colspan="4" class="empty">Carregando…</td></tr></tbody></table>
+</div></section>
+
+<section id="baixar" class="band"><div class="wrap">
+  <h2>Baixar</h2>
+  <p class="lead">No navegador não precisa instalar nada. No Android, instale o APK (permita “fontes desconhecidas” quando o aparelho pedir).</p>
+  <div class="dl">
+    <div class="card"><h3>Navegador</h3><p>Celular ou PC, em tela cheia na horizontal.</p><a class="btn" href="/">Jogar agora</a></div>
+    <div class="card"><h3>Android (APK)</h3><p id="apkTxt">Verificando…</p><a class="btn ghost" id="apkBtn" href="/CyberArena.apk" aria-disabled="true">Baixar APK</a></div>
+  </div>
+</div></section>
+
+<footer><div class="wrap">Cyber Arena · Jogo independente. <small>Matchmaking e ranking funcionam enquanto o servidor estiver no ar.</small></div></footer>
+
+<script>
+const $=id=>document.getElementById(id);
+async function j(u){const r=await fetch(u,{cache:'no-store'});if(!r.ok)throw 0;return r.json()}
+async function stats(){
+  try{const s=await j('/api/stats');$('sOnline').textContent=s.online;$('sWait').textContent=s.waitingBattle;$('sOpen').textContent=s.openWorld;$('liveOn').classList.add('on')}
+  catch{$('sOnline').textContent='–';$('liveOn').classList.remove('on')}
+}
+async function board(){
+  const tb=$('board');
+  try{
+    const {players}=await j('/api/leaderboard');
+    tb.textContent='';
+    if(!players.length){tb.innerHTML='<tr><td colspan="4" class="empty">Ninguém no ranking ainda. Seja o primeiro!</td></tr>';return}
+    for(const p of players.slice(0,10)){
+      const tr=document.createElement('tr');
+      for(const v of [p.pos,p.name,p.rank,p.trophies]){const td=document.createElement('td');td.textContent=v;tr.appendChild(td)}
+      tb.appendChild(tr);
+    }
+  }catch{tb.innerHTML='<tr><td colspan="4" class="empty">Ranking indisponível no momento.</td></tr>'}
+}
+async function apk(){
+  try{
+    const r=await fetch('/CyberArena.apk',{method:'HEAD'});
+    if(r.ok){$('apkTxt').textContent='Versão mais recente para Android 7+, sempre na horizontal.';$('apkBtn').removeAttribute('aria-disabled');return}
+  }catch{}
+  $('apkTxt').textContent='O APK ainda não foi publicado neste servidor. Use o navegador por enquanto.';
+}
+stats();board();apk();setInterval(stats,10000);
+</script>
+</body>
+</html>

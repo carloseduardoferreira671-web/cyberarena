@@ -1,0 +1,33 @@
+No início da cena →
+  TimeLeft = 60
+Sempre →
+  TimeLeft -= TimeDelta()
+
+Botão attack pressionado →
+  Para cada Bot em colisão com Player:
+    Bot.HP -= Player.Ataque
+    Camera tremer (5, 0.1s)
+
+Se Player.HP <= 0 →
+  Resultado = "DERROTA"
+  Ir para Result.scene
+
+Se Bot.HP <= 0 →
+  Excluir Bot
+
+Se número de Bots = 0 →
+  Resultado = "VITÓRIA"
+  Ir para Result.scene
+
+Se TimeLeft <= 0 →
+  Resultado = "EMPATE"
+  Ir para Result.scene
+
+Sempre →
+  HP_Bar.X = Player.X
+  HP_Bar.Y = Player.Y - 40
+  HP_Bar.Width = 60 * (Player.HP / Player.MaxHP)
+
+Se for bot →
+HP_Bar.X = Bot.X
+HP_Bar.Y = Bot.Y - 40

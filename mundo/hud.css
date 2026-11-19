@@ -1,0 +1,157 @@
+/* CyberArena · HUD no estilo Free Fire (v136)
+   Só visual: botões de vidro escuro com anel e ícone branco, cartão do jogador angular, barra de vida segmentada
+   no centro embaixo, ferramentas em ícones, placas dos jogadores com barra inclinada. Os ids e a lógica do jogo
+   não mudam. Carrega DEPOIS do <style> do index.html (por isso usa `body` na frente para ganhar a prioridade). */
+:root{--ff:#ff9d1a;--ff2:#ffd34d;--glass:rgba(10,13,22,.58);--mm:168px;--ink:rgba(6,9,18,.78)}
+@media (max-height:430px){:root{--mm:128px}}
+
+/* ------------------------------------------------ cartão do jogador (canto superior esquerdo) */
+body #me{left:calc(10px + var(--sa-l));top:calc(8px + var(--sa-t));padding:0;gap:0;background:none;border:0;box-shadow:none;backdrop-filter:none;border-radius:0;align-items:center;filter:drop-shadow(0 3px 6px rgba(0,0,0,.55))}
+body #me .av{position:relative;z-index:2;width:52px;height:52px;border-radius:0;border:0;color:#fff;font:900 17px/1 "Segoe UI",system-ui;text-shadow:0 1px 3px #000;letter-spacing:.02em;
+  background:linear-gradient(135deg,#ffc24a,#ff6a00);clip-path:polygon(14px 0,100% 0,100% calc(100% - 14px),calc(100% - 14px) 100%,0 100%,0 14px)}
+body #me .av::before{content:"";position:absolute;inset:2.5px;z-index:-1;background:linear-gradient(145deg,#2c4a86,#0f1f45 70%);clip-path:polygon(12px 0,100% 0,100% calc(100% - 12px),calc(100% - 12px) 100%,0 100%,0 12px)}
+body #me .mc{margin-left:-10px;padding:5px 22px 5px 18px;display:flex;flex-direction:column;gap:1px;background:linear-gradient(90deg,var(--ink),rgba(6,9,18,.5));clip-path:polygon(0 0,100% 0,calc(100% - 12px) 100%,0 100%);border-bottom:2px solid var(--ff)}
+body #me b{font:900 italic 14px/1.1 "Segoe UI",system-ui;letter-spacing:.05em;text-shadow:0 1px 2px #000;white-space:nowrap}
+body #me small{font:800 9px/1 "Segoe UI",system-ui;letter-spacing:.28em;color:var(--ff);text-shadow:0 1px 2px #000}
+
+/* ------------------------------------------------ vida e energia (centro, embaixo) */
+body #vitals{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(12px + var(--sa-b));width:min(38vw,340px);display:flex;flex-direction:column;align-items:center;gap:5px;pointer-events:none;z-index:4;filter:drop-shadow(0 3px 5px rgba(0,0,0,.6))}
+body .hp{position:relative;width:100%;height:21px;margin:0;border:0;border-radius:0;overflow:hidden;background:var(--ink);clip-path:polygon(9px 0,100% 0,calc(100% - 9px) 100%,0 100%)}
+body .hp i{background:linear-gradient(180deg,#b6ff8f,#2fd467 52%,#169a49)}
+body .hp em{background:#fff;opacity:.55}
+body .hp::after{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(90deg,transparent 0 calc(10% - 2px),rgba(0,0,0,.62) calc(10% - 2px) 10%),linear-gradient(180deg,rgba(255,255,255,.28),transparent 45%)}
+body .hp .hpl,body .hp #hpNum{position:absolute;top:50%;transform:translateY(-50%);z-index:2;font:900 11px/1 "Segoe UI",system-ui;color:#fff;text-shadow:0 1px 2px #000,0 0 4px #000}
+body .hp .hpl{left:16px;letter-spacing:.14em;font-size:9px}body .hp #hpNum{right:16px;font-size:13px;font-style:italic}
+body .en{position:relative;width:74%;height:11px;margin:0;border-radius:0;overflow:hidden;background:var(--ink);clip-path:polygon(6px 0,100% 0,calc(100% - 6px) 100%,0 100%)}
+body .en i{background:linear-gradient(90deg,#7a2cff,#d34dff 70%,#ff8af6)}
+body .en::after{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(90deg,transparent 0 calc(20% - 2px),rgba(0,0,0,.6) calc(20% - 2px) 20%)}
+body .en .enl,body .en #enNum{position:absolute;top:50%;transform:translateY(-50%);z-index:2;font:900 8px/1 "Segoe UI",system-ui;color:#fff;text-shadow:0 1px 2px #000;letter-spacing:.12em}
+body .en .enl{left:12px}body .en #enNum{right:12px}
+body .en.full{filter:drop-shadow(0 0 8px #ff5cf0)}body .en.full i{background:linear-gradient(90deg,#ffd34d,#ff8af6,#7cf4ff);box-shadow:none}
+
+/* ------------------------------------------------ contadores do topo */
+body #top{gap:6px;top:calc(8px + var(--sa-t))}
+body #top .pill{min-width:58px;padding:5px 14px 5px;border:0;border-radius:0;background:linear-gradient(180deg,var(--ink),rgba(6,9,18,.55));backdrop-filter:none;box-shadow:none;clip-path:polygon(9px 0,100% 0,calc(100% - 9px) 100%,0 100%);border-bottom:2px solid var(--ff);filter:drop-shadow(0 2px 4px rgba(0,0,0,.5))}
+body #top .pill small{font:800 8px/1 "Segoe UI",system-ui;letter-spacing:.24em;color:var(--ff);opacity:1}
+body #top .pill b{font:900 italic 18px/1.1 "Segoe UI",system-ui;color:#fff}
+
+/* ------------------------------------------------ minimapa */
+body #mmWrap{border:3px solid rgba(255,255,255,.85);box-shadow:0 0 0 3px rgba(255,157,26,.9),0 6px 18px rgba(0,0,0,.55);width:var(--mm);height:var(--mm)}
+body #feed{top:calc(14px + var(--mm) + var(--sa-t))}
+body #feed div{border:0;border-right:3px solid var(--ff);border-radius:0;background:linear-gradient(270deg,var(--ink),rgba(6,9,18,0));padding:3px 10px 3px 18px;font-weight:700;text-shadow:0 1px 2px #000}
+
+/* ------------------------------------------------ ferramentas (ícones redondos) */
+body #tools{top:calc(10px + var(--sa-t));right:calc(26px + var(--mm) + var(--sa-r));gap:5px;flex-direction:row-reverse;flex-wrap:wrap;align-content:flex-start;width:73px}
+body #tools button{position:relative;width:34px;height:34px;padding:0;display:grid;place-items:center;border-radius:50%;background:var(--glass);border:2px solid rgba(255,255,255,.7);box-shadow:0 3px 8px rgba(0,0,0,.5);backdrop-filter:blur(2px);font-size:0;color:#fff}
+body #tools button svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;filter:drop-shadow(0 1px 1px rgba(0,0,0,.7))}
+body #tools button:active{transform:scale(.88);background:rgba(255,157,26,.35)}
+body #bExit{border-color:#ff6b6b!important;color:#ffb0b0!important}
+body #bVoz.on{border-color:#3dff8a;color:#3dff8a;box-shadow:0 0 12px rgba(61,255,138,.7),0 3px 8px rgba(0,0,0,.5)}
+body #bVoz.busy{animation:vPulse .9s ease-in-out infinite alternate}
+@keyframes vPulse{from{box-shadow:0 0 4px rgba(61,255,138,.3)}to{box-shadow:0 0 16px rgba(61,255,138,.95)}}
+body #bMic{border-color:#3dff8a;color:#3dff8a}
+body #bMic.off{border-color:#ff6b6b;color:#ff9a9a}
+body #bMic.off svg{opacity:.55}
+body #bMic.off::after{content:"";position:absolute;left:7px;right:7px;top:50%;height:2.5px;background:#ff5a5a;border-radius:2px;transform:rotate(-45deg);box-shadow:0 0 3px #000}
+body #bMic.talk{box-shadow:0 0 0 3px rgba(61,255,138,.55),0 0 16px #3dff8a}
+
+/* ------------------------------------------------ joystick */
+body #joyB{width:138px;height:138px;margin:-69px 0 0 -69px;border:2.5px solid rgba(255,255,255,.55);background:radial-gradient(circle,rgba(255,255,255,.07) 0,rgba(0,0,0,.28) 100%);opacity:.9;box-shadow:inset 0 0 0 10px rgba(0,0,0,.18),0 0 0 2px rgba(0,0,0,.25)}
+body #joyB::before{content:"";position:absolute;inset:11px;border-radius:50%;border:1.5px dashed rgba(255,255,255,.28)}
+body #joyK{width:60px;height:60px;margin:-30px 0 0 -30px;background:radial-gradient(circle at 38% 30%,#fff,rgba(255,255,255,.78) 45%,rgba(190,205,230,.55));box-shadow:0 0 16px rgba(255,255,255,.5),0 4px 10px rgba(0,0,0,.5)}
+
+/* ------------------------------------------------ botões de ação (estilo Free Fire) */
+body #btns{width:280px;height:250px;right:calc(14px + var(--sa-r));bottom:calc(14px + var(--sa-b))}
+body #btns .ab{--sz:66px;width:var(--sz);height:var(--sz);border:0!important;overflow:visible!important;color:#fff;
+  background:radial-gradient(circle at 50% 36%,rgba(60,70,96,.66),rgba(8,10,18,.8) 74%)!important;
+  box-shadow:0 0 0 2.5px rgba(255,255,255,.78),0 0 0 5px rgba(0,0,0,.32),0 7px 14px rgba(0,0,0,.5)!important;backdrop-filter:blur(2px);animation:none}
+body #btns .ab::before{inset:-8px!important;padding:0!important;border-radius:50%;border:2.5px solid var(--rc,#fff)!important;background:none!important;-webkit-mask:none!important;mask:none!important;animation:none!important;opacity:.0;transition:opacity .2s;filter:drop-shadow(0 0 6px var(--rc,#fff))}
+body #btns .ab::after{inset:6px!important;border:1.5px solid rgba(255,255,255,.14)!important;background:radial-gradient(circle at 50% 18%,rgba(255,255,255,.22),transparent 48%)!important}
+body #btns .ab.ready::before{opacity:1;animation:ffReady 1.1s ease-in-out infinite alternate!important}
+@keyframes ffReady{from{transform:scale(.97);opacity:.55}to{transform:scale(1.04);opacity:1}}
+body #btns .ab.ready{box-shadow:0 0 0 2.5px #fff,0 0 0 5px rgba(0,0,0,.32),0 0 20px var(--rc,#fff),0 7px 14px rgba(0,0,0,.5)!important}
+body #btns .ab:active{transform:scale(.9)!important;filter:brightness(1.35)}
+body #btns .ab .cd{border-radius:50%;background:conic-gradient(rgba(0,0,0,.74) var(--p,0%),transparent 0)}
+body #btns .ab .ic{color:#fff;filter:drop-shadow(0 0 5px var(--rc,#fff))}
+body #btns .ab .ic svg{width:31px;height:31px;stroke-width:2.4;filter:none}
+body #btns .ab>div:not(.cd):not(.cdn):not(.charges) span{display:none}
+body #btns .ab .cdn{font:900 italic 24px/1 "Segoe UI",system-ui;text-shadow:0 0 6px #000,0 2px 0 #000}
+/* ataque principal: grande, com anel laranja */
+body #btns #bAtk{--sz:116px;--rc:var(--ff);right:0;bottom:0;box-shadow:0 0 0 3px rgba(255,255,255,.85),0 0 0 6px rgba(0,0,0,.34),0 0 24px rgba(255,157,26,.55),0 8px 18px rgba(0,0,0,.55)!important;background:radial-gradient(circle at 50% 34%,rgba(255,150,40,.34),rgba(10,10,18,.84) 72%)!important;outline:2px dashed rgba(255,157,26,.6);outline-offset:9px}
+body #btns #bAtk .ic svg{width:58px;height:58px;stroke-width:2.2}
+body #btns #bAtk::before{opacity:.9}
+body #btns #bAtk:active{outline-color:#ffd34d}
+/* pulo */
+body #btns #bJmp{--sz:58px;--rc:#7cffa8;right:29px;bottom:126px}
+body #btns #bJmp .ic svg{width:27px;height:27px}
+/* habilidade, poder e super */
+body #btns #bLas{--sz:74px;right:126px;bottom:4px}
+body #btns #bVel{--sz:66px;right:120px;bottom:88px}
+body #btns #bSup{--sz:72px;right:85px;bottom:164px}
+body #btns #bSwap{--sz:66px;right:206px;bottom:8px}
+body #btns #bPortal{--sz:96px;--rc:#c9a8ff;right:4px;bottom:4px}
+body #btns #bSup.ready{animation:supR 1.2s ease-in-out infinite}
+body #btns #bLas.ready{box-shadow:0 0 0 2.5px #fff,0 0 0 5px rgba(0,0,0,.32),0 0 16px var(--glow,var(--rc)),0 7px 14px rgba(0,0,0,.5)!important}
+body #btns .ab.hidden{display:none}
+
+/* ------------------------------------------------ emotes, jogadores, chat */
+body #emotes{right:calc(14px + var(--sa-r));bottom:calc(122px + var(--sa-b));gap:6px}
+body #emotes button{border:0;border-radius:0;background:linear-gradient(270deg,var(--ink),rgba(6,9,18,.45));clip-path:polygon(10px 0,100% 0,100% 100%,0 100%);border-right:3px solid var(--ff);padding:7px 14px 7px 20px;font:800 11px "Segoe UI",system-ui}
+body #players{top:calc(66px + var(--sa-t));left:calc(10px + var(--sa-l));border:0;border-radius:0;background:linear-gradient(90deg,var(--ink),rgba(6,9,18,.45));backdrop-filter:none;box-shadow:none;border-left:3px solid var(--ff);padding:5px 14px 5px 9px;font:700 11px/1.45 "Segoe UI",system-ui;max-width:190px}
+body #players b{color:var(--ff);letter-spacing:.14em;font-size:10px}
+body #chatLog{top:auto;left:calc(10px + var(--sa-l));bottom:calc(206px + var(--sa-b));width:min(300px,38vw)}
+body #chatLog div{border-left:3px solid var(--ff);border-radius:0;background:linear-gradient(90deg,var(--ink),rgba(6,9,18,0));padding:3px 26px 3px 8px;font-weight:700;text-shadow:0 1px 2px #000}
+body #chatLog b{color:var(--ff2)}
+body #chatBar input{border-radius:0;border:0;border-left:3px solid var(--ff);background:rgba(6,9,18,.92);clip-path:polygon(0 0,100% 0,calc(100% - 10px) 100%,0 100%)}
+body #quick button{border:0;border-radius:0;background:rgba(6,9,18,.82);border-bottom:2px solid var(--ff);clip-path:polygon(7px 0,100% 0,calc(100% - 7px) 100%,0 100%);padding:6px 14px}
+
+/* ------------------------------------------------ placas dos jogadores */
+body .tag{font:900 12px/1.15 "Segoe UI",system-ui;letter-spacing:.02em;color:#fff;text-shadow:0 0 3px #000,0 1px 2px #000}
+body .tag>span{display:inline-block;padding:1px 12px;background:linear-gradient(90deg,transparent,rgba(6,9,18,.72) 22%,rgba(6,9,18,.72) 78%,transparent)}
+body .tag.friend>span{color:#bff6ff}
+body .tag .tb{width:74px;height:7px;margin:1px auto 0;border:0;border-radius:0;background:rgba(0,0,0,.68);clip-path:polygon(3px 0,100% 0,calc(100% - 3px) 100%,0 100%)}
+body .tag .tb i{background:linear-gradient(180deg,#ff7b7b,#e0243a)}
+body .tag.friend .tb i{background:linear-gradient(180deg,#8ff8ff,#1fb0e6)}
+body .tag.speak>span{color:#3dff8a;box-shadow:0 0 0 1px rgba(61,255,138,.35)}
+body .tag.speak>span::before{content:"🎧 "}
+
+/* telas baixas (celular na horizontal): cluster um pouco menor */
+@media (max-height:430px){
+  body #btns{transform:scale(.86);transform-origin:right bottom}
+  body #vitals{bottom:calc(10px + var(--sa-b))}
+  body #chatLog{bottom:calc(190px + var(--sa-b))}
+}
+html.cy-web body #btns{bottom:calc(84px + var(--sa-b))}
+html.cy-web body #emotes{bottom:calc(192px + var(--sa-b))}
+@media (max-height:430px){html.cy-web body #btns{bottom:calc(66px + var(--sa-b));transform:scale(.8)}html.cy-web body #emotes{bottom:calc(170px + var(--sa-b))}}
+
+/* mundo aberto: sem combate, então a barra de vida some e os emotes ficam ao lado do pulo */
+body.mode-open #vitals{display:none}
+body.mode-open #emotes{right:calc(100px + var(--sa-r));bottom:calc(128px + var(--sa-b))}
+body.mode-open #btns #bPortal{right:0;bottom:0}
+
+/* ---------- grupo: selo do chat e quem está falando (voz só do grupo) ---------- */
+body #tools .bdg{position:absolute;right:-4px;top:-4px;min-width:16px;height:16px;border-radius:8px;background:#ff3b3b;border:2px solid #0b1020;font:900 9px/12px system-ui;text-align:center;font-style:normal;color:#fff}
+body #tools .bdg.hidden{display:none}
+body #vTeam{position:fixed;left:calc(10px + var(--sa-l));top:calc(66px + var(--sa-t));display:flex;flex-direction:column;gap:3px;pointer-events:none;z-index:6}
+body #vTeam div{display:flex;align-items:center;gap:6px;padding:2px 12px 2px 8px;font-size:11px;font-weight:800;color:#fff;background:linear-gradient(90deg,var(--ink),rgba(6,9,18,.45));border-left:3px solid #4a5675}
+body #vTeam div.sp{border-left-color:#3dff8a;box-shadow:0 0 10px rgba(61,255,138,.45)}
+body #vTeam div i{width:8px;height:8px;border-radius:50%;background:#4a5675;display:inline-block}
+body #vTeam div.sp i{background:#3dff8a;animation:vtp .5s infinite alternate}
+@keyframes vtp{to{transform:scale(1.5)}}
+body #vTeam:not(:empty)~#players{top:calc(66px + var(--sa-t) + var(--vt,0px))}
+
+/* configurações: rola, com X e OK sempre visíveis */
+#settings .card{max-height:calc(100dvh - 16px);overflow-y:auto;padding:0 18px;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+#settings .stk{position:sticky;top:0;z-index:3;display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 0 8px;background:rgba(8,14,28,.97)}
+#settings .stk h2{font-size:20px;margin:2px 0 0}
+#settings #bSetX{min-width:48px;min-height:44px;font-size:20px;line-height:1;padding:0 14px;flex:none}
+#settings .row{position:sticky;bottom:0;z-index:3;background:rgba(8,14,28,.97);padding:10px 0 12px;margin-top:6px}
+#settings .row button{min-height:46px;min-width:140px}
+#settings label{margin:7px 0}
+/* chat: histórico completo dentro da caixa do chat, acima de onde se escreve */
+#chatPanel{display:none;position:fixed;left:50%;transform:translateX(-50%);bottom:calc(112px + var(--sa-b));width:min(520px,70vw);max-height:min(34vh,220px);overflow-y:auto;z-index:9;background:rgba(6,9,18,.9);border-left:3px solid var(--ff);padding:6px 10px;font-size:13px;font-weight:600;-webkit-overflow-scrolling:touch}
+#chatPanel div{padding:2px 0;word-break:break-word}
+#chatPanel b{color:var(--ff2)}#chatPanel .sys{color:#ffd34d}
+body.chatOpen #chatPanel{display:block}
+body.chatOpen #chatLog{display:none}

@@ -1,0 +1,5 @@
+Sempre →
+  Salvar PlayerName
+  Salvar Gemas
+  Salvar XP
+  Salvar PasseNivel

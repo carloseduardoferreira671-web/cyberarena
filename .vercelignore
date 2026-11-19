@@ -1,0 +1,14 @@
+online-server
+server
+netlify
+netlify.toml
+db
+drizzle.config.ts
+legacy
+character_sources
+tools
+.github
+node_modules
+render.yaml
+server_tmp.txt
+*.zip

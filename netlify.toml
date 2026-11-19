@@ -1,0 +1,19 @@
+[build]
+  publish = "."
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+
+[[headers]]
+  for = "/baixar-k7q9zr2m48/cyberarena.zip"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+    Content-Disposition = "attachment; filename=cyberarena.zip"
+
+[[headers]]
+  for = "/baixar-k7q9zr2m48/CyberArena.apk"
+  [headers.values]
+    X-Robots-Tag = "noindex, nofollow"
+    Content-Type = "application/vnd.android.package-archive"
+    Content-Disposition = "attachment; filename=CyberArena.apk"

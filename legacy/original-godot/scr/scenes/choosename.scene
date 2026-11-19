@@ -1,0 +1,6 @@
+Se NomeEscolhido = false →
+  Mostrar campo de texto
+Botão OK →
+  PlayerName = TextoDigitado
+  NomeEscolhido = true
+  Ir para Lobby.scene

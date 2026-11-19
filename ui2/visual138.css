@@ -1,0 +1,24 @@
+/* CyberArena v138 · acabamento visual das Caixas e dos Recursos (só CSS, por cima da Loja 2.0) */
+html body #shop .box.bx2c{border-radius:calc(var(--u)*16);background:radial-gradient(120% 80% at 50% 0%,color-mix(in srgb,var(--tc) 34%,#0d1838),#070b20 68%);box-shadow:0 calc(var(--u)*10) calc(var(--u)*24) rgba(0,0,0,.6),0 0 calc(var(--u)*28) color-mix(in srgb,var(--tc) 38%,transparent),inset 0 calc(var(--u)*1.5) 0 rgba(255,255,255,.14);transition:transform .15s}
+html body #shop .box.bx2c:active{transform:scale(.985)}
+html body #shop .box.bx2c::before{border-width:calc(var(--u)*1.2);opacity:.9;border-radius:calc(var(--u)*16)}
+html body #shop .box.bx2c::after{content:'';position:absolute;left:0;right:0;top:0;height:calc(var(--u)*4);background:linear-gradient(90deg,transparent,var(--tc),transparent);box-shadow:0 0 calc(var(--u)*12) var(--tc)}
+.bx2{gap:calc(var(--u)*5)}
+.bx-tag{padding:calc(var(--u)*3) calc(var(--u)*8);border-radius:calc(var(--u)*10);background:color-mix(in srgb,var(--tc) 22%,#000);border:calc(var(--u)*1) solid color-mix(in srgb,var(--tc) 70%,transparent)}
+.bx-art{width:calc(var(--u)*104);height:calc(var(--u)*92);margin-top:calc(var(--u)*-6)}
+.bx-glow{inset:2%;filter:blur(calc(var(--u)*9));opacity:.9}
+.bx2 h3{font-size:calc(var(--u)*19);letter-spacing:.1em}
+/* chances: só cor + porcentagem, sem as siglas apertadas */
+.bx-rar{gap:calc(var(--u)*5)}
+.bx-rar span{font-size:0;padding:calc(var(--u)*5) 0 calc(var(--u)*4);border-radius:calc(var(--u)*6);background:linear-gradient(180deg,color-mix(in srgb,var(--rc) 30%,transparent),color-mix(in srgb,var(--rc) 10%,transparent));position:relative}
+.bx-rar span::before{content:'';width:calc(var(--u)*7);height:calc(var(--u)*7);border-radius:50%;background:var(--rc);box-shadow:0 0 calc(var(--u)*6) var(--rc);margin-bottom:calc(var(--u)*2)}
+.bx-rar span b{font-size:calc(var(--u)*13)}
+.bx-pips{font-size:calc(var(--u)*9)}.bx-pips i{height:calc(var(--u)*8);border-radius:calc(var(--u)*3)}
+.bx-pity{font-size:calc(var(--u)*8)}.bx-pity i{height:calc(var(--u)*8)}
+.bx-go{height:calc(var(--u)*38);border-radius:calc(var(--u)*10);font-size:calc(var(--u)*16);letter-spacing:.06em}
+.bx-go img{width:calc(var(--u)*22);height:calc(var(--u)*22);filter:drop-shadow(0 0 calc(var(--u)*3) rgba(255,255,255,.6))}
+/* recursos */
+.rs-t{border-radius:calc(var(--u)*12);box-shadow:0 calc(var(--u)*4) calc(var(--u)*12) rgba(0,0,0,.4),inset 0 0 calc(var(--u)*20) color-mix(in srgb,var(--k) 14%,transparent)}
+.rs-t>img{width:calc(var(--u)*46);height:calc(var(--u)*46);filter:drop-shadow(0 0 calc(var(--u)*8) var(--k))}
+.rs-t b{font-size:calc(var(--u)*30)!important;text-shadow:0 0 calc(var(--u)*10) color-mix(in srgb,var(--k) 60%,transparent)}
+.rs-r{border-radius:calc(var(--u)*14)}

@@ -146,6 +146,8 @@ export function buildRigged(h, id = h.charId || 'atlas') {
   // postura de descanso do osso da cabeça (T-pose) no espaço do objeto
   h.object.updateMatrixWorld(true); const qo = h.object.getWorldQuaternion(new THREE.Quaternion()).invert();
   h.atlasRig.headRest = head.getWorldQuaternion(new THREE.Quaternion()); h.atlasRig.neckRest = neck.getWorldQuaternion(new THREE.Quaternion()); h.atlasRig.headRestInvObj = qo;
+  /* v146: pose de descanso JÁ no espaço do objeto (fixa). Antes ela era convertida a cada quadro com o giro atual do personagem, e a cabeça/pescoço entortavam quando ele virava (ex.: o Atlas de costas no lobby) */
+  h.atlasRig.headRestO = h.atlasRig.headRest.clone().premultiply(qo); h.atlasRig.neckRestO = h.atlasRig.neckRest.clone().premultiply(qo);
   play(h, 'Idle', 0);
   return mesh;
 }
@@ -204,7 +206,7 @@ export function stepRigged(h, dt, ac) {
     h.object.updateMatrixWorld(true); _qo.copy(h.object.getWorldQuaternion(_q3)).invert();
     const lev = (bone, rest, share, tp) => {
       bone.getWorldQuaternion(_q).premultiply(_qo);                  // osso no espaço do objeto
-      _q2.copy(rest).premultiply(_qo).invert(); const d = _q.clone().multiply(_q2);
+      _q2.copy(rest).invert(); const d = _q.clone().multiply(_q2);
       _v.set(0, 0, 1).applyQuaternion(d); _v2.set(0, 1, 0).applyQuaternion(d);
       const pitch = Math.atan2(-_v.y, Math.hypot(_v.x, _v.z)), roll = Math.atan2(-_v2.x, _v2.y);
       const kP = Math.max(-.8, Math.min(.8, pitch - tp)) * share * r.headFixW, kR = Math.max(-.5, Math.min(.5, roll)) * share * r.headFixW;
@@ -212,7 +214,7 @@ export function stepRigged(h, dt, ac) {
       bone.parent.getWorldQuaternion(_q3).premultiply(_qo).invert(); bone.quaternion.copy(_q3.multiply(qn)); bone.updateWorldMatrix(false, true);
     };
     const HP = h.headPitch ?? -.2, NP = h.neckPitch ?? -.1;
-    lev(r.neck, r.neckRest, .55, NP); lev(r.head, r.headRest, 1, HP);
+    lev(r.neck, r.neckRestO, .55, NP); lev(r.head, r.headRestO, 1, HP);
   }
   // ---- vento / arrasto para roupa, fita e cabelo
   const pos = h.object.position, vx = (pos.x - r.prevP.x) / dt, vy = (pos.y - r.prevP.y) / dt, vz = (pos.z - r.prevP.z) / dt; r.prevP.copy(pos);

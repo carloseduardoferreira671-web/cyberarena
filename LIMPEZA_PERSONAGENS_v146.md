@@ -22,3 +22,6 @@ Ficam no jogo apenas **Atlas, Nexus e Cyber** da v145 (`mundo/models/*_rig.glb`:
 
 ## Depois de subir no GitHub
 Limpar o cache do jsDelivr de `mundo/packs.json` e dos 3 `.glb` (`https://purge.jsdelivr.net/gh/carloseduardoferreira671-web/cyberarena@main/mundo/...`).
+
+## Correção: cabeça do Atlas torta quando o personagem gira
+`mundo/js/riggedglb.js`: a correção de inclinação da cabeça e do pescoço convertia a pose de descanso usando o giro atual do personagem, então o ângulo da cabeça dependia para onde ele estava virado (o Atlas de costas ficava com a cabeça torcida e o cabelo atravessando o corpo). Agora a pose de descanso é guardada uma vez, já no espaço do objeto. Medido em 5 giros diferentes: a cabeça fica no mesmo ângulo em qualquer direção, nos 3 personagens.

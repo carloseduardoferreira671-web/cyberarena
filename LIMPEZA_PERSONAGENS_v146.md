@@ -25,3 +25,10 @@ Limpar o cache do jsDelivr de `mundo/packs.json` e dos 3 `.glb` (`https://purge.
 
 ## Correção: cabeça do Atlas torta quando o personagem gira
 `mundo/js/riggedglb.js`: a correção de inclinação da cabeça e do pescoço convertia a pose de descanso usando o giro atual do personagem, então o ângulo da cabeça dependia para onde ele estava virado (o Atlas de costas ficava com a cabeça torcida e o cabelo atravessando o corpo). Agora a pose de descanso é guardada uma vez, já no espaço do objeto. Medido em 5 giros diferentes: a cabeça fica no mesmo ângulo em qualquer direção, nos 3 personagens.
+
+## Correção: cabelo do Atlas atravessando o corpo
+Causa: os dreads (`Tail*`, 2 cadeias de 5 ossos) são filhos da cabeça. Com a cabeça inclinada, a cadeia inteira girava para dentro das costas (pontas do cabelo 12 cm à frente do eixo da coluna) e o corpo atravessava o cabelo.
+`mundo/js/riggedglb.js`:
+- O cabelo agora pende na direção que tem no modelo original, medida no referencial do tronco (`Spine2`), e não segue mais a inclinação da cabeça. A mola e o vento continuam por cima (`HAIR_W = .92`).
+- Colisão com o corpo: cápsulas de tronco e braços com raio medido na própria malha. Só empurra o cabelo se ele afundar mais do que na pose de referência (`PEN_K`).
+- Para comparar com o comportamento antigo, abra o jogo com `?hairpush=0` (só desliga a colisão) ou ajuste `HAIR_W` para 0 (cabelo volta a seguir a cabeça).

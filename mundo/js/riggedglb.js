@@ -94,6 +94,66 @@ function computeLoose(r, id) {
   const hi = J.findIndex(k => /Head$/.test(json.nodes[k].name)); r.headIdx = hi;
 }
 
+/* v146 · colisão do cabelo/fitas com o corpo. Os colisores são cápsulas entre ossos do corpo (tronco, ombros, braços);
+   o raio de cada uma é medido na PRÓPRIA malha do personagem (vértices dominados por aquele osso), então acompanha o corpo do modelo. */
+const HAIR_W = .92;   // 0 = o cabelo segue a cabeça (antigo) · 1 = pende só pela referência do tronco
+const PEN_K = 1.0;   // 1 = o cabelo mantém exatamente o afundamento de repouso; menos que 1 empurra um pouco do que já afunda parado
+const TORSO = ['Hips', 'Spine', 'Spine1', 'Spine2', 'Neck'], ARMSEG = [['LeftArm', 'LeftForeArm'], ['LeftForeArm', 'LeftHand'], ['RightArm', 'RightForeArm'], ['RightForeArm', 'RightHand']];
+function buildCols(cache, bones, inv) {
+  if (!cache.colCal) {
+    const g = cache.geo, P = g.attributes.position.array, SI = g.attributes.skinIndex.array, SW = g.attributes.skinWeight.array, n = g.attributes.position.count;
+    const idx = {}; bones.forEach((b, i) => { idx[b.name] = i; });
+    const bind = i => new THREE.Vector3().setFromMatrixPosition(new THREE.Matrix4().copy(inv[i]).invert());
+    const pct = (a, q) => { a.sort((x, y) => x - y); return a[Math.min(a.length - 1, Math.floor(a.length * q))]; };
+    const cal = [];
+    // ---- tronco: só vértices de CORPO (sem peso de cabelo/cabeça), na projeção do eixo da coluna, na faixa de trás (onde o cabelo encosta)
+    const tI = TORSO.map(x => idx['mixamorig' + x]); if (tI.every(k => k !== undefined)) {
+      const hair = new Set(bones.map((b, i) => (/^Tail/.test(b.name) || b.name === 'mixamorigHead') ? i : -1).filter(i => i >= 0));
+      const pts = tI.map(bind), segs = pts.slice(0, -1).map((A, k) => ({ A, ab: pts[k + 1].clone().sub(A) })), back = segs.map(() => []);
+      for (let v = 0; v < n; v++) {
+        let hw = 0; for (let j = 0; j < 4; j++) if (hair.has(SI[v * 4 + j])) hw += SW[v * 4 + j]; if (hw >= .1) continue;
+        let best = -1, bd = 1e9, bx = 0, bz = 0;
+        for (let k = 0; k < segs.length; k++) { const { A, ab } = segs[k], px = P[v * 3] - A.x, py = P[v * 3 + 1] - A.y, pz = P[v * 3 + 2] - A.z, u = (px * ab.x + py * ab.y + pz * ab.z) / Math.max(1e-9, ab.lengthSq()); if (u < 0 || u > 1) continue;
+          const dx = px - ab.x * u, dy = py - ab.y * u, dz = pz - ab.z * u, d = Math.hypot(dx, dy, dz); if (d < bd) { bd = d; best = k; bx = dx; bz = dz; } }
+        if (best >= 0 && bz < 0 && Math.abs(bx) < .6 * -bz) back[best].push(bd);
+      }
+      const val = back.map(a => a.length >= 60 ? pct(a, .7) : null), ok = val.filter(x => x != null), fb = ok.length ? ok.reduce((a, b) => a + b, 0) / ok.length : .14;   // onde quase não há vértices de corpo atrás (cabelo cobre), usa a média das medidas boas
+      segs.forEach((sg, k) => cal.push({ a: tI[k], b: tI[k + 1], rb: val[k] != null ? val[k] : fb, lb: sg.ab.length() }));
+    }
+    // ---- braços: vértices dominados pelo osso do braço, todas as direções
+    for (const [na, nb] of ARMSEG) {
+      const ia = idx['mixamorig' + na], ib = idx['mixamorig' + nb]; if (ia === undefined || ib === undefined) continue;
+      const A = bind(ia), B = bind(ib), ab = B.clone().sub(A), l2 = Math.max(1e-9, ab.lengthSq()), rs = [];
+      for (let v = 0; v < n; v++) {
+        let k = 0, w = SW[v * 4]; for (let j = 1; j < 4; j++) if (SW[v * 4 + j] > w) { w = SW[v * 4 + j]; k = j; }
+        if (w < .5 || SI[v * 4 + k] !== ia) continue;
+        const px = P[v * 3] - A.x, py = P[v * 3 + 1] - A.y, pz = P[v * 3 + 2] - A.z, u = Math.max(0, Math.min(1, (px * ab.x + py * ab.y + pz * ab.z) / l2));
+        rs.push(Math.hypot(px - ab.x * u, py - ab.y * u, pz - ab.z * u));
+      }
+      if (rs.length >= 20) cal.push({ a: ia, b: ib, rb: pct(rs, .8), lb: ab.length() });
+    }
+    cache.colCal = cal;
+  }
+  return cache.colCal.map(c => ({ a: bones[c.a], b: bones[c.b], rb: c.rb, lb: c.lb, A: new THREE.Vector3(), B: new THREE.Vector3(), R: 0 }));
+}
+const _cp = new THREE.Vector3(), _cab = new THREE.Vector3(), _cap = new THREE.Vector3(), _cq = new THREE.Vector3(), _cd = new THREE.Vector3(), _cr = new THREE.Vector3(), _c0 = new THREE.Vector3();
+/* empurra a direção `to` do segmento (raiz bp, comprimento L) para fora das cápsulas do corpo */
+function collideDir(to, bp, L, cols, pen, penK) {
+  _c0.copy(to);
+  for (let pass = 0; pass < 3; pass++) { let hit = false;
+    for (let si = 0; si < 2; si++) for (let ci = 0; ci < cols.length; ci++) {
+      const c = cols[ci], t = si ? 1 : .5, Re = c.R - (pen ? pen[ci * 2 + si] * penK : 0);
+      _cp.copy(bp).addScaledVector(to, L * t); _cab.subVectors(c.B, c.A); const l2 = Math.max(1e-9, _cab.lengthSq());
+      let u = Math.max(0, Math.min(1, _cap.subVectors(_cp, c.A).dot(_cab) / l2)); _cq.copy(c.A).addScaledVector(_cab, u); _cd.subVectors(_cp, _cq); const dd = _cd.length();
+      if (dd >= Re || dd < 1e-5) continue;
+      u = Math.max(0, Math.min(1, _cap.subVectors(bp, c.A).dot(_cab) / l2)); _cr.copy(c.A).addScaledVector(_cab, u);
+      if (_cr.distanceTo(bp) < Re * .97) continue;            // a raiz já nasce dentro deste colisor (ex.: nuca): ignora, não dá para sair dele
+      _cp.copy(_cq).addScaledVector(_cd, Re / dd); to.copy(_cp).sub(bp).normalize(); hit = true;
+    }
+    if (!hit) break; }
+  const ang = to.angleTo(_c0); if (ang > 1.1) to.lerp(_c0, 1 - 1.1 / ang).normalize();   // nunca vira mais que ~63° de uma vez
+}
+
 export function buildRigged(h, id = h.charId || 'atlas') {
   const cache = caches[id], { geo, maps, json, clips } = cache, skin = json.skins[0];
   // reconstrói a árvore de nós (cada personagem tem a sua cópia do esqueleto)
@@ -141,6 +201,23 @@ export function buildRigged(h, id = h.charId || 'atlas') {
   // pose de descanso da cabeça (no espaço do objeto) para medir inclinação
   const head = byName('mixamorigHead'), neck = byName('mixamorigNeck');
   h.atlasRig = { id, wrap, mesh, mixer, act, cur: null, U, bones, jig: new THREE.Vector3(), jv: new THREE.Vector3(), wind: new THREE.Vector3(), prevP: new THREE.Vector3().copy(h.object.position), tails, head, neck, headFixW: 1, t: 0, hl: null };
+  if (tails.some(c => !c.cape) && !/[?&]hairpush=0/.test(location.search)) { try { h.atlasRig.cols = buildCols(cache, bones, inv); } catch (e) { console.warn('colisão do cabelo', e); } }
+  if (tails.some(c => !c.cape)) { try {
+    /* v146: o cabelo (Tail*) é filho da CABEÇA, então herdava a inclinação dela: a cadeia girava para dentro das costas e o corpo atravessava o cabelo.
+       Guardamos a direção de cada segmento como no modelo original (pose de referência), medida no referencial do tronco (Spine2); no jogo o cabelo pende nessa direção. */
+    const si = bones.findIndex(b => b.name === 'mixamorigSpine2'); h.atlasRig.spine2 = bones[si];
+    const bindM = k => new THREE.Matrix4().copy(inv[k]).invert(), bq = new THREE.Quaternion(), tmpP = new THREE.Vector3(), tmpS = new THREE.Vector3(); bindM(si).decompose(tmpP, bq, tmpS); const bqi = bq.clone().invert();
+    const bpos = b => new THREE.Vector3().setFromMatrixPosition(bindM(bones.indexOf(b)));
+    for (const ch of tails) { if (ch.cape) continue; let prev = null; for (let i = 0; i < ch.length; i++) {
+      const d = ch[i + 1] ? bpos(ch[i + 1].b).sub(bpos(ch[i].b)) : (prev ? prev.clone() : new THREE.Vector3(0, -1, 0)); prev = d.clone(); ch[i].dl = d.normalize().applyQuaternion(bqi); } }
+  } catch (e) { console.warn('cabelo (referência)', e); } }
+  if (h.atlasRig.cols) { try {   // penetração de repouso: o cabelo só é empurrado se afundar MAIS do que já afunda na pose de referência
+    wrap.updateMatrixWorld(true); const R0 = h.atlasRig.cols; for (const c of R0) { c.A.setFromMatrixPosition(c.a.matrixWorld); c.B.setFromMatrixPosition(c.b.matrixWorld); c.R = c.rb * (c.A.distanceTo(c.B) / Math.max(1e-6, c.lb)) * 1.04; }
+    h.atlasRig.ws0 = wrap.scale.y; const sq0 = h.atlasRig.spine2.getWorldQuaternion(new THREE.Quaternion());
+    for (const ch of tails) { if (ch.cape) continue; for (let i = 0; i < ch.length; i++) { const bb = ch[i].b, nx = ch[i + 1] && ch[i + 1].b, bpos = bb.getWorldPosition(new THREE.Vector3());
+      const L = nx ? nx.getWorldPosition(new THREE.Vector3()).distanceTo(bpos) : (i ? ch[i - 1].len * .85 : .12); ch[i].len = L; const dv = ch[i].dl.clone().applyQuaternion(sq0); const pen = new Float32Array(R0.length * 2);
+      for (let ci = 0; ci < R0.length; ci++) for (let si = 0; si < 2; si++) { const c = R0[ci], pt = bpos.clone().addScaledVector(dv, L * (si ? 1 : .5)), ab = c.B.clone().sub(c.A), u = Math.max(0, Math.min(1, pt.clone().sub(c.A).dot(ab) / Math.max(1e-9, ab.lengthSq()))), d = pt.distanceTo(c.A.clone().addScaledVector(ab, u)); pen[ci * 2 + si] = Math.max(0, c.R - d); }
+      ch[i].pen = pen; } } } catch (e) { console.warn('colisão do cabelo (repouso)', e); } }
   h.atlasRig.restQ = bones.map(b => b.quaternion.clone()); h.atlasRig.restP = bones[0].position.clone(); h.atlasRig.nW = 0;
   h.atlasSoft = { U, kick(dx, dz, F = 1) { const s = h.atlasRig; const l = Math.hypot(dx, dz) || 1; s.jv.x += dx / l * F * 3.4; s.jv.z += dz / l * F * 3.4; s.jv.y -= F * 1.1; } };
   // postura de descanso do osso da cabeça (T-pose) no espaço do objeto
@@ -224,6 +301,9 @@ export function stepRigged(h, dt, ac) {
   r.U.uWind.value.copy(r.wind); r.U.uT.value = r.t; r.U.uFlut.value = Math.min(1.5, sp / 8);
   // ---- caudas/fitas: molas encadeadas por cima da animação
   const K = [150, 120, 95, 75, 60], Cd = [10, 9, 8, 7, 6];
+  const sq = r.spine2 ? r.spine2.getWorldQuaternion(new THREE.Quaternion()) : null;
+  let CW = null;
+  if (r.cols && r.cols.length) { for (const c of r.cols) { c.A.setFromMatrixPosition(c.a.matrixWorld); c.B.setFromMatrixPosition(c.b.matrixWorld); c.R = c.rb * (c.A.distanceTo(c.B) / Math.max(1e-6, c.lb)) * 1.04; } CW = r.cols; }
   // capa: só sobe e desce de leve (como vento vindo de baixo), sem molas nem torções
   { let ci = 0; for (const ch of r.tails) { if (!ch.cape) continue; ci++;
     _qo.copy(h.object.getWorldQuaternion(_q3)); const ax = new THREE.Vector3(1, 0, 0).applyQuaternion(_qo);
@@ -242,9 +322,10 @@ export function stepRigged(h, dt, ac) {
     t.v.x += ((tgt.x - t.s.x) * kk - t.v.x * cd) * dt; t.v.y += ((tgt.y - t.s.y) * kk - t.v.y * cd) * dt; t.v.z += ((tgt.z - t.s.z) * kk - t.v.z * cd) * dt; t.s.addScaledVector(t.v, dt); t.s.clampLength(0, .9);
     const nxt = ch[i + 1] ? ch[i + 1].b : null; b.updateWorldMatrix(true, false);
     b.getWorldQuaternion(_q); const bp = b.getWorldPosition(_v2);
-    const dir = nxt ? nxt.getWorldPosition(_v3).sub(bp) : new THREE.Vector3(0, -1, 0).applyQuaternion(_q); if (dir.lengthSq() < 1e-10) continue; dir.normalize();
+    const dir = nxt ? nxt.getWorldPosition(_v3).sub(bp) : new THREE.Vector3(0, -1, 0).applyQuaternion(_q); if (dir.lengthSq() < 1e-10) continue; const segL = nxt ? dir.length() : (i ? ch[i - 1].len * .85 : .12); t.len = segL; dir.normalize();
     _qo.copy(h.object.getWorldQuaternion(_q3)); const sl = t.s.clone().applyQuaternion(_qo);
-    const to = dir.clone().addScaledVector(sl, .9 * (ch.amp || 1)).normalize(); const rot = new THREE.Quaternion().setFromUnitVectors(dir, to);
+    const base = (sq && t.dl) ? dir.clone().lerp(t.dl.clone().applyQuaternion(sq), HAIR_W).normalize() : dir;   // cabelo pende como no modelo, preso ao tronco (não gira com a cabeça)
+    const to = base.clone().addScaledVector(sl, .9 * (ch.amp || 1)).normalize(); if (CW) collideDir(to, bp, segL, CW, t.pen, (r.wrap.scale.y / (r.ws0 || 1)) * PEN_K); const rot = new THREE.Quaternion().setFromUnitVectors(dir, to);
     const nw = rot.multiply(_q); b.parent.getWorldQuaternion(_q2).invert(); b.quaternion.copy(_q2.multiply(nw)); b.updateWorldMatrix(false, true);
   } }
   // ---- balanço da carne

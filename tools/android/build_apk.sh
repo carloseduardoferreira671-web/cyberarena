@@ -6,7 +6,7 @@ set -e
 cd "$(dirname "$0")"; ROOT=../..; BT=$ANDROID_HOME/build-tools/35.0.0; JAR=$ANDROID_HOME/platforms/android-34/android.jar
 rm -rf build && mkdir -p build/assets/www build/classes res/mipmap-xxxhdpi res/mipmap-xhdpi
 cp $ROOT/assests/ui/icon-512.png res/mipmap-xxxhdpi/ic_launcher.png; cp $ROOT/assests/ui/icon-192.png res/mipmap-xhdpi/ic_launcher.png
-for f in index.html app.html paisagem.js main.js lobby3d.js party.js voice.js style.css lobby3d.css party.css manifest.webmanifest assests cyber_viewer mundo sounds data; do cp -r $ROOT/$f build/assets/www/; done
+for f in index.html app.html paisagem.js main.js lobby3d.js party.js voice.js style.css lobby3d.css party.css manifest.webmanifest assests mundo sounds data; do cp -r $ROOT/$f build/assets/www/; done
 # os modelos pesados NÃO vão dentro do APK: o jogo baixa na primeira vez (tela "Recursos do jogo"). PACKS=0 inclui tudo no APK.
 if [ "${PACKS:-1}" != "0" ]; then rm -f build/assets/www/mundo/models/*.glb; echo "APK leve: modelos serão baixados no app"; fi
 # SERVER_URL=https://seu-servidor  -> o APK entra no MESMO matchmaking do site (cross-play)

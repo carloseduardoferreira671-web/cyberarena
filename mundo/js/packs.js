@@ -21,7 +21,14 @@ export async function getManifest() {
 }
 export class NotInstalled extends Error { constructor(path) { super('pacote não instalado: ' + path); this.path = path; this.notInstalled = true; } }
 const key = p => FAKE + p;
-async function cacheHas(path) { try { return !!(await (await caches.open(CACHE)).match(key(path))); } catch (e) { return false; } }
+async function cacheHas(path, bytes) {
+  try {
+    const r = await (await caches.open(CACHE)).match(key(path)); if (!r) return false;
+    /* v146: modelos de personagem antigos com o MESMO caminho ficavam "instalados" para sempre. Agora o tamanho guardado precisa bater com o packs.json */
+    if (path.startsWith('models/') && bytes) return r.headers.get('x-bytes') === String(bytes);
+    return true;
+  } catch (e) { return false; }
+}
 
 /* endereço de um arquivo de pacote. Desligado: caminho normal. Ligado: blob do aparelho, ou erro se ainda não baixou */
 export async function packURL(path) {
@@ -34,9 +41,12 @@ export async function packBytes(path) { return (await fetch(await packURL(path))
 
 export async function isInstalled(id) {
   if (!PACKS_ON) return true; const m = await getManifest(), p = m.packs.find(x => x.id === id); if (!p) return true;
-  for (const f of p.files) if (!(await cacheHas(f.path))) return false; return true;
+  for (const f of p.files) if (!(await cacheHas(f.path, f.bytes))) return false; return true;
 }
+/* v146: apaga do aparelho os caches de versões antigas (cyberarena-packs-v2…v6), que guardavam os personagens antigos */
+async function limparAntigos() { try { for (const k of await caches.keys()) if (k.startsWith('cyberarena-packs-') && k !== CACHE) await caches.delete(k); } catch (e) { } }
 export async function status() {
+  await limparAntigos();
   const m = await getManifest(), out = [];
   for (const p of m.packs) out.push({ ...p, installed: await isInstalled(p.id) });
   return out;
@@ -68,11 +78,11 @@ export async function install(id, onProgress = () => { }, signal) {
   if (!online()) throw new Error('Sem internet');
   const c = await caches.open(CACHE); let done = 0; onProgress(0, p.bytes);
   for (const f of p.files) {
-    if (await cacheHas(f.path)) { done += f.bytes; onProgress(done, p.bytes); continue; }
+    if (await cacheHas(f.path, f.bytes)) { done += f.bytes; onProgress(done, p.bytes); continue; }
     const base = done; let fileGot = 0;
     const fontes = isApk ? m.fontes : [...m.fontes].sort((a, b) => b.includes('{SITE}') - a.includes('{SITE}'));   // fora do app, o próprio site primeiro
     const blob = await fetchFile(f, fontes, n => { fileGot += n; onProgress(base + Math.max(0, fileGot), p.bytes); }, signal);
-    await c.put(key(f.path), new Response(blob, { headers: { 'content-type': 'application/octet-stream' } }));
+    await c.put(key(f.path), new Response(blob, { headers: { 'content-type': 'application/octet-stream', 'x-bytes': String(blob.size) } }));
     done += f.bytes; onProgress(done, p.bytes);
   }
 }

@@ -1779,7 +1779,7 @@ async function start() {
   const preWorld = new Set(scene.children);
   try { await world.build(setP); Object.assign(ENV, { hemiI: hemi.intensity, sunI: sun.intensity, fogC: scene.fog.color.clone(), fogN: scene.fog.near, fogF: scene.fog.far, hemiC: hemi.color.clone(), hemiG: hemi.groundColor.clone(), sunC: sun.color.clone() }); applyCinematicToonScene(scene); } catch (e) { console.error(e); $('loadTip').textContent = 'Erro ao montar o mundo: ' + e.message; return; }
   try { if (!(await ensurePacks([...new Set(['cyber', ident.char].filter(Boolean))]))) { exitToLobby(); return; } } catch (e) { console.warn('pacotes', e); }
-  setP(.95, 'Carregando os personagens…'); try { await loadClassic(); } catch (e) { console.warn('Cyber clássico indisponível', e); } try { await loadAtlasGLB(); } catch (e) { console.warn('Atlas GLB indisponível (usa o modelo antigo)', e); }
+  setP(.95, 'Carregando os personagens…'); try { await loadClassic(); } catch (e) { console.warn('Cyber indisponível', e); } try { await loadAtlasGLB(); } catch (e) { console.warn('Personagens indisponíveis', e); }
   try { // pré-compila os shaders (evita travadinha na primeira vez que um poder/efeito aparece)
     const warm = [new THREE.MeshBasicMaterial({ transparent: true, opacity: .5, blending: THREE.AdditiveBlending, depthWrite: false }), new THREE.MeshBasicMaterial({ transparent: true, opacity: .5, side: THREE.DoubleSide })].map(m => { const o = new THREE.Mesh(new THREE.SphereGeometry(.01, 4, 3), m); o.position.copy(camera.position); scene.add(o); return o; });
     // pré-compila também os dois materiais do Cyber (completo e leve), para a troca por distância não engasgar (sem dispose: senão os programas seriam liberados)

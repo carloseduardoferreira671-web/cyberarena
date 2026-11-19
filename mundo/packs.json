@@ -9,47 +9,47 @@
   {
    "id": "cyber",
    "nome": "Cyber",
-   "desc": "Personagem Cyber (humanoide encapuzado)",
+   "desc": "Cyber (encapuzado) · esqueleto de 52 ossos, 115 animações",
    "essencial": true,
    "tipo": "personagem",
    "files": [
     {
      "path": "models/cyber_rig.glb",
-     "bytes": 7028076,
-     "sha256": "50168d86aa412db9cc1288ea32cc3f9e8ae96f05d740243885bcc68228c355dd"
+     "bytes": 8888028,
+     "sha256": "ef77da0d0565c293a9b8aec0960621e77e46a5a5831548d102111146ceff2023"
     }
    ],
-   "bytes": 7028076
+   "bytes": 8888028
   },
   {
    "id": "atlas",
    "nome": "Atlas",
-   "desc": "Personagem Atlas (lutador)",
+   "desc": "Atlas (dreads e correntes) · 115 animações",
    "essencial": false,
    "tipo": "personagem",
    "files": [
     {
      "path": "models/atlas_rig.glb",
-     "bytes": 8865600,
-     "sha256": "bf05ab047967edbc16f407a4ca711f380548f4640eb1167a271ac112cc775b78"
+     "bytes": 8629108,
+     "sha256": "3d4d727e5365c88cc2a70b5824b7c9c4a74b2a23f417e446e1cd46befe4dd2ec"
     }
    ],
-   "bytes": 8865600
+   "bytes": 8629108
   },
   {
    "id": "nexus",
    "nome": "Nexus",
-   "desc": "Personagem Nexus (robô)",
+   "desc": "Nexus (armadura azul e cachecol vermelho) · esqueleto de 52 ossos, 115 animações",
    "essencial": false,
    "tipo": "personagem",
    "files": [
     {
      "path": "models/nexus_rig.glb",
-     "bytes": 12891796,
-     "sha256": "988eabdf76006435e7faf36e41cdc3d54dc366d00ac719374ebb37c9227de53e"
+     "bytes": 8626820,
+     "sha256": "03dc6a56f54875e09cdd8b5a6e2c1155826003b40e29826dc3e11143fe28e1b6"
     }
    ],
-   "bytes": 12891796
+   "bytes": 8626820
   },
   {
    "id": "mapa_1k",

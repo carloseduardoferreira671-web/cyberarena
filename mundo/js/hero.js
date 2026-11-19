@@ -1,7 +1,6 @@
 /* CyberArena · herói "Cyber" procedural (three.js).
    Hierarquia de juntas + animação procedural com molas críticas (sem estalos), ciclo de passada contínuo,
    camadas de ação com quadros-chave suavizados, cachecol e cabos com física verlet que reagem ao vento. */
-import { stepAtlasSoft } from './atlasglb.js';
 import { stepRigged } from './riggedglb.js';
 import * as THREE from '../lib/three.module.min.js';
 import { applyPBRByKey, setBodyState } from './pbr.js';
@@ -56,11 +55,11 @@ export function cosmicify(mat, scale = 1, k = 1) {
 }
 export const tickCosmic = t => { COSMIC_T.value = t; };
 export const SKIN_IDS = Object.keys(SKINS);
-/* dois personagens jogáveis: NEXUS (agente ciborgue procedural) e CYBER (o modelo original, aprimorado) */
+/* três personagens jogáveis (v145): Atlas, Nexus e Cyber — modelos riggados em mundo/models/*_rig.glb */
 export const CHARS = {
-  nexus: { name: 'NEXUS', title: 'Agente ciborgue', desc: 'Agente ciborgue 3D com placas anatômicas, visor brilhante, cachecol e cabos com física de vento. Dedos articulados.' },
-  cyber: { name: 'CYBER', title: 'O Cyber original', desc: 'Modelo original em 3D, anatomia articulada, materiais cel-shaded, luzes de energia e cabos com física de vento.' },
-  atlas: { name: 'ATLAS', title: 'O Eco Violeta', desc: 'Combatente 3D de dreadlocks longos, núcleo violeta, marca dourada e anatomia atlética. Especialista em contra-impacto, ondas de pressão e rupturas sísmicas.' },
+  nexus: { name: 'NEXUS', title: 'Armadura azul', desc: 'Armadura azul com cachecol vermelho. Corpo riggado com esqueleto de 52 ossos, 115 animações e física no cachecol e nas placas.' },
+  cyber: { name: 'CYBER', title: 'O Encapuzado', desc: 'Personagem encapuzado. Corpo riggado com esqueleto de 52 ossos, 115 animações e capuz e pescoço sem física.' },
+  atlas: { name: 'ATLAS', title: 'O Eco Violeta', desc: 'Dreadlocks e correntes com mola própria. Corpo riggado com 115 animações. Especialista em contra-impacto, ondas de pressão e rupturas sísmicas.' },
 };
 export const CHAR_IDS = Object.keys(CHARS);
 
@@ -512,8 +511,6 @@ export class Hero {
     E.tired = lerp(E.tired, clamp((1 - this.vital) * .9 + B.wet * .35, 0, 1), 1 - Math.exp(-dt * 1.2));
     if (this.face) this.face.update(dt, { pain: this.dead ? 0 : E.pain, rage: this.dead ? 0 : E.rage, tired: this.dead ? .6 : E.tired, breath: Math.sin(this.t * (3 + this.exert * 6)) });
     const wnd = s.wind || { x: 0, z: 0, strength: 0 };
-    if (this.dread && this.cloth !== false) { this.dread.aura = .22 + this.glow * .5 + this.exert * .12; this.dread.update(dt, _v.set((wnd.x || 0) * (wnd.strength || 0) * 7, 0, (wnd.z || 0) * (wnd.strength || 0) * 7)); }
-    if (this.atlasChains) { const cs = this.chainSway; cs.x.v += clamp(-ac.z * .004, -.3, .3); cs.z.v += clamp(ac.x * .004, -.3, .3); this.atlasChains.rotation.x = clamp(wobble(cs.x, 0, 60, 4, dt), -.6, .6); this.atlasChains.rotation.z = clamp(wobble(cs.z, 0, 60, 4, dt), -.6, .6); }
     if (this.cloth === false || !this.object.visible) return;
     if (!this.trails) {
       const c = new THREE.Color(this.M.S.accent); const rgb = this.charId === 'atlas' ? [.7, .35, 1] : [c.r * 1.1 + .2, c.g * 1.1 + .2, c.b * 1.1 + .2];
@@ -936,7 +933,7 @@ export class Hero {
     if (!this.prevP) this.prevP = op.clone();
     const wv = _v3.subVectors(op, this.prevP).divideScalar(Math.max(dt, 1e-3)); if (wv.lengthSq() > 900) wv.set(0, 0, 0); this.prevP.copy(op);
     const ac = _v4.subVectors(wv, this.prevV).divideScalar(Math.max(dt, 1e-3)); this.prevV.copy(wv);
-    if (this.atlasRig) stepRigged(this, dt, ac); else if (this.atlasSoft) { stepAtlasSoft(this, dt, ac); }
+    if (this.atlasRig) stepRigged(this, dt, ac);
     const aF = clamp(ac.x * fX + ac.z * fZ, -60, 60), aS = clamp(ac.x * fZ - ac.z * fX, -60, 60), aY = grounded ? clamp(ac.y, -80, 80) : 0;
     // inércia: o tronco atrasa nas arrancadas/freadas e tomba para fora nas curvas; a cabeça e os braços balançam depois
     this.inr.x.v += -aF * .012 * dt * 60 * (this.dead ? 0 : 1); this.inr.z.v += (aS * .01 + this.turn.x * -.02) * dt * 60;
@@ -1061,10 +1058,6 @@ export class Hero {
     if (this.aura) { tickCosmic(this.t); this.aura.material.uniforms.uK.value = Math.min(1.8, 1 + this.spd / 10 + this.glow * .6); }
     if (this.dead || this.actions.some(r => r.name === 'revive')) this.body.position.y += 0;
 
-    // ATLAS: balanço secundário dos dreadlocks e pulsação do núcleo peitoral.
-    if (this.atlasHair) { const runK=clamp(this.spd/8,0,1), hitK=this.soft.chest.x; this.atlasHair.rotation.x=.08+Math.sin(this.t*5.2)*(.035+runK*.09)-hitK*.12; this.atlasHair.rotation.z=Math.sin(this.t*3.1)*(.025+runK*.055); }
-    if (this.atlasCore) { const pulse=1+.08*Math.sin(this.t*4.4)+this.glow*.12; this.atlasCore.scale.setScalar(pulse); }
-    if (this.atlasCoat) { const runK=clamp(this.spd/8,0,1); this.atlasCoat.rotation.x=Math.sin(this.t*4.8)*(.025+runK*.12); this.atlasCoat.rotation.z=Math.sin(this.t*2.9)*(.02+runK*.07); }
     // ---------- brilhos ----------
     this.glow = Math.max(0, this.glow - dt * 2.2); this.flash = Math.max(0, this.flash - dt * 5);
     const laser = this.actions.find(r => r.name === 'laser'), charge = laser ? (laser.t < .15 ? laser.t / .15 : Math.max(0, 1 - (laser.t - .15) / .2)) : 0;

@@ -21,7 +21,7 @@ git add -A
 git commit -q -m "Cyber Arena: primeira versão online" || echo "(nada novo para commitar)"
 
 # O token só é usado neste comando; não fica gravado no projeto.
-git -c credential.helper= push --force "https://${GH_USER}:${GH_TOKEN}@github.com/${GH_USER}/${GH_REPO}.git" HEAD:main
+git -c credential.helper= push "https://${GH_USER}:${GH_TOKEN}@github.com/${GH_USER}/${GH_REPO}.git" HEAD:main
 unset GH_TOKEN
 
 echo

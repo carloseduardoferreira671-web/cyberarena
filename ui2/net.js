@@ -44,7 +44,7 @@ function set(v) {
 }
 async function ping() {
   if (navigator.onLine === false) return false;
-  const c = new AbortController(), t = setTimeout(() => c.abort(), 6000);
+  const c = new AbortController(), t = setTimeout(() => c.abort(), 7000);
   try { await fetch(PING + (PING.includes('?') ? '&' : '?') + 't=' + Date.now(), { cache: 'no-store', mode: isApk ? 'no-cors' : 'same-origin', signal: c.signal }); return true; }   // qualquer resposta HTTP = o servidor foi alcançado
   catch (_) { return false; } finally { clearTimeout(t); }
 }

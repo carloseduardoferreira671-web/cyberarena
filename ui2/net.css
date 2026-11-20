@@ -27,3 +27,9 @@ body.net-lost { overflow: hidden; }
 .off-on { background: linear-gradient(180deg, #ffd45c, #f0a500); color: #1a1000; border: 0; border-radius: 12px; padding: calc(12 * var(--u, 1px)) calc(26 * var(--u, 1px)); font: 800 calc(17 * var(--u, 1px)) Rajdhani, system-ui, sans-serif; letter-spacing: .08em; cursor: pointer; }
 .off-msg { min-height: 1.4em; margin-top: calc(10 * var(--u, 1px)); color: #ff9d9d; font-size: calc(13 * var(--u, 1px)); }
 body.offline-mode #dlBar, body.offline-mode #dlSheet { display: none !important; }
+/* v146 · painel de escolha (sem conexão) — sobrepõe o estilo do carregamento */
+.sg2.choice .sg2-panel { position: absolute; left: 50%; bottom: 5%; transform: translateX(-50%); width: min(90vw, 600px); height: auto; overflow: visible; padding: 14px 16px; }
+.sg2.choice .sg2-st { font-weight: 800; letter-spacing: .12em; color: #ff9d9d; margin-bottom: 4px; }
+.sg2.choice .sg2-sub { text-align: left; }
+.sg2.choice .sg2-ch { position: static; display: flex; gap: 12px; margin-top: 12px; }
+.sg2.choice .sg2-b { position: static; flex: 1; display: block; min-height: 52px; pointer-events: auto; }

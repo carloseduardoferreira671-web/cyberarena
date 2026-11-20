@@ -1,4 +1,4 @@
-/* CyberArena v146 · Entrada (toque + carregamento) e barra de downloads no lobby.
+/* CyberArena v147 · Entrada (toque + carregamento) e barra de downloads no lobby.
    Entrada: título → "TOQUE PARA COMEÇAR" → carregamento → lobby.
    Lobby: barra DOWNLOADS (opcional) abre a janela de recursos; JOGAR só pede os recursos do personagem escolhido.
    Lista de pacotes: mundo/packs.json (tools/make_packs.py). Mapas e efeitos são gerados por código: não têm arquivo para baixar. */
@@ -18,26 +18,33 @@ function build() {
   <div class="sg2-c"><div class="sg2-logo"><small>BEM-VINDO À</small><h1>CYBER <b>ARENA</b></h1></div>
     <div class="sg2-panel hidden" id="sgPanel"></div>
     <div class="sg2-tap hidden" id="sgTap"><i></i><strong>TOQUE PARA COMEÇAR</strong><i></i></div></div>
-  <div class="sg2-foot">v146</div>`;
+  <div class="sg2-foot">v147</div>`;
   panel = $('sgPanel'); return true;
 }
 function show(st, pct, sub, opts = {}) {
   panel.innerHTML = `<div class="sg2-st">${st}</div><div class="sg2-bar ${pct == null ? 'idle' : ''}"><u style="width:${pct == null ? 38 : Math.max(0, Math.min(100, pct))}%"></u></div><div class="sg2-sub ${opts.warn ? 'sg2-warn' : ''}">${sub || ''}</div>`;
 }
 const TIPS = ['Dica: jogue partidas para ganhar moedas, fichas e XP.', 'Dica: o Passe da temporada rende mais XP que a conta.', 'Dica: evolua seu personagem para ganhar vida e dano.', 'Dica: abra a Mini Caixa grátis todos os dias.'];
-/* v146: carregamento DE VERDADE — confere a conexão, baixa/atualiza TODOS os recursos (personagens, etc.) para o aparelho e só então abre o lobby.
+/* v147: carregamento DE VERDADE — confere a conexão, baixa/atualiza TODOS os recursos (personagens, etc.) para o aparelho e só então abre o lobby.
    Os arquivos ficam guardados no celular (o jogo "cresce" a cada recurso/atualização nova). Da 2ª vez em diante só confere.
    Sem conexão: aparece a escolha MODO ONLINE (repete o carregamento até conectar) ou MODO OFFLINE (só bots, sem progresso). */
 class NoNet extends Error { }
 const wait = ms => new Promise(r => setTimeout(r, ms));
 async function startLoading() {
   if (loading) return; loading = true; window.cyberLoadingActive = true; window.cyberInGame = false;
-  gate.classList.add('loading'); $('sgTap') && $('sgTap').classList.add('hidden'); panel.classList.remove('hidden');
+  gate.classList.remove('ready', 'choice'); gate.classList.add('loading'); $('sgTap') && $('sgTap').classList.add('hidden'); panel.classList.remove('hidden');
   const tip = TIPS[Math.floor(Math.random() * TIPS.length)]; let pct = 2;
   const set = (st, p, sub, o) => { pct = Math.max(pct, p); show(st, pct, sub || tip, o); };
   try {
     set('CONECTANDO AO SERVIDOR…', 3); await wait(900);
-    if (!window.cyberNet || !(await window.cyberNet.check(true))) throw new NoNet();
+    // Render grátis: o servidor dorme e pode levar até ~1 min para acordar. Só vira "sem conexão" se o aparelho estiver sem internet ou o servidor não acordar.
+    { let up = false; const t1 = performance.now();
+      for (let i = 0; i < 9 && !up; i++) {
+        if (navigator.onLine === false) break;
+        up = window.cyberNet ? await window.cyberNet.check(true) : false;
+        if (!up && navigator.onLine !== false) { set('ACORDANDO O SERVIDOR…', 3 + i, 'O servidor pode levar até 1 minuto para acordar. Aguarde…'); await wait(1500); }
+      }
+      if (!up) throw new NoNet(); }
     try { navigator.storage && navigator.storage.persist && (await navigator.storage.persist()); } catch (_) { }   // pede ao celular para NÃO apagar os recursos baixados
     if (PACKS_ON) {
       set('VERIFICANDO RECURSOS…', 6); await refresh();
@@ -75,7 +82,7 @@ async function startLoading() {
 /* sem conexão: escolha entre repetir o carregamento (online) ou jogar offline */
 function choose() {
   loading = false; window.cyberLoadingActive = true; window.cyberInGame = false;
-  gate.classList.add('loading'); $('sgTap') && $('sgTap').classList.add('hidden'); panel.classList.remove('hidden');
+  gate.classList.remove('ready'); gate.classList.add('loading', 'choice'); $('sgTap') && $('sgTap').classList.add('hidden'); panel.classList.remove('hidden');
   panel.innerHTML = `<div class="sg2-st">SEM CONEXÃO</div><div class="sg2-sub sg2-warn">Não foi possível conectar ao servidor. Escolha como jogar.</div>
     <div class="sg2-ch"><button type="button" id="sgOn" class="sg2-b on">MODO ONLINE<small>Tentar conectar de novo</small></button><button type="button" id="sgOff" class="sg2-b off">MODO OFFLINE<small>Só contra bots · sem progresso</small></button></div>`;
   $('sgOn').onclick = () => startLoading(); $('sgOff').onclick = () => { window.cyberLoadingActive = false; enterOffline(); };
@@ -94,7 +101,7 @@ window.cyberReboot = function (opt = {}) {
 };
 function ready() {
   window.cyberBootReady = true; gate.classList.add('ready');
-  const go = e => { if (!gate.classList.contains('ready')) return; e.stopImmediatePropagation(); e.preventDefault(); startLoading(); };
+  const go = e => { if (!gate.classList.contains('ready') || e.target.closest && e.target.closest('.sg2-ch')) return; e.stopImmediatePropagation(); e.preventDefault(); startLoading(); };
   gate.addEventListener('click', go, true); gate.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') go(e); }, true);
   $('sgTap').classList.remove('hidden');
 }

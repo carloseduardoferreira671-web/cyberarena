@@ -2,7 +2,7 @@
    guardados no aparelho (Cache API) e reaproveitados nas próximas vezes. Lista e tamanhos: ../packs.json
    (gerado por tools/make_packs.py). Os arquivos têm o MESMO caminho de sempre (models/...), só mudam de onde vêm. */
 const DEFAULT_SITE = 'https://whimsical-kataifi-2407ec.netlify.app/';   // trocado pelo build do APK (SERVER_URL)
-const CACHE = 'cyberarena-packs-v7', FAKE = 'https://packs.cyberarena.local/';
+const CACHE = 'cyberarena-packs-v8', FAKE = 'https://packs.cyberarena.local/';
 const q = new URLSearchParams(location.search);
 const isApk = location.hostname === 'appassets.androidplatform.net';
 const isWebView = /; wv\)|\bVersion\/[\d.]+ Chrome\/[\d.]+ Mobile/.test(navigator.userAgent) && /Android/.test(navigator.userAgent);
@@ -21,11 +21,11 @@ export async function getManifest() {
 }
 export class NotInstalled extends Error { constructor(path) { super('pacote não instalado: ' + path); this.path = path; this.notInstalled = true; } }
 const key = p => FAKE + p;
-async function cacheHas(path, bytes) {
+async function cacheHas(path, bytes, sha) {
   try {
     const r = await (await caches.open(CACHE)).match(key(path)); if (!r) return false;
     /* v146: modelos de personagem antigos com o MESMO caminho ficavam "instalados" para sempre. Agora o tamanho guardado precisa bater com o packs.json */
-    if (path.startsWith('models/') && bytes) return r.headers.get('x-bytes') === String(bytes);
+    if (path.startsWith('models/') && bytes) return r.headers.get('x-bytes') === String(bytes) && (!sha || r.headers.get('x-sha') === sha);   // v147: também confere o hash (arquivo editado com o mesmo tamanho)
     return true;
   } catch (e) { return false; }
 }
@@ -41,7 +41,7 @@ export async function packBytes(path) { return (await fetch(await packURL(path))
 
 export async function isInstalled(id) {
   if (!PACKS_ON) return true; const m = await getManifest(), p = m.packs.find(x => x.id === id); if (!p) return true;
-  for (const f of p.files) if (!(await cacheHas(f.path, f.bytes))) return false; return true;
+  for (const f of p.files) if (!(await cacheHas(f.path, f.bytes, f.sha256))) return false; return true;
 }
 /* v146: apaga do aparelho os caches de versões antigas (cyberarena-packs-v2…v6), que guardavam os personagens antigos */
 async function limparAntigos() { try { for (const k of await caches.keys()) if (k.startsWith('cyberarena-packs-') && k !== CACHE) await caches.delete(k); } catch (e) { } }
@@ -78,11 +78,11 @@ export async function install(id, onProgress = () => { }, signal) {
   if (!online()) throw new Error('Sem internet');
   const c = await caches.open(CACHE); let done = 0; onProgress(0, p.bytes);
   for (const f of p.files) {
-    if (await cacheHas(f.path, f.bytes)) { done += f.bytes; onProgress(done, p.bytes); continue; }
+    if (await cacheHas(f.path, f.bytes, f.sha256)) { done += f.bytes; onProgress(done, p.bytes); continue; }
     const base = done; let fileGot = 0;
     const fontes = isApk ? m.fontes : [...m.fontes].sort((a, b) => b.includes('{SITE}') - a.includes('{SITE}'));   // fora do app, o próprio site primeiro
     const blob = await fetchFile(f, fontes, n => { fileGot += n; onProgress(base + Math.max(0, fileGot), p.bytes); }, signal);
-    await c.put(key(f.path), new Response(blob, { headers: { 'content-type': 'application/octet-stream', 'x-bytes': String(blob.size) } }));
+    await c.put(key(f.path), new Response(blob, { headers: { 'content-type': 'application/octet-stream', 'x-bytes': String(blob.size), 'x-sha': f.sha256 || '' } }));
     done += f.bytes; onProgress(done, p.bytes);
   }
 }

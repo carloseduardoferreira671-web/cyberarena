@@ -68,7 +68,17 @@ export async function buildWorld(_T, scene, renderer, { quality = 'medium', onPr
   const tWorld = (lx, lz) => [TC.x + lx * TH.c + lz * TH.s, TC.z - lx * TH.s + lz * TH.c];
   const PR = 28, PA = PR * Math.cos(Math.PI / 8);                                   // plataforma da casona (raio e apótema)
   const inPlatform = (x, z, m = 0) => { const q = tLocal(x, z); for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4; if (q[0] * Math.sin(a) + q[1] * Math.cos(a) > PA + m) return false; } return true; };
-  const spots = [...(L.ruins || []).map(r => [r.x * S, r.z * S, 10.5]), ...(L.towers || []).map(t => [t.x * S, t.z * S, 7])];   // v143: sem grama sobre pisos de ruínas/torres
+  const puddleList = [];
+  if (Q >= 1) {
+    const rp = CW.mulberry32(5150), puddles = puddleList, want = Q >= 2 ? 90 : 55;
+    for (let t = 0; t < 9000 && puddles.length < want; t++) {
+      const x = (rp() * 2 - 1) * (CW.W.HX - 10) * S, z = (rp() * 2 - 1) * (CW.W.HZ - 10) * S, bx = x / S, bz = z / S, y = heightAt(x, z);
+      if (y < WATER_Y + 0.5 || CW.slopeAt(bx, bz) > 0.06 || CW.freeness(bx, bz) < 0.9 || CW.forestDensity(bx, bz) > 0.55 || inPlatform(x, z, 8)) continue;
+      if (puddles.some(p => Math.hypot(p.x - x, p.z - z) < 14)) continue;
+      puddles.push({ x, z, r: 1.1 + rp() * 1.9, ry: rp() * 6.28 });
+    }
+  }
+  const spots = [...(L.ruins || []).map(r => [r.x * S, r.z * S, 10.5]), ...(L.towers || []).map(t => [t.x * S, t.z * S, 7]), ...puddleList.map(p => [p.x, p.z, p.r * 1.7])];   // v143: sem grama sobre pisos de ruínas/torres
   for (let j = 0; j < HH; j++) {
     for (let i = 0; i < HW; i++) {
       const x = DOM.minX + i + 0.5, z = DOM.minZ + j + 0.5, bx = x / S, bz = z / S, h = heightAt(x, z), k = j * HW + i; hF[k] = h; hData[k] = THREE.DataUtils.toHalfFloat(h);
@@ -535,7 +545,7 @@ export async function buildWorld(_T, scene, renderer, { quality = 'medium', onPr
     }
     if (pads.length) {
       const lg = new THREE.PlaneGeometry(1, 1); lg.rotateX(-Math.PI / 2);
-      const lm = patchWorldVertex(new THREE.MeshStandardMaterial({ map: tex.lily.map, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.55, metalness: 0 }), U, 'wpos.y += sin(uTime * 1.3 + base.x * .7 + base.z * .9) * .018;', { key: 'lily' });
+      const lm = patchWorldVertex(new THREE.MeshStandardMaterial({ map: tex.lily.map, alphaTest: 0.5, side: THREE.DoubleSide, roughness: 0.55, metalness: 0 }), U, 'wpos.x += sin(uTime * .23 + base.z * .31) * .16 + uWind.x * sin(uTime * .11 + base.x) * .1; wpos.z += cos(uTime * .19 + base.x * .27) * .16 + uWind.y * sin(uTime * .13 + base.z) * .1; wpos.y += sin(uTime * 1.3 + base.x * .7 + base.z * .9) * .02; wpos.xyz += interDisp(wpos.xyz, .9, 1.6) * vec3(1., .0, 1.);', { key: 'lily' });
       for (let c = 0; c < 10; c++) {
         const list = pads.filter(p => p.c === c); if (!list.length) continue;
         const g2 = lg.clone(), uv = g2.attributes.uv, cx = c % 4, cy = 3 - Math.floor(c / 4); for (let i = 0; i < uv.count; i++) uv.setXY(i, (uv.getX(i) + cx) / 4, (uv.getY(i) + cy) / 4);
@@ -543,6 +553,23 @@ export async function buildWorld(_T, scene, renderer, { quality = 'medium', onPr
         list.forEach((p, i) => { e.set(0, p.ry, 0); q.setFromEuler(e); mt.compose(new THREE.Vector3(p.x, WATER_Y + 0.03, p.z), q, new THREE.Vector3(p.s, p.s, p.s)); im.setMatrixAt(i, mt); });
         im.receiveShadow = true; im.frustumCulled = false; scene.add(im);
       }
+    }
+  }
+
+  /* ---------- v144 · poças d'água refletivas (terreno plano, longe de estradas, acampamentos e ruínas) ---------- */
+  if (Q >= 1) {
+    const puddles = puddleList;
+    const pm = new THREE.MeshPhysicalMaterial({ color: 0x4a6277, roughness: 0.04, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.03, transparent: true, opacity: 0.82, vertexColors: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4, envMapIntensity: 1.6 });
+    for (const p of puddles) {
+      const seg = 22, g = new THREE.PlaneGeometry(2 * p.r * 1.3, 2 * p.r * 1.3, seg, seg); g.rotateX(-Math.PI / 2);
+      const P = g.attributes.position, col = new Float32Array(P.count * 4);
+      for (let i = 0; i < P.count; i++) {
+        const vx = P.getX(i), vz = P.getZ(i), a = Math.atan2(vz, vx) + p.ry, rr = p.r * (0.82 + 0.18 * Math.sin(a * 3 + p.ry) + 0.1 * Math.sin(a * 5 + p.r * 4)), d = Math.hypot(vx, vz) / rr;
+        const x = p.x + vx, z = p.z + vz; P.setXYZ(i, x, heightAt(x, z) + 0.03, z);
+        const t = Math.min(1, Math.max(0, (1 - d) / 0.35)); col[i * 4] = col[i * 4 + 1] = col[i * 4 + 2] = 1; col[i * 4 + 3] = t * t * (3 - 2 * t);
+      }
+      g.setAttribute('color', new THREE.BufferAttribute(col, 4)); g.computeVertexNormals(); g.computeBoundingSphere();
+      const m = new THREE.Mesh(g, pm); m.receiveShadow = false; m.renderOrder = 3; scene.add(m);
     }
   }
 

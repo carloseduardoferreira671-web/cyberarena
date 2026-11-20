@@ -1,7 +1,8 @@
-/* CyberArena v142 · Entrada (toque + carregamento) e barra de downloads no lobby.
+/* CyberArena v145 · Entrada (toque + carregamento) e barra de downloads no lobby.
    Entrada: título → "TOQUE PARA COMEÇAR" → carregamento → lobby.
    Lobby: barra DOWNLOADS (opcional) abre a janela de recursos; JOGAR só pede os recursos do personagem escolhido.
    Lista de pacotes: mundo/packs.json (tools/make_packs.py). Mapas e efeitos são gerados por código: não têm arquivo para baixar. */
+import './net.js';
 import { PACKS_ON, status, install, remove, online, netKind, fmtMB } from '../mundo/js/packs.js';
 const $ = id => document.getElementById(id);
 const ICON = { personagem: '☻', mapa: '▦', audio: '♪' };
@@ -16,28 +17,46 @@ function build() {
   <div class="sg2-c"><div class="sg2-logo"><small>BEM-VINDO À</small><h1>CYBER <b>ARENA</b></h1></div>
     <div class="sg2-panel hidden" id="sgPanel"></div>
     <div class="sg2-tap hidden" id="sgTap"><i></i><strong>TOQUE PARA COMEÇAR</strong><i></i></div></div>
-  <div class="sg2-foot">v142</div>`;
+  <div class="sg2-foot">v145</div>`;
   panel = $('sgPanel'); return true;
 }
 function show(st, pct, sub, opts = {}) {
   panel.innerHTML = `<div class="sg2-st">${st}</div><div class="sg2-bar ${pct == null ? 'idle' : ''}"><u style="width:${pct == null ? 38 : Math.max(0, Math.min(100, pct))}%"></u></div><div class="sg2-sub ${opts.warn ? 'sg2-warn' : ''}">${sub || ''}</div>`;
 }
 const TIPS = ['Dica: jogue partidas para ganhar moedas, fichas e XP.', 'Dica: o Passe da temporada rende mais XP que a conta.', 'Dica: evolua seu personagem para ganhar vida e dano.', 'Dica: abra a Mini Caixa grátis todos os dias.'];
-function startLoading() {
+/* v145: carregamento DE VERDADE — confere a conexão, baixa/atualiza TODOS os recursos (personagens, etc.) para o aparelho e só então abre o lobby.
+   Os arquivos ficam guardados no celular (e o jogo "cresce" a cada recurso/atualização nova). Da 2ª vez em diante só confere. */
+async function startLoading() {
   if (loading) return; loading = true;
   gate.classList.add('loading'); $('sgTap').classList.add('hidden'); panel.classList.remove('hidden');
-  const t0 = performance.now(), tip = TIPS[Math.floor(Math.random() * TIPS.length)]; let pct = 4, done = false;
-  const stage = p => p < 35 ? 'PREPARANDO A ARENA…' : p < 75 ? 'CARREGANDO PERSONAGEM…' : p < 100 ? 'QUASE LÁ…' : 'PRONTO!';
-  const tick = setInterval(() => {
-    const el = performance.now() - t0;
-    // personagem 3D só existe se os recursos já estão baixados; senão o lobby abre e pede o download
-    const hero = window.__heroMounted === true || window.cyberResReady !== true;
-    const target = done ? 100 : hero ? Math.max(pct, 92) : Math.min(88, 4 + el / 55);
-    pct += (target - pct) * 0.18; if (target - pct < .6) pct = target;
-    show(stage(pct), pct, tip);
-    if (!done && (hero || el > 9000) && el > 1900) done = true;
-    if (done && pct >= 99.5) { clearInterval(tick); show(stage(100), 100, tip); setTimeout(() => { try { enterLobbyFromStart(); } catch (e) { console.warn(e); } afterLobby(); }, 350); }
-  }, 60);
+  const tip = TIPS[Math.floor(Math.random() * TIPS.length)], t0 = performance.now(); let pct = 2;
+  const set = (st, p, sub, o) => { pct = Math.max(pct, p); show(st, pct, sub || tip, o); };
+  try {
+    set('CONECTANDO AO SERVIDOR…', 3); if (window.cyberNet) { await window.cyberNet.check(); await window.cyberNet.waitOnline(); }
+    try { navigator.storage && navigator.storage.persist && (await navigator.storage.persist()); } catch (_) { }   // pede ao celular para NÃO apagar os recursos baixados
+    if (PACKS_ON) {
+      set('VERIFICANDO RECURSOS…', 6); await refresh();
+      const todo = packs.filter(p => !p.installed), total = todo.reduce((a, p) => a + p.bytes, 0); let base = 0;
+      for (const p of todo) {
+        for (let tries = 0; ; tries++) {
+          try {
+            await install(p.id, (d, t) => { const got = base + d; set('BAIXANDO RECURSOS…', 8 + 80 * got / total, `${p.nome} · ${fmtMB(got)} de ${fmtMB(total)} — só na primeira vez e nas atualizações`); }); break;
+          } catch (e) {
+            console.warn('carregamento', e);
+            if (!online() || (window.cyberNet && !window.cyberNet.ok)) { set('SEM CONEXÃO…', pct, 'Esperando a internet voltar para continuar.', { warn: true }); await window.cyberNet.waitOnline(); }
+            else if (tries >= 4) { set('FALHA AO BAIXAR', pct, String(e.message || e).slice(0, 160) + ' — toque para tentar de novo', { warn: true }); await new Promise(r => { gate.addEventListener('click', r, { once: true, capture: true }); }); tries = 0; }
+            else await new Promise(r => setTimeout(r, 1500));
+          }
+        }
+        base += p.bytes; p.installed = true;
+      }
+      await refresh();
+    }
+    set('PREPARANDO PERSONAGEM…', 90); window.cyberResReady = true; try { window.__remountHero && window.__remountHero(); } catch (_) { }
+    for (let i = 0; i < 200 && window.__heroMounted !== true; i++) await new Promise(r => setTimeout(r, 100));   // espera o 3D montar (máx. 20 s)
+  } catch (e) { console.warn('carregamento', e); }
+  set('PRONTO!', 100);
+  setTimeout(() => { try { enterLobbyFromStart(); } catch (e) { console.warn(e); } afterLobby(); }, 400);
 }
 function ready() {
   window.cyberBootReady = true; gate.classList.add('ready');

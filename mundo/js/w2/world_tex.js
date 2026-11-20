@@ -150,15 +150,15 @@ export async function upgradeWithPacks(T, quality, prog = () => { }) {
     prog(0.05 + 0.02 * n++ / (keys.length + 6), 'Carregando texturas do mapa');
     try {
       const set = await loadSet(MAT[k], tiers, budget >= COST_4K);
-      if (set) { T[k] = set; got++; if (set.map.image && set.map.image.width >= 4096) budget -= COST_4K; n4k++; }
+      if (set) { T[k] = set; got++; if (set.map.image && set.map.image.width >= 4096) { budget -= COST_4K; n4k++; } }
     } catch (e) { /* sem pack: fica o procedural */ }
   }
   /* extras de uma textura só: nuvens, cáustica, arbustos, vitórias-régias, montanhas distantes e sujeira (decal) */
   for (const [k, mat, map, srgb] of [['sky', 'ceu', 'color', true], ['caustic', 'caustica', 'color', false], ['bushes', 'arbustos', 'color', true],
-    ['lily', 'vitoria', 'color', true], ['mount', 'montanhas', 'color', true], ['decal', 'decal_sujeira', 'opacity', false]]) {
+    ['lily', 'vitoria', 'color', true], ['conifer', 'conifera', 'color', true], ['foliage', 'folhagem', 'color', true], ['mount', 'montanhas', 'color', true], ['decal', 'decal_sujeira', 'opacity', false]]) {
     prog(0.05 + 0.02 * n++ / (keys.length + 6), 'Carregando texturas do mapa');
     const t = await pick(mat, map, tiers.filter(x => x !== '4k'));
-    if (t) { t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace; if (k === 'sky') t.wrapS = t.wrapT = THREE.MirroredRepeatWrapping; if (k === 'bushes' || k === 'lily' || k === 'mount') { t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; t.anisotropy = 4; } T[k] = { map: t }; }
+    if (t) { t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace; if (k === 'sky') t.wrapS = t.wrapT = THREE.MirroredRepeatWrapping; if (k === 'bushes' || k === 'lily' || k === 'mount' || k === 'conifer' || k === 'foliage') { t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; t.anisotropy = 4; } T[k] = { map: t }; }
   }
   try { console.info('[mapa] materiais PBR:', Object.keys(MAT).filter(k => T[k] && T[k].map && T[k].map.image).map(k => k + ':' + T[k].map.image.width).join(' '), '| 4K usados:', n4k, '| níveis:', tiers.join('>')); } catch (e) { }
   T.__packs = got; return got;

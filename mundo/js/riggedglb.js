@@ -200,7 +200,7 @@ export function buildRigged(h, id = h.charId || 'atlas') {
   const tails = Object.values(chains).map(c => { const a = c.sort((a, b) => a.name.localeCompare(b.name, 'en', { numeric: true })).map(b => ({ b, s: new THREE.Vector3(), v: new THREE.Vector3() })); a.cape = /^Cape/.test(c[0].name); a.amp = (id === 'atlas' && /^Tail/.test(c[0].name)) ? .28 : 1; return a; });   // v145: dreads do Atlas balançam bem menos que fita/capa
   // pose de descanso da cabeça (no espaço do objeto) para medir inclinação
   const head = byName('mixamorigHead'), neck = byName('mixamorigNeck');
-  h.atlasRig = { id, wrap, mesh, mixer, act, cur: null, U, bones, jig: new THREE.Vector3(), jv: new THREE.Vector3(), wind: new THREE.Vector3(), prevP: new THREE.Vector3().copy(h.object.position), tails, head, neck, headFixW: 1, t: 0, hl: null };
+  h.atlasRig = { id, wrap, mesh, mixer, act, cur: null, U, bones, jig: new THREE.Vector3(), jv: new THREE.Vector3(), wind: new THREE.Vector3(), prevP: new THREE.Vector3().copy(h.object.position), tails, head, neck, headFixW: 1, runW: 0, t: 0, hl: null };
   if (tails.some(c => !c.cape) && !/[?&]hairpush=0/.test(location.search)) { try { h.atlasRig.cols = buildCols(cache, bones, inv); } catch (e) { console.warn('colisão do cabelo', e); } }
   if (tails.some(c => !c.cape)) { try {
     /* v146: o cabelo (Tail*) é filho da CABEÇA, então herdava a inclinação dela: a cadeia girava para dentro das costas e o corpo atravessava o cabelo.
@@ -260,23 +260,38 @@ export function stepRigged(h, dt, ac) {
   r.mixer.update(dt);
   r.wrap.updateMatrixWorld(true);
   const curName = r.cur ? r.cur.getClip().name : '';
-  // ---- pose neutra (retrato do lobby/perfil): corpo reto, braços para baixo, sem contorção
-  { const idleNow = h.neutral && r.id !== 'atlas' && want === 'Idle' && !hitActive && !h.dead; r.nW += ((idleNow ? 1 : 0) - r.nW) * Math.min(1, dt * 7);
-    if (r.nW > .01) { const br = Math.sin(r.t * 1.6) * .012;
+  // ---- pose neutra (retrato do lobby/perfil): igual para Nexus, Cyber e Atlas — corpo reto, braços caídos, mãos relaxadas, respirando
+  { const idleNow = h.neutral && want === 'Idle' && !hitActive && !h.dead; r.nW += ((idleNow ? 1 : 0) - r.nW) * Math.min(1, dt * 7);
+    if (r.nW > .01) { const bs = Math.sin(r.t * 1.6), br = bs * .012;
       const feet = r.bones.filter(b => /^mixamorig(Left|Right)(Foot|ToeBase)$/.test(b.name)), footY = () => feet.reduce((m, b) => Math.min(m, b.getWorldPosition(_v3).y), 1e9), fy0 = feet.length ? footY() : 0;
-      r.bones.forEach((b, i) => { if (!/^mixamorig/.test(b.name)) return; const n = b.name.slice(9); if (/Arm$|Hand/.test(n) && !/^Left|^Right/.test(n)) return; if (/^(Left|Right)(Arm|ForeArm)$/.test(n)) return; _q.copy(r.restQ[i]); if (n === 'Spine1') _q.multiply(_q2.setFromAxisAngle(_v.set(1, 0, 0), br)); b.quaternion.slerp(_q, r.nW); });
-      r.bones[0].updateWorldMatrix(false, true);   // o quadril fica onde a animação o colocou (o Atlas tem o quadril de repouso longe do eixo)
-      h.object.updateMatrixWorld(true); const oq = h.object.getWorldQuaternion(new THREE.Quaternion());
-      for (const side of ['Left', 'Right']) for (const part of ['Arm', 'ForeArm']) {
-        const b = r.bones.find(x => x.name === 'mixamorig' + side + part), c = b && b.children.find(x => x.isBone); if (!c) continue;
-        b.updateWorldMatrix(true, false); c.updateWorldMatrix(true, false);
+      const keepFingers = r.id !== 'nexus';   // Nexus tem punhos fechados na malha; Cyber/Atlas mantêm os dedos relaxados da animação Idle
+      r.bones.forEach((b, i) => { if (!/^mixamorig/.test(b.name)) return; const n = b.name.slice(9);
+        if (/^(Left|Right)(Arm|ForeArm|Hand)$/.test(n)) return;
+        if (keepFingers && /^(Left|Right)Hand(Thumb|Index|Middle|Ring|Pinky)\d$/.test(n)) return;
+        _q.copy(r.restQ[i]);
+        if (n === 'Spine') _q.multiply(_q2.setFromAxisAngle(_v.set(1, 0, 0), br * .5));
+        if (n === 'Spine1') _q.multiply(_q2.setFromAxisAngle(_v.set(1, 0, 0), br));
+        if (n === 'Spine2') _q.multiply(_q2.setFromAxisAngle(_v.set(1, 0, 0), Math.sin(r.t * 1.6 - .5) * .008));
+        if (/^(Left|Right)Shoulder$/.test(n)) _q.multiply(_q2.setFromAxisAngle(_v.set(0, 0, 1), (n[0] === 'L' ? 1 : -1) * bs * .006));
+        b.quaternion.slerp(_q, r.nW); });
+      r.bones[0].updateWorldMatrix(false, true);   // o quadril fica onde a animação o colocou
+      h.object.updateMatrixWorld(true); const oq = h.object.getWorldQuaternion(new THREE.Quaternion()), oqi = oq.clone().invert();
+      const ABD = { nexus: .16, cyber: .2, atlas: .27 }[r.id] ?? .16, FWD = { nexus: .38, cyber: .34, atlas: .3 }[r.id] ?? .38;
+      const aim = (b, c, D) => { b.updateWorldMatrix(true, false); c.updateWorldMatrix(true, false);
         const nb = c.getWorldPosition(new THREE.Vector3()).sub(b.getWorldPosition(new THREE.Vector3())).normalize();
-        const ob = nb.clone().applyQuaternion(oq.clone().invert()); const sx = ob.x >= 0 ? 1 : -1;
-        const D = (part === 'Arm' ? new THREE.Vector3(sx * .16, -1, .04) : new THREE.Vector3(sx * .08, -1, .38)).normalize().applyQuaternion(oq);
         const cur = b.getWorldQuaternion(new THREE.Quaternion()), nw = new THREE.Quaternion().setFromUnitVectors(nb, D).multiply(cur);
-        const loc = b.parent.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(nw); b.quaternion.slerp(loc, r.nW); b.updateWorldMatrix(false, true); }
+        const loc = b.parent.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(nw); b.quaternion.slerp(loc, r.nW); b.updateWorldMatrix(false, true); };
+      for (const side of ['Left', 'Right']) {
+        const sx = side === 'Left' ? 1 : -1, get = n => r.bones.find(x => x.name === 'mixamorig' + side + n);
+        const arm = get('Arm'), fore = get('ForeArm'), hand = get('Hand'), mid = get('HandMiddle1');
+        if (!arm || !fore || !hand) continue;
+        aim(arm, fore, new THREE.Vector3(sx * ABD, -1, .04).normalize().applyQuaternion(oq));
+        aim(fore, hand, new THREE.Vector3(sx * .08, -1, FWD).normalize().applyQuaternion(oq));
+        if (keepFingers && mid) aim(hand, mid, new THREE.Vector3(sx * .04, -1, .3).normalize().applyQuaternion(oq));   // mão acompanha o antebraço, levemente à frente
+      }
       r.wrap.updateMatrixWorld(true);
       if (feet.length) { const sc = r.bones[0].parent ? r.bones[0].parent.getWorldScale(_v2).y || 1 : 1; r.bones[0].position.y += (fy0 - footY()) / sc; r.bones[0].updateWorldMatrix(false, true); r.wrap.updateMatrixWorld(true); } } }
+  r.runW += (Math.min(1, Math.max(0, (h.spd - 1.8) / 3)) * (hitActive || h.dead ? 0 : 1) - r.runW) * Math.min(1, dt * 6);
   // ---- cabeça: tira a inclinação (olhando pra baixo / torta) em relação à pose de descanso
   const want0 = (h.dead || hitActive || /Crawl|Crouch|Slide|Lay|Sit|Kip|Lift/.test(curName)) ? 0 : 1; r.headFixW += (want0 - r.headFixW) * Math.min(1, dt * 8);
   if (r.head && r.headFixW > .02 && !/[?&]headfix=0/.test(location.search)) {
@@ -290,7 +305,7 @@ export function stepRigged(h, dt, ac) {
       const corr = new THREE.Quaternion().setFromEuler(_e.set(-kP, 0, -kR)), qn = corr.multiply(_q);
       bone.parent.getWorldQuaternion(_q3).premultiply(_qo).invert(); bone.quaternion.copy(_q3.multiply(qn)); bone.updateWorldMatrix(false, true);
     };
-    const HP = h.headPitch ?? -.2, NP = h.neckPitch ?? -.1;
+    const HP = (h.headPitch ?? -.2) * (1 - r.runW) - .05 * r.runW, NP = (h.neckPitch ?? -.1) * (1 - r.runW) - .02 * r.runW;   // parado: olhar levemente para cima; correndo: olhar reto para a frente
     lev(r.neck, r.neckRestO, .55, NP); lev(r.head, r.headRestO, 1, HP);
   }
   // ---- vento / arrasto para roupa, fita e cabelo

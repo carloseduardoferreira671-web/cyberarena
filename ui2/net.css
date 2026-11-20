@@ -1,0 +1,9 @@
+/* v145 · "Conexão perdida" por cima de tudo */
+.nl { position: fixed; inset: 0; z-index: 2147483647; display: flex; align-items: center; justify-content: center; background: rgba(8, 4, 20, .62); backdrop-filter: blur(2px); touch-action: none; }
+.nl.hidden { display: none; }
+.nl-card { width: min(72vw, 560px); background: #1d2022; color: #e8eaed; border-radius: calc(28 * var(--u, 1px)); padding: calc(26 * var(--u, 1px)) calc(28 * var(--u, 1px)) calc(18 * var(--u, 1px)); font-family: Roboto, system-ui, sans-serif; box-shadow: 0 10px 40px rgba(0, 0, 0, .6); }
+.nl-card h2 { margin: 0 0 calc(14 * var(--u, 1px)); font-size: calc(24 * var(--u, 1px)); font-weight: 500; }
+.nl-card p { margin: 0 0 calc(40 * var(--u, 1px)); font-size: calc(19 * var(--u, 1px)); color: #c8ccd0; }
+.nl-b { background: none; border: 0; color: #9fd8ff; font-size: calc(19 * var(--u, 1px)); font-weight: 500; padding: calc(8 * var(--u, 1px)) 0; cursor: pointer; font-family: inherit; }
+.nl-b:disabled { opacity: .6; }
+body.net-lost { overflow: hidden; }

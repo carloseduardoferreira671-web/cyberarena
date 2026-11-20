@@ -16,7 +16,7 @@
     {
      "path": "models/cyber_rig.glb",
      "bytes": 8888028,
-     "sha256": "ef77da0d0565c293a9b8aec0960621e77e46a5a5831548d102111146ceff2023"
+     "sha256": "b9e021360b52ea13c276f4295e9bffc356bdfec3dc3614bd9589403bd130d66a"
     }
    ],
    "bytes": 8888028
@@ -31,7 +31,7 @@
     {
      "path": "models/atlas_rig.glb",
      "bytes": 8629108,
-     "sha256": "3d4d727e5365c88cc2a70b5824b7c9c4a74b2a23f417e446e1cd46befe4dd2ec"
+     "sha256": "8ade340696738cb14c5ade9f6b02d294d5e43c84108bb762527f8315d8d6817e"
     }
    ],
    "bytes": 8629108
@@ -46,7 +46,7 @@
     {
      "path": "models/nexus_rig.glb",
      "bytes": 8626820,
-     "sha256": "03dc6a56f54875e09cdd8b5a6e2c1155826003b40e29826dc3e11143fe28e1b6"
+     "sha256": "b482e1643aa62a3c5bd2349d9f1846252fcb32405393ad6734d51d1b13fa1b02"
     }
    ],
    "bytes": 8626820

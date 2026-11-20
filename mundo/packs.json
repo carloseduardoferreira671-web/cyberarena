@@ -134,6 +134,11 @@
      "sha256": "71ce8a71d823ee32bfe043b7c9c3d35148a3b1c56ed96ee401514d18d6d8a934"
     },
     {
+     "path": "assets/map/1k/conifera/color.webp",
+     "bytes": 422566,
+     "sha256": "86ffc8fa38d25b4f230a246a23c71520e98905e55a64a5e04b4b4a1148261067"
+    },
+    {
      "path": "assets/map/1k/decal_sujeira/opacity.webp",
      "bytes": 60896,
      "sha256": "aa519b12855ff73b5e7ddfaef3b6ff08f0eb0d2c63541560e909143532121591"
@@ -157,6 +162,11 @@
      "path": "assets/map/1k/folha/rough.webp",
      "bytes": 43920,
      "sha256": "e0aeb46fcdef255650f09d04a84f2833b422bb85110b2484a2e4ce311ef43f33"
+    },
+    {
+     "path": "assets/map/1k/folhagem/color.webp",
+     "bytes": 182712,
+     "sha256": "910efd877474d27d141ba2c168c14918a4754635833f95d4ce0ea008ddf402b0"
     },
     {
      "path": "assets/map/1k/grama_flores/ao.webp",
@@ -349,7 +359,7 @@
      "sha256": "54cd9f23a8f7ad2d92279a587798f68f5cbc60f7559f4ee838d3f2f4b2644b85"
     }
    ],
-   "bytes": 18874046
+   "bytes": 19479324
   },
   {
    "id": "mapa_2k",
@@ -434,6 +444,11 @@
      "sha256": "d3c576d0e3851f9ede553b07282ab5cbfe9dc45309d1f1378c46aee4912219da"
     },
     {
+     "path": "assets/map/2k/conifera/color.webp",
+     "bytes": 422566,
+     "sha256": "86ffc8fa38d25b4f230a246a23c71520e98905e55a64a5e04b4b4a1148261067"
+    },
+    {
      "path": "assets/map/2k/decal_sujeira/opacity.webp",
      "bytes": 148626,
      "sha256": "28cf5714ac713ce64f0b97f621e53b3a50cb97a5a9b70eb5bb0d0bf9ad7a1657"
@@ -457,6 +472,11 @@
      "path": "assets/map/2k/folha/rough.webp",
      "bytes": 121832,
      "sha256": "48c870e4cc1082a32d553ce925e8adebac7cfa2752830460d052525f46aa27a0"
+    },
+    {
+     "path": "assets/map/2k/folhagem/color.webp",
+     "bytes": 331348,
+     "sha256": "d7c47f2306dbd99b73ec7ce63bed49aa75a8709c7634a2650550d96ba6edd319"
     },
     {
      "path": "assets/map/2k/grama_flores/ao.webp",
@@ -649,7 +669,7 @@
      "sha256": "54cd9f23a8f7ad2d92279a587798f68f5cbc60f7559f4ee838d3f2f4b2644b85"
     }
    ],
-   "bytes": 69423154
+   "bytes": 70177068
   },
   {
    "id": "mapa_4k",
@@ -754,11 +774,6 @@
      "sha256": "5b89bcbb459cef12083dfc14ba8ee7310bad7d47fa0af6b5ee0ea48650cac10f"
     },
     {
-     "path": "assets/map/4k/terra_raizes/normal.webp",
-     "bytes": 40550126,
-     "sha256": "1ac96eaf5c51ede4cc1c0c9fb0c8e39eba3dfc49348395ef0a95eca9a62aa75c"
-    },
-    {
      "path": "assets/map/4k/tijolo_parquet/color.webp",
      "bytes": 3863548,
      "sha256": "52c59322c3bb02db89a16d0737b0971ad76bf1426ef98e6530cd0d47dbd2d5d5"
@@ -779,7 +794,7 @@
      "sha256": "0f8dd12155748ffc2a0d82bdedd161a155b9a11d4aee7115123012f7d281f96b"
     }
    ],
-   "bytes": 397118786
+   "bytes": 356568660
   }
  ]
 }

@@ -58,6 +58,7 @@ const hex = buf => [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, 
 async function fetchFile(f, fontes, onBytes, signal) {
   let lastErr = null; const erros = [];
   for (const src of fontes) {
+    if (src.includes('jsdelivr') && f.bytes > 20 * 1024 * 1024) continue;   // v148: jsDelivr não serve arquivo do GitHub acima de 20 MB (sempre HTTP 404)
     const url = src.replace('{SITE}', SITE) + f.path, abs = new URL(url, location.href).href; let got = 0;
     try {
       const res = await fetch(abs, { signal, cache: 'no-store' }); if (!res.ok) throw new Error('HTTP ' + res.status);

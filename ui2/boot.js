@@ -1,8 +1,9 @@
-/* CyberArena v145 · Entrada (toque + carregamento) e barra de downloads no lobby.
+/* CyberArena v146 · Entrada (toque + carregamento) e barra de downloads no lobby.
    Entrada: título → "TOQUE PARA COMEÇAR" → carregamento → lobby.
    Lobby: barra DOWNLOADS (opcional) abre a janela de recursos; JOGAR só pede os recursos do personagem escolhido.
    Lista de pacotes: mundo/packs.json (tools/make_packs.py). Mapas e efeitos são gerados por código: não têm arquivo para baixar. */
 import './net.js';
+import { enterOffline } from './offline.js';
 import { PACKS_ON, status, install, remove, online, netKind, fmtMB } from '../mundo/js/packs.js';
 const $ = id => document.getElementById(id);
 const ICON = { personagem: '☻', mapa: '▦', audio: '♪' };
@@ -17,22 +18,26 @@ function build() {
   <div class="sg2-c"><div class="sg2-logo"><small>BEM-VINDO À</small><h1>CYBER <b>ARENA</b></h1></div>
     <div class="sg2-panel hidden" id="sgPanel"></div>
     <div class="sg2-tap hidden" id="sgTap"><i></i><strong>TOQUE PARA COMEÇAR</strong><i></i></div></div>
-  <div class="sg2-foot">v145</div>`;
+  <div class="sg2-foot">v146</div>`;
   panel = $('sgPanel'); return true;
 }
 function show(st, pct, sub, opts = {}) {
   panel.innerHTML = `<div class="sg2-st">${st}</div><div class="sg2-bar ${pct == null ? 'idle' : ''}"><u style="width:${pct == null ? 38 : Math.max(0, Math.min(100, pct))}%"></u></div><div class="sg2-sub ${opts.warn ? 'sg2-warn' : ''}">${sub || ''}</div>`;
 }
 const TIPS = ['Dica: jogue partidas para ganhar moedas, fichas e XP.', 'Dica: o Passe da temporada rende mais XP que a conta.', 'Dica: evolua seu personagem para ganhar vida e dano.', 'Dica: abra a Mini Caixa grátis todos os dias.'];
-/* v145: carregamento DE VERDADE — confere a conexão, baixa/atualiza TODOS os recursos (personagens, etc.) para o aparelho e só então abre o lobby.
-   Os arquivos ficam guardados no celular (e o jogo "cresce" a cada recurso/atualização nova). Da 2ª vez em diante só confere. */
+/* v146: carregamento DE VERDADE — confere a conexão, baixa/atualiza TODOS os recursos (personagens, etc.) para o aparelho e só então abre o lobby.
+   Os arquivos ficam guardados no celular (o jogo "cresce" a cada recurso/atualização nova). Da 2ª vez em diante só confere.
+   Sem conexão: aparece a escolha MODO ONLINE (repete o carregamento até conectar) ou MODO OFFLINE (só bots, sem progresso). */
+class NoNet extends Error { }
+const wait = ms => new Promise(r => setTimeout(r, ms));
 async function startLoading() {
-  if (loading) return; loading = true;
-  gate.classList.add('loading'); $('sgTap').classList.add('hidden'); panel.classList.remove('hidden');
-  const tip = TIPS[Math.floor(Math.random() * TIPS.length)], t0 = performance.now(); let pct = 2;
+  if (loading) return; loading = true; window.cyberLoadingActive = true; window.cyberInGame = false;
+  gate.classList.add('loading'); $('sgTap') && $('sgTap').classList.add('hidden'); panel.classList.remove('hidden');
+  const tip = TIPS[Math.floor(Math.random() * TIPS.length)]; let pct = 2;
   const set = (st, p, sub, o) => { pct = Math.max(pct, p); show(st, pct, sub || tip, o); };
   try {
-    set('CONECTANDO AO SERVIDOR…', 3); if (window.cyberNet) { await window.cyberNet.check(); await window.cyberNet.waitOnline(); }
+    set('CONECTANDO AO SERVIDOR…', 3); await wait(900);
+    if (!window.cyberNet || !(await window.cyberNet.check(true))) throw new NoNet();
     try { navigator.storage && navigator.storage.persist && (await navigator.storage.persist()); } catch (_) { }   // pede ao celular para NÃO apagar os recursos baixados
     if (PACKS_ON) {
       set('VERIFICANDO RECURSOS…', 6); await refresh();
@@ -43,21 +48,50 @@ async function startLoading() {
             await install(p.id, (d, t) => { const got = base + d; set('BAIXANDO RECURSOS…', 8 + 80 * got / total, `${p.nome} · ${fmtMB(got)} de ${fmtMB(total)} — só na primeira vez e nas atualizações`); }); break;
           } catch (e) {
             console.warn('carregamento', e);
-            if (!online() || (window.cyberNet && !window.cyberNet.ok)) { set('SEM CONEXÃO…', pct, 'Esperando a internet voltar para continuar.', { warn: true }); await window.cyberNet.waitOnline(); }
-            else if (tries >= 4) { set('FALHA AO BAIXAR', pct, String(e.message || e).slice(0, 160) + ' — toque para tentar de novo', { warn: true }); await new Promise(r => { gate.addEventListener('click', r, { once: true, capture: true }); }); tries = 0; }
-            else await new Promise(r => setTimeout(r, 1500));
+            if (!online() || !(await window.cyberNet.check(true))) throw new NoNet();
+            if (tries >= 4) { set('FALHA AO BAIXAR', pct, String(e.message || e).slice(0, 160) + ' — toque para tentar de novo', { warn: true }); await new Promise(r => { gate.addEventListener('click', r, { once: true, capture: true }); }); tries = 0; }
+            else await wait(1500);
           }
         }
         base += p.bytes; p.installed = true;
       }
       await refresh();
     }
-    set('PREPARANDO PERSONAGEM…', 90); window.cyberResReady = true; try { window.__remountHero && window.__remountHero(); } catch (_) { }
-    for (let i = 0; i < 200 && window.__heroMounted !== true; i++) await new Promise(r => setTimeout(r, 100));   // espera o 3D montar (máx. 20 s)
-  } catch (e) { console.warn('carregamento', e); }
-  set('PRONTO!', 100);
-  setTimeout(() => { try { enterLobbyFromStart(); } catch (e) { console.warn(e); } afterLobby(); }, 400);
+    if (window.__keepWorld) { set('VOLTANDO PARA A PARTIDA…', 96); }
+    else {
+      set('PREPARANDO PERSONAGEM…', 90); window.cyberResReady = true; try { window.__remountHero && window.__remountHero(); } catch (_) { }
+      for (let i = 0; i < 200 && window.__heroMounted !== true; i++) await wait(100);   // espera o 3D montar (máx. 20 s)
+    }
+  } catch (e) { if (e instanceof NoNet) return choose(); console.warn('carregamento', e); }
+  set('PRONTO!', 100); await wait(400);
+  loading = false; window.cyberLoadingActive = false; window.cyberInGame = true;
+  if (window.__keepWorld) {   // havia partida de 16 em andamento: volta para ela (o bot jogava por você)
+    window.__keepWorld = false; const w = $('world3d'); gate.classList.add('hidden'); gate.dataset.started = '1';
+    if (w) { w.style.cssText = ''; document.body.classList.add('world3d-open'); try { w.contentWindow.__away.end(); } catch (_) { } }
+    return;
+  }
+  try { enterLobbyFromStart(); } catch (e) { console.warn(e); } afterLobby();
 }
+/* sem conexão: escolha entre repetir o carregamento (online) ou jogar offline */
+function choose() {
+  loading = false; window.cyberLoadingActive = true; window.cyberInGame = false;
+  gate.classList.add('loading'); $('sgTap') && $('sgTap').classList.add('hidden'); panel.classList.remove('hidden');
+  panel.innerHTML = `<div class="sg2-st">SEM CONEXÃO</div><div class="sg2-sub sg2-warn">Não foi possível conectar ao servidor. Escolha como jogar.</div>
+    <div class="sg2-ch"><button type="button" id="sgOn" class="sg2-b on">MODO ONLINE<small>Tentar conectar de novo</small></button><button type="button" id="sgOff" class="sg2-b off">MODO OFFLINE<small>Só contra bots · sem progresso</small></button></div>`;
+  $('sgOn').onclick = () => startLoading(); $('sgOff').onclick = () => { window.cyberLoadingActive = false; enterOffline(); };
+}
+/* volta para a tela de carregamento (usado pelo "Tentar de novo" e pelo aviso de conexão restabelecida) */
+window.cyberReboot = function (opt = {}) {
+  if (!gate) return; const w = $('world3d'); let keep = false;
+  if (opt.resume !== false && w && document.body.classList.contains('world3d-open') && !window.cyberOfflineMode) {
+    try { const A = w.contentWindow.__away; keep = !!(A && A.mode === 'battle' && !A.noprog && A.ongoing()); if (keep) A.start(); } catch (_) { }
+  }
+  if (w) { if (keep) { w.style.cssText = 'visibility:hidden;pointer-events:none;z-index:1'; window.__keepWorld = true; } else { w.src = 'about:blank'; w.classList.add('hidden'); w.style.cssText = ''; window.__keepWorld = false; } }
+  document.body.classList.remove('world3d-open', 'offline-mode'); window.cyberOfflineMode = false; window.cyberInGame = false; window.cyberLoadingActive = true;
+  const om = $('offMenu'); if (om) om.remove(); try { window.cyberNet.clearForced(); } catch (_) { } try { closeSheet(); } catch (_) { }
+  document.querySelectorAll('.screen').forEach(sc => sc.classList.add('hidden'));
+  gate.dataset.started = '0'; gate.classList.remove('hidden', 'starting', 'ready', 'loading'); build(); loading = false; startLoading();
+};
 function ready() {
   window.cyberBootReady = true; gate.classList.add('ready');
   const go = e => { if (!gate.classList.contains('ready')) return; e.stopImmediatePropagation(); e.preventDefault(); startLoading(); };

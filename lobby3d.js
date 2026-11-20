@@ -54,8 +54,22 @@ window.__remountHero = () => { for (const el of document.querySelectorAll('.hero
 window.__mountHero = mountHero;
 let powersMod = null;
 function portraitOpts(f, char) {
-  // Todos os personagens do lobby usam a mesma pose neutra. Sem orbHold, gestos ou animação automática.
-  return { factory: f };
+  const o = { factory: f };
+  if (char !== 'nexus') return o;
+  o.actions = ['orbHold'];
+  let bh = null, born = 0, loading = false;
+  const kill = () => { if (bh) { try { bh.dispose(); } catch (_) { } bh = null; } };
+  o.onAct = (n, dur, hero) => { if (n !== 'orbHold' || bh || loading || typeof hero.getHand !== 'function') return; loading = true;
+    (powersMod || (powersMod = import('./mundo/js/powers.js'))).then(m => { loading = false; if (!bh && hero.object && hero.object.parent) { bh = m.makeBlackHole(1, { particles: 40, speed: 1.4 }); born = 0; hero.object.parent.add(bh.group); } }).catch(() => { loading = false; }); };
+  const P = { x: 0, y: 0, z: 0, ok: false };
+  o.onFrame = (dt, hero, scene, cam) => { if (!bh) return; if (!hero.object.parent) { kill(); return; }
+    born += dt; const p = hero.getHand('r'); p.y += .1;
+    // segue a palma com suavidade (sem tremer nem escapar da mão)
+    if (!P.ok) { P.x = p.x; P.y = p.y; P.z = p.z; P.ok = true; } const k = 1 - Math.exp(-dt * 18); P.x += (p.x - P.x) * k; P.y += (p.y - P.y) * k; P.z += (p.z - P.z) * k;
+    bh.group.position.set(P.x, P.y + Math.sin(born * 1.7) * .006, P.z);
+    const g = Math.min(1, Math.max(0, (born - .45) / .9)), e = g * g * (3 - 2 * g); bh.group.scale.setScalar(.075 * Math.max(.02, e)); bh.update(dt, cam); };
+  o.onDispose = kill;
+  return o;
 }
 function heroFrame(id, cls) { const el = document.createElement('div'); el.id = id; el.className = cls; el.innerHTML = '<span class="hero3d-ld">CARREGANDO…</span>'; mountHero(el); return el; }
 function sendSkin(id) { for (const el of document.querySelectorAll('.hero3d')) if (!el._mate) try { el._p && el._p.setSkin(id); } catch (_) { } }
@@ -100,13 +114,14 @@ function openWorld(mode, extra = '', code = S.code) {
   if (window.top !== window.self) { try { parent.postMessage({ type: 'cyberarena:gesture' }, '*'); } catch (_) { } }
   else if (document.documentElement.requestFullscreen && matchMedia('(pointer: coarse)').matches) document.documentElement.requestFullscreen().then(() => screen.orientation?.lock?.('landscape').catch(() => { })).catch(() => { });
 }
+window.openWorldRaw = openWorld;
 window.openWorld3D = m => openWorld(m === 'solo' ? 'train' : m === 'bot' ? 'battle' : (m || 'battle'), m === 'bot' ? '&offline=1' : '');
 window.startGame = () => { if (hooks.beforePlay && hooks.beforePlay() === false) return; openWorld(S.mode); };
 window.startTraining = m => openWorld(m === 'solo' ? 'train' : 'battle', m === 'solo' ? '' : '&offline=1');
 addEventListener('message', e => {
   if (!e.data) return;
   if (e.data.type === 'cyberarena:exit-world') { pauseHeroes(false); setTimeout(refreshProfile, 400); }
-  if (e.data.type === 'cyberarena:match-result') { const r = e.data.result; if (r && r.profile) { S.profile = r.profile; renderProfile(); } toast(`Partida: #${r.placement} · ${r.kills} abates · ${r.trophiesDelta >= 0 ? '+' : ''}${r.trophiesDelta} 🏆 · +${r.xpGain} XP`); }
+  if (e.data.type === 'cyberarena:match-result' && !(e.data.result && e.data.result.noprog) && !window.cyberOfflineMode) { const r = e.data.result; if (r && r.profile) { S.profile = r.profile; renderProfile(); } toast(`Partida: #${r.placement} · ${r.kills} abates · ${r.trophiesDelta >= 0 ? '+' : ''}${r.trophiesDelta} 🏆 · +${r.xpGain} XP`); }
 });
 
 /* ---------- sala com amigos ---------- */

@@ -33,6 +33,7 @@ function localProfile(id) {
   p = Object.assign({ trophies: 0, xp: 0, wins: 0, kills: 0, matches: 0, bestPlacement: null }, p || {}, { id: id.playerId, name: id.name, skin: id.skin });
   return Object.assign(p, levelOf(p.xp), { rank: rankOf(p.trophies), offline: true });
 }
+export const NOPROG = new URLSearchParams(location.search).get('noprog') === '1';
 function saveLocal(p) { const { trophies, xp, wins, kills, matches, bestPlacement } = p; localStorage.setItem(LKEY, JSON.stringify({ trophies, xp, wins, kills, matches, bestPlacement })); }
 
 export class Net {
@@ -106,7 +107,8 @@ export class Net {
       try { return await this._post('match/finish', { roomId: this.room.roomId }); } catch (e) { console.warn('finish', e); }
     }
     const res = localResult(local.placement, local.kills), p = localProfile(this.id);
-    if (this.offline) {
+    if (NOPROG) return Object.assign(res, { trophiesDelta: 0, xpGain: 0, profile: p, offline: true, noprog: true });   // MODO OFFLINE: sem troféus, XP ou qualquer progresso
+    if (false) {   // v146: o progresso offline antigo foi desligado (progresso só vem do servidor)
       p.trophies = Math.max(0, p.trophies + res.trophiesDelta); p.xp += res.xpGain; p.kills += local.kills; p.matches++; if (local.placement === 1) p.wins++;
       p.bestPlacement = Math.min(p.bestPlacement || 99, local.placement); saveLocal(p); Object.assign(p, levelOf(p.xp), { rank: rankOf(p.trophies) });
     }

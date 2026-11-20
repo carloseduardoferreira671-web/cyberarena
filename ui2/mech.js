@@ -10,7 +10,7 @@ const stats=()=>Object.assign({matches:0,wins:0,kills:0,top3:0,best:0,history:[]
 
 /* ---- registra cada partida terminada ---- */
 addEventListener('message',e=>{
-  const d=e.data; if(!d||d.type!=='cyberarena:match-result'||!d.result)return;
+  const d=e.data; if(!d||d.type!=='cyberarena:match-result'||!d.result||d.result.noprog||window.cyberOfflineMode)return;
   const r=d.result, s=stats(), id=(r.matchId||'')+'|'+(r.placement)+'|'+(r.kills);
   const last=s.history[0]; if(last&&last.id===id&&Date.now()-last.t<8000)return;
   const pl=Number(r.placement)||0, k=Number(r.kills)||0;

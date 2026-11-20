@@ -14,7 +14,7 @@ import { ensurePacks } from './packs_ui.js';
 import { FX } from './fx.js';
 import { Powers, makeBlackHole } from './powers.js';
 import { Audio } from './audio.js';
-import { Net, getIdentity, saveIdentity } from './net.js';
+import { NOPROG, Net, getIdentity, saveIdentity } from './net.js';
 
 const $ = id => document.getElementById(id);
 const PI = Math.PI, TAU = PI * 2, CW = CWm, WD = CW.W;
@@ -26,7 +26,7 @@ const params = new URLSearchParams(location.search);
 const MODE = ['battle', 'open', 'train', 'space'].includes(params.get('mode')) ? params.get('mode') : 'battle';
 const CODE = (params.get('code') || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8) || null;
 const PARTY = /^[A-Z0-9]{8}$/.test(params.get('party') || '') ? params.get('party') : null;   // grupo do lobby: todos caem na mesma sala
-const FORCE_OFFLINE = params.get('offline') === '1';   // Teste de Poderes (space) e treino (train) agora são online (caem para offline sozinhos se o servidor não responder)
+const FORCE_OFFLINE = params.get('offline') === '1' || NOPROG;   // Teste de Poderes (space) e treino (train) agora são online (caem para offline sozinhos se o servidor não responder)
 const TRAINLIKE = MODE === 'train' || MODE === 'space';
 const isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
 if (!isTouch) document.body.classList.add('desktop');
@@ -1150,6 +1150,11 @@ function kill(t, byId, remote) {
 }
 function sendFx(a, kind, data) { if (a === me || (a.kind === 'bot' && a.simulated && !net.offline)) net.send('fx', Object.assign({ kind, a: a.id }, data)); }
 
+/* ===================================================== ausência (o bot joga por você) ===================================================== */
+let awayBrain = null;
+function awayStart() { if (awayBrain || !me || MODE !== 'battle' || NOPROG || G.phase !== 'live') return; try { awayBrain = new Brain(me, .55, false); } catch (e) { console.warn('away', e); } }
+document.addEventListener('visibilitychange', () => { if (document.hidden) awayStart(); });
+window.__away = { mode: MODE, noprog: NOPROG, start: awayStart, end() { awayBrain = null; }, ongoing: () => MODE === 'battle' && !NOPROG && !G.ended && G.phase !== 'over' && !G.result && !!me, get active() { return !!awayBrain; }, get brain() { return awayBrain; } };
 /* ===================================================== bots ===================================================== */
 class Brain {
   constructor(a, skill, passive) { this.a = a; this.skill = skill; this.passive = passive; this.think = Math.random() * .3; this.goal = null; this.target = null; this.strafe = Math.random() < .5 ? 1 : -1; this.strafeT = 1; this.stuckT = 0; this.lastPos = [a.x, a.z]; this.wander = null; this.hurtBy = null; this.react = 0; this.jump = false; this.mx = 0; this.mz = 0; this.dodgeT = 0; }
@@ -1520,8 +1525,9 @@ async function showResults() {
   const res = await net.finish({ placement, kills: me.kills }); G.result = res;
   $('rPl').textContent = '#' + res.placement; $('rK').textContent = res.kills; $('rT').textContent = (res.trophiesDelta >= 0 ? '+' : '') + res.trophiesDelta + ' 🏆'; $('rT').style.color = res.trophiesDelta >= 0 ? '#7cff9a' : '#ff8a8a'; $('rX').textContent = '+' + res.xpGain;
   const p = res.profile || {}; $('rL').textContent = p.level || 1; $('rR').textContent = p.rank ? p.rank.name + ' ' + ['', 'I', 'II', 'III'][p.rank.tier || 1] : '—'; setTimeout(() => $('rXb').style.width = (p.levelNext ? p.levelXp / p.levelNext * 100 : 0) + '%', 100);
-  $('rNote').textContent = res.offline ? 'Modo offline: progresso salvo neste aparelho.' : `Total: ${p.trophies} troféus · ${p.wins} vitórias`;
-  if (embedded) parent.postMessage({ type: 'cyberarena:match-result', result: Object.assign({}, res, { char: me.char, matchId: G.seed || Date.now(), lvl: ME_BUFF.lvl }) }, '*');
+  if (NOPROG) { $('rT').textContent = '—'; $('rT').style.color = '#9bb4dc'; $('rX').textContent = '—'; }
+  $('rNote').textContent = NOPROG ? 'Modo offline: sem troféus, XP ou recompensas. Nada é salvo na conta.' : res.offline ? 'Modo offline: progresso não é salvo.' : `Total: ${p.trophies} troféus · ${p.wins} vitórias`;
+  if (embedded && !NOPROG) parent.postMessage({ type: 'cyberarena:match-result', result: Object.assign({}, res, { char: me.char, matchId: G.seed || Date.now(), lvl: ME_BUFF.lvl }) }, '*');
   net.leave();
 }
 
@@ -1660,7 +1666,9 @@ function tick(dt) {
     else if (me.novaSequence) updateNovaSequence(me, dt);
     else if (me.atlasSequence) updateAtlasFist(me, dt);
     else if (me.velocityDuel) updateVelocityDuel(me, dt);
-    else if (!me.solarVictim && !me.atlasVictim && !me.velocityDuelBy) { const [mx, mz, mag] = me.alive && G.phase !== 'over' ? readMove() : [0, 0, 0]; stepActor(me, fdt(me, dt), mx, mz, mag, input.jump && me.alive); }
+    else if (!me.solarVictim && !me.atlasVictim && !me.velocityDuelBy) {
+      if (awayBrain && me.alive && G.phase === 'live') { awayBrain.update(dt); const b = awayBrain; stepActor(me, fdt(me, dt), b.mx, b.mz, Math.hypot(b.mx, b.mz), b.jump); }
+      else { const [mx, mz, mag] = me.alive && G.phase !== 'over' ? readMove() : [0, 0, 0]; stepActor(me, fdt(me, dt), mx, mz, mag, input.jump && me.alive); } }
     input.jump = false;
   }
   // countdown de matchmaking
@@ -1779,7 +1787,7 @@ async function start() {
   const preWorld = new Set(scene.children);
   try { await world.build(setP); Object.assign(ENV, { hemiI: hemi.intensity, sunI: sun.intensity, fogC: scene.fog.color.clone(), fogN: scene.fog.near, fogF: scene.fog.far, hemiC: hemi.color.clone(), hemiG: hemi.groundColor.clone(), sunC: sun.color.clone() }); applyCinematicToonScene(scene); } catch (e) { console.error(e); $('loadTip').textContent = 'Erro ao montar o mundo: ' + e.message; return; }
   try { if (!(await ensurePacks([...new Set(['cyber', ident.char].filter(Boolean))]))) { exitToLobby(); return; } } catch (e) { console.warn('pacotes', e); }
-  setP(.95, 'Carregando os personagens…'); try { await loadClassic(); } catch (e) { console.warn('Cyber indisponível', e); } try { await loadAtlasGLB(); } catch (e) { console.warn('Personagens indisponíveis', e); }
+  setP(.95, 'Carregando os personagens…'); try { await loadClassic(); } catch (e) { console.warn('Cyber clássico indisponível', e); } try { await loadAtlasGLB(); } catch (e) { console.warn('Atlas GLB indisponível (usa o modelo antigo)', e); }
   try { // pré-compila os shaders (evita travadinha na primeira vez que um poder/efeito aparece)
     const warm = [new THREE.MeshBasicMaterial({ transparent: true, opacity: .5, blending: THREE.AdditiveBlending, depthWrite: false }), new THREE.MeshBasicMaterial({ transparent: true, opacity: .5, side: THREE.DoubleSide })].map(m => { const o = new THREE.Mesh(new THREE.SphereGeometry(.01, 4, 3), m); o.position.copy(camera.position); scene.add(o); return o; });
     // pré-compila também os dois materiais do Cyber (completo e leve), para a troca por distância não engasgar (sem dispose: senão os programas seriam liberados)

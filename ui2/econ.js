@@ -39,7 +39,7 @@ function applyMatch(r){
   const capped=e.coins>E.DAY.coins||e.fichas>E.DAY.fichas;
   setTimeout(()=>{try{startGenericRewardSequence([{kind:'coins',amount:coins},{kind:'tokens',amount:fichas},{kind:'xp',amount:raw.xp}],'PARTIDA · '+(r.placement===1?'VITÓRIA':'#'+r.placement)+(capped?' · LIMITE DIÁRIO (ganho reduzido)':''))}catch(_){}},1200);
 }
-addEventListener('message',ev=>{const d=ev.data;if(d&&d.type==='cyberarena:match-result'&&d.result)applyMatch(d.result)});
+addEventListener('message',ev=>{const d=ev.data;if(d&&d.type==='cyberarena:match-result'&&d.result&&!d.result.noprog&&!window.cyberOfflineMode)applyMatch(d.result)});
 /* ---- evolução de personagem ---- */
 function levelUp(id,useGems){
   if(remote()){showModal('EVOLUÇÃO','Indisponível','A evolução funciona no modo local por enquanto.');return}

@@ -1,4 +1,4 @@
-/* CyberArena v149 · Entrada (toque + carregamento) e barra de downloads no lobby.
+/* CyberArena v150 · Entrada (toque + carregamento) e barra de downloads no lobby.
    Entrada: título → "TOQUE PARA COMEÇAR" → carregamento → lobby.
    Lobby: barra DOWNLOADS (opcional) abre a janela de recursos; JOGAR só pede os recursos do personagem escolhido.
    Lista de pacotes: mundo/packs.json (tools/make_packs.py). Mapas e efeitos são gerados por código: não têm arquivo para baixar. */
@@ -18,14 +18,14 @@ function build() {
   <div class="sg2-c"><div class="sg2-logo"><small>BEM-VINDO À</small><h1>CYBER <b>ARENA</b></h1></div>
     <div class="sg2-panel hidden" id="sgPanel"></div>
     <div class="sg2-tap hidden" id="sgTap"><i></i><strong>TOQUE PARA COMEÇAR</strong><i></i></div></div>
-  <div class="sg2-foot">v149</div>`;
+  <div class="sg2-foot">v150</div>`;
   panel = $('sgPanel'); return true;
 }
 function show(st, pct, sub, opts = {}) {
   panel.innerHTML = `<div class="sg2-st">${st}</div><div class="sg2-bar ${pct == null ? 'idle' : ''}"><u style="width:${pct == null ? 38 : Math.max(0, Math.min(100, pct))}%"></u></div><div class="sg2-sub ${opts.warn ? 'sg2-warn' : ''}">${sub || ''}</div>`;
 }
 const TIPS = ['Dica: jogue partidas para ganhar moedas, fichas e XP.', 'Dica: o Passe da temporada rende mais XP que a conta.', 'Dica: evolua seu personagem para ganhar vida e dano.', 'Dica: abra a Mini Caixa grátis todos os dias.'];
-/* v149: carregamento DE VERDADE — confere a conexão, baixa/atualiza TODOS os recursos (personagens, etc.) para o aparelho e só então abre o lobby.
+/* v150: carregamento DE VERDADE — confere a conexão, baixa/atualiza TODOS os recursos (personagens, etc.) para o aparelho e só então abre o lobby.
    Os arquivos ficam guardados no celular (o jogo "cresce" a cada recurso/atualização nova). Da 2ª vez em diante só confere.
    Sem conexão: aparece a escolha MODO ONLINE (repete o carregamento até conectar) ou MODO OFFLINE (só bots, sem progresso). */
 class NoNet extends Error { }
@@ -194,3 +194,21 @@ window.cyberBoot = function () {
   (PACKS_ON ? status().catch(() => []) : Promise.resolve([])).then(l => { window.cyberResReady = !PACKS_ON || !l.some(p => !p.installed); });
   setTimeout(ready, 400); return true;
 };
+
+/* v150: mostra no rodapé se o jogo já está guardado para abrir SEM internet (service worker) */
+(function () {
+  const foot = () => document.querySelector('.sg2-foot'); let st = '';
+  const put = t => { st = t; const f = foot(); if (f) f.textContent = 'v150 · ' + t; };
+  const paint = () => { const f = foot(); if (f && st) f.textContent = 'v150 · ' + st; };
+  setInterval(paint, 800);
+  if (!('serviceWorker' in navigator)) { put('offline: indisponível neste app'); return; }
+  navigator.serviceWorker.addEventListener('message', e => { const d = e.data || {}; if (d.sw === 'progress') put(`preparando offline ${Math.round(100 * d.n / d.total)}%`); else if (d.sw === 'ready') put('offline: pronto ✓'); else if (d.sw === 'partial') put(`offline: incompleto (${d.n}/${d.total})`); });
+  (async () => {
+    try {
+      const reg = await navigator.serviceWorker.getRegistration();
+      if (!reg) { put(window.__swErr ? 'offline: erro ' + window.__swErr.slice(0, 50) : 'offline: instalando… (abra com internet)'); return; }
+      const ready = await caches.match(new URL('__sw_ready', reg.scope).href);
+      put(ready ? 'offline: pronto ✓' : 'offline: preparando… (mantenha aberto)');
+    } catch (e) { put('offline: erro ' + (e.message || e).toString().slice(0, 40)); }
+  })();
+})();

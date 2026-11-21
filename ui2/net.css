@@ -35,3 +35,5 @@ body.offline-mode #dlBar, body.offline-mode #dlSheet { display: none !important;
 .sg2.choice .sg2-b { position: static; flex: 1; display: block; min-height: 52px; pointer-events: auto; }
 
 .sg2 .sg2-foot { font-size: calc(13 * var(--u, 1px)) !important; opacity: .95 !important; }
+/* v151 · o aviso antigo "Sem conexão com o servidor (modo offline)" cobria o painel de modos de preto: a conexão agora é tratada pela tela de carregamento */
+#mcOnline, #mcOnline.off { display: none !important; }

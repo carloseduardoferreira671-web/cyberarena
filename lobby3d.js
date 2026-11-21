@@ -91,6 +91,7 @@ if (center) {
   card.querySelectorAll('.mc-tabs button').forEach(b => b.onclick = () => { S.mode = b.dataset.m; localStorage.setItem('cyberarena.mode', S.mode); renderMode(); });
   $('mcFriends').onclick = openFriends; $('mcRankBtn').onclick = openRanking;
   const refreshOnline = async () => { const el = $('mcOnline'); if (!el) return; const r = await net.onlineCount(); el.textContent = r ? '' : 'Sem conexão com o servidor (modo offline)'; el.classList.toggle('off', !r); };
+  import('./modes.js').then(m => m.initModes({ S, renderMode, play: () => window.startGame() })).catch(e => console.warn('modos', e));
   refreshOnline(); setInterval(() => { if (!document.hidden) refreshOnline(); }, 10000);
 }
 function renderMode() {
@@ -99,6 +100,7 @@ function renderMode() {
   const c = $('mcCode'); if (c) c.innerHTML = S.code ? `Sala: <b>${esc(S.code)}</b> <button class="mc-x" id="mcLeave">✕</button>` : '<span style="opacity:.6">Partida pública</span>';
   if ($('mcLeave')) $('mcLeave').onclick = () => { S.code = ''; sessionStorage.removeItem('cyberarena.code'); renderMode(); };
   const pb = document.querySelector('#lobby .play-button'); if (pb) (pb.querySelector('.l2-lab') || pb).textContent = S.mode === 'battle' ? 'JOGAR' : S.mode === 'space' ? 'TESTAR' : 'ENTRAR';
+  if (window.__modesRefresh) window.__modesRefresh();
   if (hooks.afterMode) hooks.afterMode();
 }
 

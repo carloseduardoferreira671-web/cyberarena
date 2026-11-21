@@ -131,7 +131,7 @@ export async function buildVegetation(ctx) {
   const CH = 72, lodGroups = [];
   if (globalThis.__DBGLOD !== undefined) globalThis.__lod = lodGroups;
   const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _e = new THREE.Euler(), _p = new THREE.Vector3(), _s = new THREE.Vector3();
-  function instanced(items, geoHi, geoLo, mat, { shadow = true, color = false, lodDist = 70, lodDist2 = 0, ch = CH, vis = null } = {}) {
+  function instanced(items, geoHi, geoLo, mat, { shadow = true, color = false, lodDist = 70, ch = CH, band = null } = {}) {
     const callNo = globalThis.__DBGLOD !== undefined ? (globalThis.__icall = (globalThis.__icall || 0) + 1) : 0;
     const buckets = new Map();
     for (const it of items) { const k = Math.floor(it.x / ch) + ',' + Math.floor(it.z / ch); let b = buckets.get(k); if (!b) buckets.set(k, b = []); b.push(it); }
@@ -140,7 +140,7 @@ export async function buildVegetation(ctx) {
       list.forEach((it, i) => { _e.set(0, it.ry || 0, 0); _q.setFromEuler(_e); _p.set(it.x, it.y, it.z); _s.set(it.s, it.s * (it.sy || 1), it.s); _m.compose(_p, _q, _s); m.setMatrixAt(i, _m); if (color) m.setColorAt(i, new THREE.Color(...it.col)); });
       m.instanceMatrix.needsUpdate = true; m.computeBoundingSphere(); scene.add(m);
       m.userData.callId = callNo;
-      if (vis) { let cx = 0, cz = 0; for (const it of list) { cx += it.x; cz += it.z; } cx /= list.length; cz /= list.length; let rr = 0; for (const it of list) rr = Math.max(rr, Math.hypot(it.x - cx, it.z - cz)); const d = lodDist + rr; m.visible = vis === 'far'; lodGroups.push({ m, vis, c: { x: cx, z: cz }, d, d2: lodDist2 ? lodDist2 + rr : 0 }); }
+      if (band) { let cx = 0, cz = 0; for (const it of list) { cx += it.x; cz += it.z; } cx /= list.length; cz /= list.length; let rr = 0; for (const it of list) rr = Math.max(rr, Math.hypot(it.x - cx, it.z - cz)); m.visible = band[0] === 0; lodGroups.push({ m, band, c: { x: cx, z: cz }, rr }); }
       else if (geoLo) lodGroups.push({ m, hi: geoHi, lo: geoLo, c: m.boundingSphere.center.clone(), d: lodDist + m.boundingSphere.radius });
     }
   }
@@ -181,17 +181,17 @@ export async function buildVegetation(ctx) {
     const accGeo = (acc) => { const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(acc.P, 3)); g.setAttribute('normal', new THREE.Float32BufferAttribute(acc.N, 3)); g.setAttribute('uv', new THREE.Float32BufferAttribute(acc.UV, 2)); g.setAttribute('color', new THREE.Float32BufferAttribute(acc.C, 3)); g.setAttribute('aLeaf', new THREE.BufferAttribute(new Float32Array(acc.P.length / 3).fill(1), 1)); g.setIndex(acc.I); return g; };
     const trunkLean = (seed, t) => [Math.sin(t * 2.1 + seed) * 0.14 * t, Math.cos(t * 1.7 + seed * 1.3) * 0.11 * t];
     const realPine = (seed, lod = 0) => {
-      const r = CW.mulberry32(seed * 977 + 5), h = 10.5, tp = [], tr = [], parts = [], acc = newAcc(), cc = new V3(0, 6, 0), step = (Q >= 2 ? 0.5 : 0.66) * (lod ? 1.7 : 1);
+      const r = CW.mulberry32(seed * 977 + 5), h = 10.5, tp = [], tr = [], parts = [], acc = newAcc(), cc = new V3(0, 6, 0), step = (Q >= 2 ? 0.5 : 0.66) * (lod === 2 ? 2.3 : lod ? 1.7 : 1);
       for (let i = 0; i <= 8; i++) { const t = i / 8, [lx, lz] = trunkLean(seed, t); tp.push(new V3(lx, t * h, lz)); tr.push(0.3 * Math.pow(1 - t, 0.85) * (1 + (t < 0.1 ? 0.7 * (1 - t / 0.1) : 0)) + 0.04); }
-      parts.push(tubeGeo(tp, tr, lod ? 5 : (Q >= 2 ? 10 : 8), 0.9));
+      parts.push(tubeGeo(tp, tr, lod === 2 ? 4 : lod ? 5 : (Q >= 2 ? 10 : 8), 0.9));
       for (let y = 1.6; y < h - 0.3; y += step) {
-        const k = (y - 1.6) / (h - 1.9), L = 2.9 * Math.pow(1 - k, 0.85) + 0.5, nb = k < 0.5 ? 6 : 5, [lx, lz] = trunkLean(seed, y / h);
+        const k = (y - 1.6) / (h - 1.9), L = 2.9 * Math.pow(1 - k, 0.85) + 0.5, nb = lod === 2 ? 4 : (k < 0.5 ? 6 : 5), [lx, lz] = trunkLean(seed, y / h);
         for (let j = 0; j < nb; j++) {
           const a = j / nb * 6.2832 + y * 2.3 + r() * 0.6, dx = Math.cos(a), dz = Math.sin(a), up = k > 0.88 ? 0.55 : 0, drop = 0.3 + 0.12 * r(), p0 = new V3(lx, y, lz);
           const p1 = new V3(lx + dx * L * 0.5, y + up * L * 0.3 - drop * L * 0.2 + 0.05, lz + dz * L * 0.5), p2 = new V3(lx + dx * L, y + up * L * 0.7 - drop * L * 0.55, lz + dz * L);
-          parts.push(tubeGeo([p0, p1, p2], [0.05 * (1 - k * 0.5) + 0.02, 0.032 * (1 - k * 0.5) + 0.012, 0.01], 4, 0.5));
+          if (lod !== 2) parts.push(tubeGeo([p0, p1, p2], [0.05 * (1 - k * 0.5) + 0.02, 0.032 * (1 - k * 0.5) + 0.012, 0.01], 4, 0.5));
           const dir = new V3(dx, (p2.y - p0.y) / L, dz).normalize(), side = new V3(-dz, 0, dx), mid = p0.clone().lerp(p2, 0.52), shade = 0.62 + 0.38 * (0.35 + 0.65 * Math.min(1, L / 3));
-          for (const tilt of (lod ? [0] : (Q >= 2 ? [-0.6, 0, 0.6] : [-0.45, 0.45]))) { const upv = side.clone().multiplyScalar(Math.cos(tilt)).addScaledVector(new V3(0, 1, 0), Math.sin(tilt)); addCard(acc, mid, dir, upv, L * (lod ? 1.5 : 1.12), L * (lod ? 1.1 : 0.85), (r() * 4) | 0, (r() * 2) | 0, 4, 2, cc, shade); }
+          for (const tilt of (lod ? [0] : (Q >= 2 ? [-0.6, 0, 0.6] : [-0.45, 0.45]))) { const upv = side.clone().multiplyScalar(Math.cos(tilt)).addScaledVector(new V3(0, 1, 0), Math.sin(tilt)); addCard(acc, mid, dir, upv, L * (lod === 2 ? 2.1 : lod ? 1.5 : 1.12), L * (lod === 2 ? 1.5 : lod ? 1.1 : 0.85), (r() * 4) | 0, (r() * 2) | 0, 4, 2, cc, shade); }
         }
       }
       return { trunk: mergeGeometries(parts), cards: accGeo(acc) };
@@ -199,38 +199,41 @@ export async function buildVegetation(ctx) {
     const realOak = (seed, lod = 0) => {
       const r = CW.mulberry32(seed * 733 + 11), parts = [], acc = newAcc(), cc = new V3(0, 6.1, 0), tp = [], tr = [], tips = [];
       for (let i = 0; i <= 6; i++) { const t = i / 6, [lx, lz] = trunkLean(seed, t * 0.5); tp.push(new V3(lx, t * 4.4, lz)); tr.push(0.4 * Math.pow(1 - t, 0.55) * (1 + (t < 0.12 ? 0.8 * (1 - t / 0.12) : 0)) + 0.13); }
-      parts.push(tubeGeo(tp, tr, lod ? 6 : (Q >= 2 ? 12 : 8), 0.9));
-      const limbs = lod ? 3 : (Q >= 2 ? 5 : 4);
+      parts.push(tubeGeo(tp, tr, lod === 2 ? 4 : lod ? 6 : (Q >= 2 ? 12 : 8), 0.9));
+      const limbs = lod === 2 ? 2 : lod ? 3 : (Q >= 2 ? 5 : 4);
       for (let i = 0; i < limbs; i++) {
         const a = i / limbs * 6.2832 + r() * 0.7, dx = Math.cos(a), dz = Math.sin(a), y0 = 2.9 + r() * 1.0, D = 2.4 + r() * 1.0, H = 1.9 + r() * 1.2, pts = [];
-        for (let k = 0; k <= 4; k++) { const t = k / 4; pts.push(new V3(dx * D * Math.pow(t, 0.9) + Math.sin(t * 5 + i) * 0.18, y0 + H * Math.pow(t, 1.25), dz * D * Math.pow(t, 0.9) + Math.cos(t * 4 + i) * 0.18)); }
-        parts.push(tubeGeo(pts, [0.2, 0.17, 0.13, 0.095, 0.055], 6, 0.8)); tips.push(pts[4].clone());
-        for (let b = 0; b < 2; b++) { const t0 = pts[2 + b], a2 = a + (b ? 0.9 : -0.9), L2 = 1.5 + r() * 0.7, e = new V3(t0.x + Math.cos(a2) * L2, t0.y + 0.9 + r() * 0.5, t0.z + Math.sin(a2) * L2);
+        for (let k = 0; k <= (lod === 2 ? 2 : 4); k++) { const t = k / (lod === 2 ? 2 : 4); pts.push(new V3(dx * D * Math.pow(t, 0.9) + Math.sin(t * 5 + i) * 0.18, y0 + H * Math.pow(t, 1.25), dz * D * Math.pow(t, 0.9) + Math.cos(t * 4 + i) * 0.18)); }
+        parts.push(tubeGeo(pts, [0.2, 0.17, 0.13, 0.095, 0.055].slice(0, pts.length), lod === 2 ? 4 : 6, 0.8)); tips.push(pts[pts.length - 1].clone());
+        for (let b = 0; b < (lod === 2 ? 0 : 2); b++) { const t0 = pts[2 + b], a2 = a + (b ? 0.9 : -0.9), L2 = 1.5 + r() * 0.7, e = new V3(t0.x + Math.cos(a2) * L2, t0.y + 0.9 + r() * 0.5, t0.z + Math.sin(a2) * L2);
           parts.push(tubeGeo([t0, t0.clone().lerp(e, 0.55).add(new V3(0, 0.15, 0)), e], [0.085, 0.06, 0.03], 5, 0.6)); tips.push(e.clone()); }
       }
       const AT = tex.foliage && tex.foliage.map ? { cols: 4, rows: 2, cells: [0, 1, 4, 5, 6, 1, 5], k: 0.9 } : { cols: 3, rows: 3, cells: [2, 4, 5, 6, 7, 8, 2, 5, 8], k: 1.0 };
-      const n = (Q >= 2 ? 120 : 80) * (lod ? 0.45 : 1) | 0, cells = AT.cells;          // só as células de folhas soltas (as de "bola" densa parecem blobs lisos)
+      const n = (Q >= 2 ? 120 : 80) * (lod === 2 ? 0.16 : lod ? 0.45 : 1) | 0, cells = AT.cells;          // só as células de folhas soltas (as de "bola" densa parecem blobs lisos)
       for (let i = 0; i < n; i++) {
         let c; if (i < tips.length * 2) c = tips[i % tips.length].clone().add(new V3((r() - 0.5) * 1.1, (r() - 0.2) * 1.0, (r() - 0.5) * 1.1));
         else { const u = r() * 6.2832, v = Math.acos(2 * r() - 1), rad = 0.55 + 0.45 * Math.cbrt(r()); c = new V3(cc.x + Math.sin(v) * Math.cos(u) * 3.0 * rad, cc.y + Math.cos(v) * 2.1 * rad, cc.z + Math.sin(v) * Math.sin(u) * 3.0 * rad); }
-        const dist = Math.min(1, c.distanceTo(cc) / 3.2), shade = 0.64 + 0.36 * dist, sz = (1.7 + r() * 0.9) * AT.k * (lod ? 1.3 : 1), cell = cells[(r() * cells.length) | 0];
+        const dist = Math.min(1, c.distanceTo(cc) / 3.2), shade = 0.64 + 0.36 * dist, sz = (1.7 + r() * 0.9) * AT.k * (lod === 2 ? 2.1 : lod ? 1.3 : 1), cell = cells[(r() * cells.length) | 0];
         const q = new THREE.Quaternion().setFromEuler(new THREE.Euler((r() - 0.5) * 1.0, r() * 6.2832, (r() - 0.5) * 1.0));
-        for (let k = 0; k < 2; k++) { const rt = new V3(1, 0, 0).applyQuaternion(q), upv = new V3(0, 1, 0).applyQuaternion(q); if (k) { rt.set(0, 0, 1).applyQuaternion(q); } addCard(acc, c, rt, upv, sz, sz * 0.93, cell % AT.cols, (cell / AT.cols) | 0, AT.cols, AT.rows, cc, shade); }
+        for (let k = 0; k < (lod === 2 ? 1 : 2); k++) { const rt = new V3(1, 0, 0).applyQuaternion(q), upv = new V3(0, 1, 0).applyQuaternion(q); if (k) { rt.set(0, 0, 1).applyQuaternion(q); } addCard(acc, c, rt, upv, sz, sz * 0.93, cell % AT.cols, (cell / AT.cols) | 0, AT.cols, AT.rows, cc, shade); }
       }
       return { trunk: mergeGeometries(parts), cards: accGeo(acc) };
     };
     const barkBase = { map: tex.bark.map, normalMap: tex.bark.normalMap, roughnessMap: tex.bark.roughnessMap, roughness: 1, normalScale: new THREE.Vector2(1.4, 1.4) };
     const barkMat = foliage(0.0042, 0.0, 0, 'treeBark', barkBase);
-    const pineCardMat = foliage(0.0042, 0.035, 0, 'treeCard', { map: tex.conifer.map, alphaTest: 0.4, roughness: 0.85 });
-    const oakCardMat = foliage(0.0065, 0.06, 0, 'treeCard', { map: (tex.foliage && tex.foliage.map) || tex.bushes.map, alphaTest: tex.foliage ? 0.5 : 0.42, roughness: 0.85 });
-    const NV = 2, cfg = { ch: 36, lodDist: ULTRA ? 18 : 26, lodDist2: ULTRA ? 45 : 68 };
+    const pineCardMat = foliage(0.0042, 0.035, 0.3, 'treeCard', { map: tex.conifer.map, alphaTest: 0.4, roughness: 0.85 });
+    const oakCardMat = foliage(0.0065, 0.06, 0.3, 'treeCard', { map: (tex.foliage && tex.foliage.map) || tex.bushes.map, alphaTest: tex.foliage ? 0.5 : 0.42, roughness: 0.85 });
+    const sc = ULTRA ? 0.7 : 1, BANDS = { near: [0, 26 * sc], mid: [26 * sc, 68 * sc], far2: [68 * sc, 170 * sc], old: [170 * sc, 1e9] };
+    const NV = 2;
     for (let v = 0; v < NV; v++) {
-      const pl = pines.filter((_, i) => i % NV === v), ol = oaks.filter((_, i) => i % NV === v), rp = realPine(v + 1), ro = realOak(v + 1), rp1 = realPine(v + 1, 1), ro1 = realOak(v + 1, 1);
-      instanced(pl, rp.trunk, null, barkMat, { ...cfg, vis: 'near' }); instanced(pl, rp.cards, null, pineCardMat, { ...cfg, vis: 'near', shadow: Q >= 2 });
-      instanced(ol, ro.trunk, null, barkMat, { ...cfg, vis: 'near' }); instanced(ol, ro.cards, null, oakCardMat, { ...cfg, vis: 'near', shadow: Q >= 2 });
-      instanced(pl, rp1.trunk, null, barkMat, { ...cfg, vis: 'mid', shadow: false }); instanced(pl, rp1.cards, null, pineCardMat, { ...cfg, vis: 'mid', shadow: false });
-      instanced(ol, ro1.trunk, null, barkMat, { ...cfg, vis: 'mid', shadow: false }); instanced(ol, ro1.cards, null, oakCardMat, { ...cfg, vis: 'mid', shadow: false });
-      instanced(pl, pineGeo(false), null, pineMat, { ...cfg, vis: 'far' }); instanced(ol, oakGeo(false), null, oakMat, { ...cfg, vis: 'far' });   // mesmas listas → mesma troca de LOD
+      const pl = pines.filter((_, i) => i % NV === v), ol = oaks.filter((_, i) => i % NV === v), P = [realPine(v + 1), realPine(v + 1, 1), realPine(v + 1, 2)], O = [realOak(v + 1), realOak(v + 1, 1), realOak(v + 1, 2)];
+      const sets = [['near', 36, true], ['mid', 36, false], ['far2', 90, false]];
+      sets.forEach(([name, ch, sh], k) => {
+        const o = { ch, band: BANDS[name], shadow: sh };
+        instanced(pl, P[k].trunk, null, barkMat, o); instanced(pl, P[k].cards, null, pineCardMat, { ...o, shadow: name === 'near' && Q >= 2 });
+        instanced(ol, O[k].trunk, null, barkMat, o); instanced(ol, O[k].cards, null, oakCardMat, { ...o, shadow: name === 'near' && Q >= 2 });
+      });
+      instanced(pl, pineGeo(false), null, pineMat, { ch: 140, band: BANDS.old, shadow: false }); instanced(ol, oakGeo(false), null, oakMat, { ch: 140, band: BANDS.old, shadow: false });
     }
   } else {
     instanced(pines, pineGeo(true), pineGeo(false), pineMat, { lodDist: ULTRA ? 35 : 60 });
@@ -437,7 +440,7 @@ export async function buildVegetation(ctx) {
       ctx.grass.mat.uniforms.uFocus.value.set(fx, fz);
       if (ctx.flowersGPU) ctx.flowersGPU.mat.uniforms.uFocus.value.set(fx, fz);
       /* LOD por bloco */
-      if (camera) for (const gq of lodGroups) { const d = Math.hypot(gq.c.x - camera.position.x, gq.c.z - camera.position.z); if (gq.vis) { gq.m.visible = gq.vis === 'near' ? d < gq.d : gq.vis === 'mid' ? (d >= gq.d && d < gq.d2) : d >= (gq.d2 || gq.d); continue; } const want = d < gq.d ? gq.hi : gq.lo; if (gq.m.geometry !== want) gq.m.geometry = want; }
+      if (camera) for (const gq of lodGroups) { const d = Math.hypot(gq.c.x - camera.position.x, gq.c.z - camera.position.z); if (gq.band) { gq.m.visible = (d + gq.rr >= gq.band[0]) && (d - gq.rr < gq.band[1]); continue; } const want = d < gq.d ? gq.hi : gq.lo; if (gq.m.geometry !== want) gq.m.geometry = want; }
       nearT -= dt; if (nearT <= 0) { nearT = 1; near = canopies.filter(c => (c.x - fx) ** 2 + (c.z - fz) ** 2 < 38 * 38); }
       const gust = wind.strength;
       for (let i = 0; i < LN; i++) {

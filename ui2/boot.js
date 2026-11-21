@@ -1,4 +1,4 @@
-/* CyberArena v150 · Entrada (toque + carregamento) e barra de downloads no lobby.
+/* CyberArena v152 · Entrada (toque + carregamento) e barra de downloads no lobby.
    Entrada: título → "TOQUE PARA COMEÇAR" → carregamento → lobby.
    Lobby: barra DOWNLOADS (opcional) abre a janela de recursos; JOGAR só pede os recursos do personagem escolhido.
    Lista de pacotes: mundo/packs.json (tools/make_packs.py). Mapas e efeitos são gerados por código: não têm arquivo para baixar. */
@@ -18,20 +18,21 @@ function build() {
   <div class="sg2-c"><div class="sg2-logo"><small>BEM-VINDO À</small><h1>CYBER <b>ARENA</b></h1></div>
     <div class="sg2-panel hidden" id="sgPanel"></div>
     <div class="sg2-tap hidden" id="sgTap"><i></i><strong>TOQUE PARA COMEÇAR</strong><i></i></div></div>
-  <div class="sg2-foot">v150</div>`;
+  <div class="sg2-foot">v152</div>`;
   panel = $('sgPanel'); return true;
 }
 function show(st, pct, sub, opts = {}) {
   panel.innerHTML = `<div class="sg2-st">${st}</div><div class="sg2-bar ${pct == null ? 'idle' : ''}"><u style="width:${pct == null ? 38 : Math.max(0, Math.min(100, pct))}%"></u></div><div class="sg2-sub ${opts.warn ? 'sg2-warn' : ''}">${sub || ''}</div>`;
 }
 const TIPS = ['Dica: jogue partidas para ganhar moedas, fichas e XP.', 'Dica: o Passe da temporada rende mais XP que a conta.', 'Dica: evolua seu personagem para ganhar vida e dano.', 'Dica: abra a Mini Caixa grátis todos os dias.'];
-/* v150: carregamento DE VERDADE — confere a conexão, baixa/atualiza TODOS os recursos (personagens, etc.) para o aparelho e só então abre o lobby.
+/* v152: carregamento DE VERDADE — confere a conexão, baixa/atualiza TODOS os recursos (personagens, etc.) para o aparelho e só então abre o lobby.
    Os arquivos ficam guardados no celular (o jogo "cresce" a cada recurso/atualização nova). Da 2ª vez em diante só confere.
    Sem conexão: aparece a escolha MODO ONLINE (repete o carregamento até conectar) ou MODO OFFLINE (só bots, sem progresso). */
 class NoNet extends Error { }
 const wait = ms => new Promise(r => setTimeout(r, ms));
 async function startLoading() {
-  if (loading) return; loading = true; window.cyberLoadingActive = true; window.cyberInGame = false;
+  if (loading) return; loading = true; window.cyberBootReady = false;   // trava o toque antigo do main.js: só o carregamento libera o lobby
+  window.cyberLoadingActive = true; window.cyberInGame = false;
   gate.classList.remove('ready', 'choice'); gate.classList.add('loading'); $('sgTap') && $('sgTap').classList.add('hidden'); panel.classList.remove('hidden');
   const tip = TIPS[Math.floor(Math.random() * TIPS.length)]; let pct = 2;
   const set = (st, p, sub, o) => { pct = Math.max(pct, p); show(st, pct, sub || tip, o); };
@@ -39,11 +40,15 @@ async function startLoading() {
     set('CONECTANDO AO SERVIDOR…', 3); await wait(900);
     // Servidor dormindo (Render): espera em silêncio, sem aviso. Só vira escolha online/offline se o aparelho estiver SEM internet
     // ou o servidor não responder depois de ~1 minuto.
-    { let up = false;
+    { let up = false, fast = 0;
       for (let i = 0; i < 40 && !up; i++) {
         if (navigator.onLine === false) break;
+        const t = performance.now();
         up = window.cyberNet ? await window.cyberNet.check(true) : false;
-        if (!up) await wait(1500);
+        if (up) break;
+        // falha RÁPIDA = sem internet de verdade (escolha logo); falha LENTA = servidor acordando (espera em silêncio)
+        if (performance.now() - t < 3000) { if (++fast >= 3) break; } else fast = 0;
+        await wait(1200);
       }
       if (!up) throw new NoNet(); }
     try { navigator.storage && navigator.storage.persist && (await navigator.storage.persist()); } catch (_) { }   // pede ao celular para NÃO apagar os recursos baixados
@@ -74,15 +79,15 @@ async function startLoading() {
   set('PRONTO!', 100); await wait(400);
   loading = false; window.cyberLoadingActive = false; window.cyberInGame = true;
   if (window.__keepWorld) {   // havia partida de 16 em andamento: volta para ela (o bot jogava por você)
-    window.__keepWorld = false; const w = $('world3d'); gate.classList.add('hidden'); gate.dataset.started = '1';
+    window.__keepWorld = false; window.cyberBootReady = true; const w = $('world3d'); gate.classList.add('hidden'); gate.dataset.started = '1';
     if (w) { w.style.cssText = ''; document.body.classList.add('world3d-open'); try { w.contentWindow.__away.end(); } catch (_) { } }
     return;
   }
-  try { enterLobbyFromStart(); } catch (e) { console.warn(e); } afterLobby();
+  window.cyberBootReady = true; try { enterLobbyFromStart(); } catch (e) { console.warn(e); } afterLobby();
 }
 /* sem conexão: escolha entre repetir o carregamento (online) ou jogar offline */
 function choose() {
-  loading = false; window.cyberLoadingActive = true; window.cyberInGame = false;
+  loading = false; window.cyberBootReady = false; window.cyberLoadingActive = true; window.cyberInGame = false;
   gate.classList.remove('ready'); gate.classList.add('loading', 'choice'); $('sgTap') && $('sgTap').classList.add('hidden'); panel.classList.remove('hidden');
   panel.innerHTML = `<div class="sg2-st">SEM CONEXÃO</div><div class="sg2-sub sg2-warn">Não foi possível conectar ao servidor. Escolha como jogar.</div>
     <div class="sg2-ch"><button type="button" id="sgOn" class="sg2-b on">MODO ONLINE<small>Tentar conectar de novo</small></button><button type="button" id="sgOff" class="sg2-b off">MODO OFFLINE<small>Só contra bots · sem progresso</small></button></div>`;
@@ -195,11 +200,11 @@ window.cyberBoot = function () {
   setTimeout(ready, 400); return true;
 };
 
-/* v150: mostra no rodapé se o jogo já está guardado para abrir SEM internet (service worker) */
+/* v152: mostra no rodapé se o jogo já está guardado para abrir SEM internet (service worker) */
 (function () {
   const foot = () => document.querySelector('.sg2-foot'); let st = '';
-  const put = t => { st = t; const f = foot(); if (f) f.textContent = 'v150 · ' + t; };
-  const paint = () => { const f = foot(); if (f && st) f.textContent = 'v150 · ' + st; };
+  const put = t => { st = t; const f = foot(); if (f) f.textContent = 'v152 · ' + t; };
+  const paint = () => { const f = foot(); if (f && st) f.textContent = 'v152 · ' + st; };
   setInterval(paint, 800);
   if (!('serviceWorker' in navigator)) { put('offline: indisponível neste app'); return; }
   navigator.serviceWorker.addEventListener('message', e => { const d = e.data || {}; if (d.sw === 'progress') put(`preparando offline ${Math.round(100 * d.n / d.total)}%`); else if (d.sw === 'ready') put('offline: pronto ✓'); else if (d.sw === 'partial') put(`offline: incompleto (${d.n}/${d.total})`); });

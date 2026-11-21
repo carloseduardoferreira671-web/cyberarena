@@ -774,6 +774,11 @@
      "sha256": "5b89bcbb459cef12083dfc14ba8ee7310bad7d47fa0af6b5ee0ea48650cac10f"
     },
     {
+     "path": "assets/map/4k/terra_raizes/normal.webp",
+     "bytes": 40550126,
+     "sha256": "9f25b557aa24c1e94b15d30e34fdd0b9ead3469fa40c95de1ee69e473f7d680a"
+    },
+    {
      "path": "assets/map/4k/tijolo_parquet/color.webp",
      "bytes": 3863548,
      "sha256": "52c59322c3bb02db89a16d0737b0971ad76bf1426ef98e6530cd0d47dbd2d5d5"
@@ -794,7 +799,7 @@
      "sha256": "0f8dd12155748ffc2a0d82bdedd161a155b9a11d4aee7115123012f7d281f96b"
     }
    ],
-   "bytes": 356568660
+   "bytes": 397118786
   }
  ]
 }

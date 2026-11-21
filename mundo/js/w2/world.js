@@ -161,19 +161,29 @@ export async function buildWorld(_T, scene, renderer, { quality = 'medium', onPr
     g.setAttribute('aMask', new THREE.BufferAttribute(mask, 4)); g.setAttribute('aMask2', new THREE.BufferAttribute(mask2, 2));
     g.computeVertexNormals();
     const flatN = new THREE.DataTexture(new Uint8Array([128, 128, 255, 255]), 1, 1); flatN.needsUpdate = true;
+    /* empacota os mapas de rugosidade/AO dos 4 materiais do chão em 1 textura RGBA cada (poupa unidades de textura no shader) */
+    const packCh = (key, fill) => {
+      try {
+        const sets = [tex.grass, tex.dirt, tex.rock, tex.tiles]; if (!sets.every(st => st && st[key] && st[key].image && st[key].image.width)) return null;
+        const N = 1024, out = new Uint8Array(N * N * 4), cv = document.createElement('canvas'); cv.width = cv.height = N; const cx = cv.getContext('2d', { willReadFrequently: true });
+        sets.forEach((st, ch) => { cx.drawImage(st[key].image, 0, 0, N, N); const d = cx.getImageData(0, 0, N, N).data; for (let i = 0; i < N * N; i++) out[i * 4 + ch] = d[i * 4]; });
+        const t = new THREE.DataTexture(out, N, N, THREE.RGBAFormat); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.magFilter = THREE.LinearFilter; t.minFilter = THREE.LinearMipmapLinearFilter; t.generateMipmaps = true; t.anisotropy = 4; t.needsUpdate = true; return t;
+      } catch (e) { return null; }
+    };
+    const rpTex = packCh('roughnessMap'), apTex = packCh('aoMap');
     const mat = new THREE.MeshStandardMaterial({ roughness: 0.92, metalness: 0 });
     mat.onBeforeCompile = (sh) => {
       Object.assign(sh.uniforms, { uTime: U.uTime, uWind: U.uWind, uRock: { value: tex.rock.map }, uTile: { value: tex.tiles.map }, uWaterY: { value: WATER_Y },
         uGrass: { value: (tex.grass || tex.tiles).map }, uDirt: { value: (tex.dirt || tex.tiles).map },
         uGrassN: { value: (tex.grass || tex.tiles).normalMap || flatN }, uDirtN: { value: (tex.dirt || tex.tiles).normalMap || flatN },
         uRockN: { value: tex.rock.normalMap || flatN }, uCaus: { value: tex.caustic ? tex.caustic.map : flatN }, uHasCaus: { value: tex.caustic ? 1 : 0 }, uCobN: { value: tex.tiles.normalMap || flatN }, uDecal: { value: tex.decal ? tex.decal.map : flatN }, uHasDecal: { value: tex.decal ? 1 : 0 },
-        uPBR: { value: tex.grass && tex.dirt ? 1 : 0 }, uNS: { value: tex.grass && tex.dirt ? 0.85 : 0 } });
+        uRP: { value: rpTex || flatN }, uAP: { value: apTex || flatN }, uHasRP: { value: rpTex ? 1 : 0 }, uHasAP: { value: apTex ? 1 : 0 }, uPBR: { value: tex.grass && tex.dirt ? 1 : 0 }, uNS: { value: tex.grass && tex.dirt ? 0.85 : 0 } });
       sh.vertexShader = sh.vertexShader.replace('#include <common>', `#include <common>
         attribute vec4 aMask; attribute vec2 aMask2; varying vec4 vMask; varying vec2 vMask2; varying vec3 vW; varying vec3 vNw;`)
         .replace('#include <begin_vertex>', `#include <begin_vertex>
         vMask = aMask; vMask2 = aMask2; vW = (modelMatrix * vec4(position,1.)).xyz; vNw = normal;`);
       sh.fragmentShader = sh.fragmentShader.replace('#include <common>', `#include <common>
-        uniform float uTime; uniform vec3 uWind; uniform sampler2D uRock, uTile, uGrass, uDirt, uGrassN, uDirtN, uRockN, uCobN; uniform float uWaterY, uPBR, uNS, uHasCaus, uHasDecal; uniform sampler2D uCaus, uDecal;
+        uniform float uTime; uniform vec3 uWind; uniform sampler2D uRock, uTile, uGrass, uDirt, uGrassN, uDirtN, uRockN, uCobN; uniform float uWaterY, uPBR, uNS, uHasCaus, uHasDecal, uHasRP, uHasAP; uniform sampler2D uCaus, uDecal, uRP, uAP;
         float wGr, wRo, wDi, wCo; vec2 nG, nR, nD, nC;
         varying vec4 vMask; varying vec2 vMask2; varying vec3 vW; varying vec3 vNw;` + NOISE_GLSL)
         .replace('#include <color_fragment>', `#include <color_fragment>
@@ -215,7 +225,10 @@ export async function buildWorld(_T, scene, renderer, { quality = 'medium', onPr
         ${FOREST ? 'col *= vec3(.78,1.02,.8);' : ''}
         diffuseColor.rgb = col;`)
         .replace('#include <roughnessmap_fragment>', `#include <roughnessmap_fragment>
-        roughnessFactor = mix(.95, .35, smoothstep(uWaterY + .5, uWaterY, vW.y));`)
+        float rb = .95; { float ws = wGr + wDi + wRo + wCo; if (uHasRP > .5 && ws > .001) { float rr = wGr * texture2D(uRP, p * .23).r + wDi * texture2D(uRP, p * .27).g + wRo * texture2D(uRP, p * .09).b + wCo * texture2D(uRP, p * .36).a; rb = mix(.95, clamp(rr / ws, .25, 1.), clamp(ws, 0., 1.)); } }
+        roughnessFactor = mix(rb, .35, smoothstep(uWaterY + .5, uWaterY, vW.y));`)
+        .replace('#include <aomap_fragment>', `#include <aomap_fragment>
+        { float ws = wGr + wDi + wRo + wCo; if (uHasAP > .5 && ws > .001) { float ao = (wGr * texture2D(uAP, p * .23).r + wDi * texture2D(uAP, p * .27).g + wRo * texture2D(uAP, p * .09).b + wCo * texture2D(uAP, p * .36).a) / ws; reflectedLight.indirectDiffuse *= mix(1., ao, .85 * clamp(ws, 0., 1.)); } }`)
         .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
         { vec2 nn = (nG * wGr + nR * wRo + nD * wDi + nC * wCo) * uNS; normal = normalize(normal + (viewMatrix * vec4(nn.x, 0., -nn.y, 0.)).xyz); }`);
     };
@@ -528,9 +541,9 @@ export async function buildWorld(_T, scene, renderer, { quality = 'medium', onPr
   if (tex.mount && tex.mount.map && !FIRE) {
     const mm = new THREE.MeshBasicMaterial({ map: tex.mount.map, transparent: true, depthWrite: false, fog: false, side: THREE.DoubleSide, color: FOREST ? 0xa8c8b8 : 0xc4d4e6 });
     const ring = new THREE.Group(); ring.name = 'montanhas-distantes';
-    for (let k = 0; k < 8; k++) {
-      const a = k / 8 * Math.PI * 2 + 0.2, R = 900, pm = new THREE.Mesh(new THREE.PlaneGeometry(820, 300), mm);
-      pm.position.set(Math.cos(a) * R, 105, Math.sin(a) * R); pm.lookAt(0, 105, 0); if (k % 2) pm.scale.x = -1; pm.renderOrder = -1; ring.add(pm);
+    for (let k = 0; k < 12; k++) {
+      const a = k / 12 * Math.PI * 2 + 0.2, R = 880 + (k % 3) * 40, hh = 270 + (k % 4) * 30, pm = new THREE.Mesh(new THREE.PlaneGeometry(880, hh), mm);
+      pm.position.set(Math.cos(a) * R, hh * 0.36, Math.sin(a) * R); pm.lookAt(0, hh * 0.36, 0); if (k % 2) pm.scale.x = -1; pm.renderOrder = -1 - (k % 3) * 0.1; ring.add(pm);
     }
     ring.onBeforeRender = () => { }; ring.traverse(o => { o.frustumCulled = false; }); scene.add(ring); world_ring = ring;
   }
@@ -556,10 +569,20 @@ export async function buildWorld(_T, scene, renderer, { quality = 'medium', onPr
     }
   }
 
+  let dropUpdate = () => { };
   /* ---------- v144 · poças d'água refletivas (terreno plano, longe de estradas, acampamentos e ruínas) ---------- */
   if (Q >= 1) {
     const puddles = puddleList;
     const pm = new THREE.MeshPhysicalMaterial({ color: 0x4a6277, roughness: 0.04, metalness: 0, clearcoat: 1, clearcoatRoughness: 0.03, transparent: true, opacity: 0.82, vertexColors: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -4, polygonOffsetUnits: -4, envMapIntensity: 1.6 });
+    pm.onBeforeCompile = (sh) => {
+      sh.uniforms.uInter = U.uInter; sh.uniforms.uTime = U.uTime;
+      sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec3 vWpP;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvWpP = (modelMatrix * vec4(transformed, 1.)).xyz;');
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec4 uInter[8]; uniform float uTime; varying vec3 vWpP;')
+        .replace('#include <normal_fragment_maps>', `#include <normal_fragment_maps>
+          { vec2 g = vec2(sin(vWpP.x * 3. + uTime * 1.3), cos(vWpP.z * 3.3 - uTime * 1.1)) * .02;
+            for (int i = 0; i < 8; i++) { vec4 I = uInter[i]; if (I.w <= 0.) continue; vec2 dv = vWpP.xz - I.xz; float d = length(dv); if (d > 4.5 || abs(vWpP.y - I.y) > 3.) continue; float amp = exp(-d * .8) * smoothstep(0., .35, d); g += normalize(dv + 1e-4) * cos(d * 11. - uTime * 6.) * amp; }
+            normal = normalize(normal + (viewMatrix * vec4(g.x, 0., g.y, 0.)).xyz * .4); }`); };
+    pm.customProgramCacheKey = () => 'puddleRipple';
     for (const p of puddles) {
       const seg = 22, g = new THREE.PlaneGeometry(2 * p.r * 1.3, 2 * p.r * 1.3, seg, seg); g.rotateX(-Math.PI / 2);
       const P = g.attributes.position, col = new Float32Array(P.count * 4);
@@ -570,6 +593,23 @@ export async function buildWorld(_T, scene, renderer, { quality = 'medium', onPr
       }
       g.setAttribute('color', new THREE.BufferAttribute(col, 4)); g.computeVertexNormals(); g.computeBoundingSphere();
       const m = new THREE.Mesh(g, pm); m.receiveShadow = false; m.renderOrder = 3; scene.add(m);
+    }
+    /* respingos: quem corre dentro de uma poça levanta gotas que caem com gravidade */
+    if (puddles.length) {
+      const N = 90, drops = { n: 0 }, dm = new THREE.InstancedMesh(new THREE.SphereGeometry(0.04, 5, 4), new THREE.MeshBasicMaterial({ color: 0xcfe6f7, transparent: true, opacity: 0.85 }), N); dm.frustumCulled = false; scene.add(dm);
+      const P = new Float32Array(N * 3), V = new Float32Array(N * 3), Lf = new Float32Array(N), prev = [], mt = new THREE.Matrix4(), sc = new THREE.Vector3(), q = new THREE.Quaternion(), pos = new THREE.Vector3();
+      dropUpdate = (dt) => {
+        const arr = U.uInter.value;
+        for (let i = 0; i < 8; i++) {
+          const I = arr[i]; if (I.w <= 0) { prev[i] = null; continue; } const pv = prev[i]; prev[i] = [I.x, I.z]; if (!pv) continue;
+          const sp = Math.hypot(I.x - pv[0], I.z - pv[1]) / Math.max(dt, 1e-3); if (sp < 0.8 || sp > 40) continue;
+          let inside = false; for (const pd of puddles) if (Math.hypot(pd.x - I.x, pd.z - I.z) < pd.r * 0.85) { inside = true; break; } if (!inside) continue;
+          const gh = heightAt(I.x, I.z), k = Math.min(6, Math.ceil(sp * dt * 14));
+          for (let j = 0; j < k; j++) { const d = drops.n++ % N; P[d * 3] = I.x + (Math.random() - 0.5) * 0.4; P[d * 3 + 1] = gh + 0.06; P[d * 3 + 2] = I.z + (Math.random() - 0.5) * 0.4; V[d * 3] = (Math.random() - 0.5) * 1.6; V[d * 3 + 1] = 1.8 + Math.random() * 1.6; V[d * 3 + 2] = (Math.random() - 0.5) * 1.6; Lf[d] = 0.55 + Math.random() * 0.3; }
+        }
+        for (let d = 0; d < N; d++) { if (Lf[d] > 0) { Lf[d] -= dt; V[d * 3 + 1] -= 9.8 * dt; P[d * 3] += V[d * 3] * dt; P[d * 3 + 1] += V[d * 3 + 1] * dt; P[d * 3 + 2] += V[d * 3 + 2] * dt; } const k = Lf[d] > 0 ? 1 : 0; pos.set(P[d * 3], P[d * 3 + 1], P[d * 3 + 2]); sc.set(k, k, k); mt.compose(pos, q, sc); dm.setMatrixAt(d, mt); }
+        dm.instanceMatrix.needsUpdate = true;
+      };
     }
   }
 
@@ -769,7 +809,7 @@ export async function buildWorld(_T, scene, renderer, { quality = 'medium', onPr
     dust(x, y, z, k = 1) { const n = Math.round(4 + 8 * k); for (let i = 0; i < n; i++) { const a = Math.random() * 6.283, s = (0.4 + Math.random()) * k; emit(x, y + 0.05, z, Math.cos(a) * s, 0.3 + Math.random() * 0.8, Math.sin(a) * s, 0.7 + Math.random() * 0.5, 0.25 + Math.random() * 0.3 * k, 0.62, 0.55, 0.45, 0.45, -0.3); } },
     leafBurst(x, y, z, n = 8) { veg.burst(x, y, z, n); },
     update(dt, time, camera) {
-      U.uTime.value = time;
+      U.uTime.value = time; dropUpdate(dt);
       /* vento com rajadas que mudam devagar */
       const ang = 0.6 + Math.sin(time * 0.05) * 0.6, str = 0.45 + 0.35 * Math.sin(time * 0.21) * Math.sin(time * 0.13 + 1) + 0.2 * Math.max(0, Math.sin(time * 0.7));
       wind.x = Math.cos(ang); wind.z = Math.sin(ang); wind.strength = Math.max(0.15, str); U.uWind.value.set(wind.x, wind.z, wind.strength);

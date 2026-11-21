@@ -827,7 +827,7 @@ setInterval(rotateOffers,OFFER_CYCLE_MS);
 setInterval(async()=>{if(!cyberRemoteMode)return;try{const t=await cyberApi('/time');cyberSeasonStartUTC=t.seasonStart;cyberServerDayKey=t.dayKey;cyberGemOfferAvailable=t.gemOfferAvailable!==false;cyberGemOfferExpiresUTC=t.gemOfferExpires||null;renderAll();}catch(_){}},60000);
 
 function enterLobbyFromStart(){
-  if(window.cyberBootReady===false)return;   // v138: só entra depois de verificar/baixar os recursos
+  if(window.cyberBootReady===false||window.cyberLoadingActive===true)return;   // v138: só entra depois de verificar/baixar os recursos
   const gate=$('startGate'); if(!gate || gate.dataset.started==='1')return;
   gate.dataset.started='1'; gate.classList.add('starting');
   // O clique libera o áudio e inicia direto no ponto musical, sem os ~7s de silêncio.

@@ -6,11 +6,7 @@ const VER = '__VERSION__', CACHE = 'cyberarena-shell-' + VER, FILES = __FILES__;
 self.addEventListener('install', e => {
   e.waitUntil((async () => {
     const c = await caches.open(CACHE);
-    const say = async m => { try { for (const cl of await self.clients.matchAll({ includeUncontrolled: true })) cl.postMessage(m); } catch (_) { } };
-    let ok = 0;
-    for (let i = 0; i < FILES.length; i += 8) { await Promise.all(FILES.slice(i, i + 8).map(async f => { try { const r = await fetch(f, { cache: 'reload' }); if (r.ok) { await c.put(new URL(f, self.registration.scope).href, r); ok++; } } catch (_) { } })); say({ sw: 'progress', n: Math.min(i + 8, FILES.length), total: FILES.length }); }
-    if (ok >= FILES.length * 0.95) await c.put(new URL('__sw_ready', self.registration.scope).href, new Response('ok'));
-    say({ sw: ok >= FILES.length * 0.95 ? 'ready' : 'partial', n: ok, total: FILES.length });
+    for (let i = 0; i < FILES.length; i += 8) await Promise.all(FILES.slice(i, i + 8).map(async f => { try { const r = await fetch(f, { cache: 'reload' }); if (r.ok) await c.put(new URL(f, self.registration.scope).href, r); } catch (_) { } }));
     self.skipWaiting();
   })());
 });

@@ -1,4 +1,4 @@
-/* CyberArena v147 · Entrada (toque + carregamento) e barra de downloads no lobby.
+/* CyberArena v149 · Entrada (toque + carregamento) e barra de downloads no lobby.
    Entrada: título → "TOQUE PARA COMEÇAR" → carregamento → lobby.
    Lobby: barra DOWNLOADS (opcional) abre a janela de recursos; JOGAR só pede os recursos do personagem escolhido.
    Lista de pacotes: mundo/packs.json (tools/make_packs.py). Mapas e efeitos são gerados por código: não têm arquivo para baixar. */
@@ -18,14 +18,14 @@ function build() {
   <div class="sg2-c"><div class="sg2-logo"><small>BEM-VINDO À</small><h1>CYBER <b>ARENA</b></h1></div>
     <div class="sg2-panel hidden" id="sgPanel"></div>
     <div class="sg2-tap hidden" id="sgTap"><i></i><strong>TOQUE PARA COMEÇAR</strong><i></i></div></div>
-  <div class="sg2-foot">v147</div>`;
+  <div class="sg2-foot">v149</div>`;
   panel = $('sgPanel'); return true;
 }
 function show(st, pct, sub, opts = {}) {
   panel.innerHTML = `<div class="sg2-st">${st}</div><div class="sg2-bar ${pct == null ? 'idle' : ''}"><u style="width:${pct == null ? 38 : Math.max(0, Math.min(100, pct))}%"></u></div><div class="sg2-sub ${opts.warn ? 'sg2-warn' : ''}">${sub || ''}</div>`;
 }
 const TIPS = ['Dica: jogue partidas para ganhar moedas, fichas e XP.', 'Dica: o Passe da temporada rende mais XP que a conta.', 'Dica: evolua seu personagem para ganhar vida e dano.', 'Dica: abra a Mini Caixa grátis todos os dias.'];
-/* v147: carregamento DE VERDADE — confere a conexão, baixa/atualiza TODOS os recursos (personagens, etc.) para o aparelho e só então abre o lobby.
+/* v149: carregamento DE VERDADE — confere a conexão, baixa/atualiza TODOS os recursos (personagens, etc.) para o aparelho e só então abre o lobby.
    Os arquivos ficam guardados no celular (o jogo "cresce" a cada recurso/atualização nova). Da 2ª vez em diante só confere.
    Sem conexão: aparece a escolha MODO ONLINE (repete o carregamento até conectar) ou MODO OFFLINE (só bots, sem progresso). */
 class NoNet extends Error { }
@@ -37,12 +37,13 @@ async function startLoading() {
   const set = (st, p, sub, o) => { pct = Math.max(pct, p); show(st, pct, sub || tip, o); };
   try {
     set('CONECTANDO AO SERVIDOR…', 3); await wait(900);
-    // Render grátis: o servidor dorme e pode levar até ~1 min para acordar. Só vira "sem conexão" se o aparelho estiver sem internet ou o servidor não acordar.
-    { let up = false; const t1 = performance.now();
-      for (let i = 0; i < 9 && !up; i++) {
+    // Servidor dormindo (Render): espera em silêncio, sem aviso. Só vira escolha online/offline se o aparelho estiver SEM internet
+    // ou o servidor não responder depois de ~1 minuto.
+    { let up = false;
+      for (let i = 0; i < 40 && !up; i++) {
         if (navigator.onLine === false) break;
         up = window.cyberNet ? await window.cyberNet.check(true) : false;
-        if (!up && navigator.onLine !== false) { set('ACORDANDO O SERVIDOR…', 3 + i, 'O servidor pode levar até 1 minuto para acordar. Aguarde…'); await wait(1500); }
+        if (!up) await wait(1500);
       }
       if (!up) throw new NoNet(); }
     try { navigator.storage && navigator.storage.persist && (await navigator.storage.persist()); } catch (_) { }   // pede ao celular para NÃO apagar os recursos baixados

@@ -64,7 +64,7 @@ export class FX {
   number(worldPos, text, color, big) {
     if (!this.dmgLayer) return; const v = worldPos.clone().project(this.camera); if (v.z > 1) return;
     // número de dano: tamanho cresce com o dano, cor e brilho por tipo, golpes grandes viram CRÍTICO com estouro de luz
-    const n = +text || 0, el = document.createElement('div'); el.className = 'dnum ' + (color || 'other') + (n >= 25 ? ' crit' : '') + (n >= 50 ? ' mega' : '');
+    const n = (+text || 0) / ((window.CYBER_STATS && window.CYBER_STATS.NORM) || 1), el = document.createElement('div');   // limiares de CRÍTICO/DEVASTADOR na escala base el.className = 'dnum ' + (color || 'other') + (n >= 25 ? ' crit' : '') + (n >= 50 ? ' mega' : '');
     el.innerHTML = '<b>' + text + '</b>' + (n >= 25 ? '<i>' + (n >= 50 ? 'DEVASTADOR!' : 'CRÍTICO!') + '</i>' : '');
     el.style.setProperty('--s', Math.round(17 + Math.min(n, 80) * .55) + 'px'); el.style.setProperty('--dx', ((Math.random() - .5) * 70).toFixed(0) + 'px'); el.style.setProperty('--r', ((Math.random() - .5) * 16).toFixed(1) + 'deg');
     el.style.left = ((v.x * .5 + .5) * innerWidth + (Math.random() - .5) * 36) + 'px'; el.style.top = ((-v.y * .5 + .5) * innerHeight) + 'px'; this.dmgLayer.appendChild(el); setTimeout(() => el.remove(), n >= 25 ? 1300 : 1000);

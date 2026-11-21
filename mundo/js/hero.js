@@ -57,9 +57,9 @@ export const tickCosmic = t => { COSMIC_T.value = t; };
 export const SKIN_IDS = Object.keys(SKINS);
 /* três personagens jogáveis (v145): Atlas, Nexus e Cyber — modelos riggados em mundo/models/*_rig.glb */
 export const CHARS = {
-  nexus: { name: 'NEXUS', title: 'Armadura azul', desc: 'Armadura azul com cachecol vermelho. Corpo riggado com esqueleto de 52 ossos, 115 animações e física no cachecol e nas placas.' },
-  cyber: { name: 'CYBER', title: 'O Encapuzado', desc: 'Personagem encapuzado. Corpo riggado com esqueleto de 52 ossos, 115 animações e capuz e pescoço sem física.' },
-  atlas: { name: 'ATLAS', title: 'O Eco Violeta', desc: 'Dreadlocks e correntes com mola própria. Corpo riggado com 115 animações. Especialista em contra-impacto, ondas de pressão e rupturas sísmicas.' },
+  nexus: { name: 'NEXUS', title: 'Armadura azul', desc: 'Armadura azul com cachecol vermelho. Corpo riggado (52 ossos) com animações de luta próprias: cada golpe e cada reação ajustados ao tamanho dele e dos oponentes.' },
+  cyber: { name: 'CYBER', title: 'O Encapuzado', desc: 'Personagem encapuzado, o mais baixo e ágil dos três. Corpo riggado (52 ossos) com animações de luta próprias, ajustadas ao corpo dele.' },
+  atlas: { name: 'ATLAS', title: 'O Eco Violeta', desc: 'Dreadlocks e correntes. Corpo riggado (54 ossos) com animações de luta próprias. Especialista em contra-impacto, ondas de pressão e rupturas sísmicas.' },
 };
 export const CHAR_IDS = Object.keys(CHARS);
 
@@ -415,6 +415,13 @@ for (const k in A) {
   const a = A[k], used = new Set(); a.keys.forEach(q => Object.keys(q).forEach(j => j !== 't' && used.add(j))); a.joints = [...used];
   for (const j of a.joints) { let first = a.keys.find(q => q[j]); let prev = first[j]; for (const q of a.keys) { if (q[j]) prev = q[j]; else q[j] = prev; } }
 }
+/* v147: golpes novos — durações/impactos iguais aos clipes procedurais (fightatk.js) */
+Object.assign(A.punch0, { dur: .46, impact: .15 }); Object.assign(A.punch1, { dur: .52, impact: .18 }); Object.assign(A.punch2, { dur: .85, impact: .30, spin: 0 }); Object.assign(A.kick, { dur: .72, impact: .26 });
+A.cpunch = { ...A.punch0, dur: .5, impact: .16, lunge: 0 }; A.sweep = { ...A.kick, dur: .85, impact: .30, lunge: 0 };
+for (const k of ['cpunch', 'sweep']) A[k].lunge = 0; A.punch0.lunge = A.punch1.lunge = A.punch2.lunge = A.kick.lunge = 0; delete A.punch2.spin;
+/* ações de reação/estado (nomes enviados pela rede): playName → [função no controlador, duração] */
+const RX_NAMES = { hit_head: ['react', 'head', .5], hit_chest: ['react', 'chest', .68], hit_belly: ['react', 'belly', 1.95], rhit_head: ['resist', 'head', .42], rhit_chest: ['resist', 'chest', .5], rhit_belly: ['resist', 'belly', 1.1],
+  fall_sweep: ['fall', 'sweep', 1.5], fall_head: ['fall', 'head', 2.3], fall_back: ['fall', 'back', 1.45], getup: ['getup', null, 1.7], dodge_l: ['dodge', 'l', .5], dodge_r: ['dodge', 'r', .5], dodge_b: ['dodge', 'b', .52], duck: ['dodge', 'd', .55] };
 function track(tr, t) { if (!tr) return 0; if (t <= tr[0][0]) return tr[0][1]; for (let i = 1; i < tr.length; i++) if (t <= tr[i][0]) { const a = tr[i - 1], b = tr[i]; return lerp(a[1], b[1], s5((t - a[0]) / (b[0] - a[0]))); } return tr[tr.length - 1][1]; }
 function sampleAction(a, t, out) {
   const K = a.keys; let i = 1; while (i < K.length - 1 && K[i].t < t) i++;
@@ -440,7 +447,7 @@ export class Hero {
     this.buildImpactMarks();
     this.st = {}; for (const j of JOINTS) this.st[j] = [{ x: 0, v: 0 }, { x: 0, v: 0 }, { x: 0, v: 0 }];
     this.root = { y: { x: 0, v: 0 }, rx: { x: 0, v: 0 }, rz: { x: 0, v: 0 }, z: { x: 0, v: 0 }, ry: { x: 0, v: 0 }, hipY: { x: 0, v: 0 } };
-    this.phase = 0; this.spd = 0; this.air = 0; this.water = 0; this.t = 0; this.actions = []; this.dead = false; this.dancing = false; this.danceT = 0;
+    this.crouch = false; this.vy = 0; this.fightTarget = null; this.climbCycle = null; this.phase = 0; this.spd = 0; this.air = 0; this.water = 0; this.t = 0; this.actions = []; this.dead = false; this.dancing = false; this.danceT = 0;
     this.combo = 0; this.comboUntil = 0; this.glow = 0; this.flash = 0; this.idleVar = 0; this.idleT = 4; this.lean = { x: 0, v: 0 }; this.turn = { x: 0, v: 0 }; this.lastYaw = null;
     this.tmp = {}; for (const j of JOINTS) this.tmp[j] = [0, 0, 0]; this.act = {}; for (const j of JOINTS) this.act[j] = [0, 0, 0];
     this.aim = 0;
@@ -745,6 +752,10 @@ export class Hero {
 
   play(name, arg) {
     if (this.dead && name !== 'revive') return { duration: 0, impact: 0 };
+    { const ctl = this.atlasRig && this.atlasRig.ctl, rx = RX_NAMES[name];
+      if (rx) { if (ctl) { if (rx[0] === 'react') ctl.react(rx[1]); else if (rx[0] === 'resist') ctl.react(rx[1], { resist: true }); else if (rx[0] === 'fall') ctl.fall(rx[1]); else if (rx[0] === 'getup') ctl.getUp(); else if (rx[0] === 'dodge') ctl.dodge(rx[1]); } return { duration: rx[2], impact: 0 }; }
+      if (name === 'crouch_on' || name === 'crouch_off') { this.crouch = name === 'crouch_on'; if (ctl) ctl.once(this.crouch ? 'CrouchDown' : 'CrouchUp', 1, { fi: .04, fo: .1 }); return { duration: .26, impact: 0 }; }
+      if (name === 'hit' && ctl) { ctl.react('chest'); return { duration: .5, impact: 0 }; } }
     if (name === 'dance') { this.dancing = true; this.danceT = 0; return { duration: 2.4, impact: 0 }; }
     if (name === 'climb') { this.climbUntil = this.t + (arg || 1.1); this.climbDur = arg || 1.1; this.dancing = false; return { duration: arg || 1.1, impact: 0 }; }
     // impulsos físicos: a pancada empurra o tronco, o pouso comprime as pernas
@@ -835,7 +846,7 @@ export class Hero {
 
   update(dt, s = {}) {
     dt = Math.min(dt, .1); this.t += dt;
-    const speed = s.speed || 0, grounded = s.grounded !== false, vy = s.vy || 0, water = s.inWater || 0, wind = s.wind || { x: .6, z: .3, strength: .4 };
+    this.vy = s.vy || 0; const speed = s.speed || 0, grounded = s.grounded !== false, vy = s.vy || 0, water = s.inWater || 0, wind = s.wind || { x: .6, z: .3, strength: .4 };
     if (speed > .5 || !grounded) this.dancing = false;
     // freada: ao largar a corrida o tronco vai para trás e a passada continua 1–2 passos antes de parar
     this.prevRun = speed > this.prevRun ? speed : lerp(this.prevRun, speed, 1 - Math.exp(-5 * dt));

@@ -1,0 +1,54 @@
+<!doctype html><meta charset=utf-8><body style="margin:0;background:#2a2f3a"><canvas id=c width=900 height=700 style="display:block"></canvas>
+<script type=module>
+import * as THREE from '../../mundo/lib/three.module.min.js';
+import { loadGLBMesh } from '../../mundo/js/glbmesh.js';
+import { buildTree, Rig, applyPose, closeFist } from '../../mundo/js/rigcore.js';
+import { buildLib, climbPose, climbOverPose, zonesInGuard } from '../../mundo/js/fightlib.js';
+import { FightCtl } from '../../mundo/js/fightctl.js';
+import { MOVES } from '../../mundo/js/fightatk.js';
+const renderer = new THREE.WebGLRenderer({ canvas: c, antialias: true, preserveDrawingBuffer: true }); renderer.setSize(900, 700);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x2a2f3a);
+scene.add(new THREE.HemisphereLight(0xffffff, 0x445, 1.6)); const dl = new THREE.DirectionalLight(0xffffff, 2); dl.position.set(2, 4, 3); scene.add(dl);
+const grid = new THREE.GridHelper(4, 40, 0x667, 0x445); scene.add(grid);
+const cam = new THREE.PerspectiveCamera(30, 900 / 700, .01, 50);
+const chars = {};
+window.load = async (id, x = 0, tint) => {
+  const r = await loadGLBMesh('../../mundo/models/' + ({ A: 'nexus', B: 'atlas', C: 'cyber' }[id]) + '_rig.glb'), tree = buildTree(r.json), sk = r.json.skins[0], ibm = r.acc(sk.inverseBindMatrices);
+  const inv = sk.joints.map((_, k) => new THREE.Matrix4().fromArray(ibm, k * 16));
+  const mat = new THREE.MeshStandardMaterial({ map: r.maps.map, roughness: .7, metalness: .1, side: THREE.DoubleSide });
+  const mesh = new THREE.SkinnedMesh(r.geo, mat); mesh.frustumCulled = false; tree.meshObj.add(mesh);
+  tree.root.updateMatrixWorld(true); mesh.bind(new THREE.Skeleton(tree.bones, inv), new THREE.Matrix4());
+  const rig = new Rig(tree, { pos: r.geo.attributes.position.array }); const g = new THREE.Group(); g.add(tree.root); g.position.x = x; scene.add(g);
+  chars[id] = { rig, g, mesh }; return rig.M;
+};
+window.pose = (id, p, o = {}) => { const c = chars[id]; if (o.curl !== undefined) c.rig.curlSign = o.curl; applyPose(c.rig, p); if (o.rotY !== undefined) c.g.rotation.y = o.rotY; };
+window.shot = (eye, look) => { cam.position.set(...eye); cam.lookAt(...look); renderer.render(scene, cam); return c.toDataURL('image/png'); };
+window.mklib = (id, ctx) => { const c = chars[id]; const t0 = performance.now(); c.lib = buildLib(c.rig, { id, ...ctx }); return { ms: performance.now() - t0, names: Object.keys(c.lib.clips) }; };
+window.place = (id, x, z, ry, s = 1) => { const g = chars[id].g; g.position.set(x, 0, z); g.rotation.y = ry; g.scale.setScalar(s); g.visible = true; };
+window.clip = (id, name, t) => { const c = chars[id], cl = c.lib.clips[name]; c.rig.reset(); cl.sample(t, c.rig.bones, null, 1, null, c.rig.hips); c.rig.root.updateMatrixWorld(true); };
+window.climb = (id, ph, H, wall, tilt) => applyPose(chars[id].rig, climbPose(chars[id].lib, ph, H, wall, tilt));
+window.climbOver = (id, k) => applyPose(chars[id].rig, climbOverPose(chars[id].lib, k));
+window.meta = (id, name) => chars[id].lib.clips[name].meta;
+window.zig = (id, sc) => zonesInGuard(chars[id].rig, sc);
+window.setupFight = (scs) => { for (const id in scs) { const c = chars[id]; c.ctl = new FightCtl(c.rig, c.lib, id, scs[id]); c.hero = { atlasRig: { ctl: c.ctl, id } }; c.g.scale.setScalar(scs[id]); c.g.visible = true; } };
+window.runFight = (att, def, move, times, eye, look, o = {}) => {
+  const A = chars[att], D = chars[def], mv = MOVES[move], meta = A.lib.clips[move + '@' + def].meta, out = []; const dt = 1 / 60;
+  A.g.position.set(0, 0, 0); A.g.rotation.y = 0; D.g.position.set(0, 0, meta.Sg + (o.dd || 0)); D.g.rotation.y = Math.PI;
+  for (const k in chars) chars[k].g.visible = (k === att || k === def);
+  A.ctl.act = null; D.ctl.rx = []; D.ctl.down = null; D.ctl.act = null; D.ctl.crouched = false;
+  for (let i = 0; i < 40; i++) { A.ctl.update(dt, { spd: 0, crouch: !!meta.crouch }); D.ctl.update(dt, { spd: 0 }); }
+  A.ctl.strike(move, def, D.hero); let t = 0, hit = false, ti = 0, up = false;
+  while (ti < times.length) {
+    A.ctl.update(dt, { spd: 0, crouch: !!meta.crouch }); D.ctl.update(dt, { spd: 0 }); t += dt;
+    if (!hit && t >= mv.imp) { hit = true; if (mv.knock) D.ctl.fall(mv.knock); else D.ctl.react(mv.zone); }
+    if (mv.knock && !up && t >= (o.getup || 99)) { up = true; D.ctl.getUp(); }
+    while (ti < times.length && t >= times[ti]) { cam.position.set(...eye); cam.lookAt(...look); renderer.render(scene, cam); out.push(c.toDataURL('image/png')); ti++; }
+  }
+  return out;
+};
+window.wallAt = (z, h = 1.6) => { if (window._wall) scene.remove(window._wall); const m = new THREE.Mesh(new THREE.BoxGeometry(2, h, .1), new THREE.MeshStandardMaterial({ color: 0x8a7a68 })); m.position.set(0, h / 2 - .3, z + .05); scene.add(m); window._wall = m; };
+window.rigOf = id => chars[id].rig; window.THREE = THREE; window.ready = true;
+</script>
+<script type=module>
+window.mklib2 = (ids, scs) => { const zones = {}; for (const id of ids) zones[id] = window.zig(id, scs[id]); const out = {}; for (const id of ids) out[id] = window.mklib(id, { sc: scs[id], zones }); return out; };
+</script>

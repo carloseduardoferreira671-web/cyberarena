@@ -2,7 +2,7 @@
    guardados no aparelho (Cache API) e reaproveitados nas próximas vezes. Lista e tamanhos: ../packs.json
    (gerado por tools/make_packs.py). Os arquivos têm o MESMO caminho de sempre (models/...), só mudam de onde vêm. */
 const DEFAULT_SITE = 'https://whimsical-kataifi-2407ec.netlify.app/';   // trocado pelo build do APK (SERVER_URL)
-const CACHE = 'cyberarena-packs-v8', FAKE = 'https://packs.cyberarena.local/';
+const CACHE = 'cyberarena-packs-v9', FAKE = 'https://packs.cyberarena.local/';
 const q = new URLSearchParams(location.search);
 const isApk = location.hostname === 'appassets.androidplatform.net';
 const isWebView = /; wv\)|\bVersion\/[\d.]+ Chrome\/[\d.]+ Mobile/.test(navigator.userAgent) && /Android/.test(navigator.userAgent);

@@ -155,3 +155,9 @@ body #vTeam:not(:empty)~#players{top:calc(66px + var(--sa-t) + var(--vt,0px))}
 #chatPanel b{color:var(--ff2)}#chatPanel .sys{color:#ffd34d}
 body.chatOpen #chatPanel{display:block}
 body.chatOpen #chatLog{display:none}
+
+/* v147 · chute, agachar e esquiva */
+body #btns #bKick{--sz:62px;--rc:#ffb84c;right:208px;bottom:84px;background:radial-gradient(circle at 40% 35%,#ffe2a8,#ff8a1c 55%,#5a2a02)}
+body #btns #bCrouch{--sz:56px;--rc:#7cf4ff;right:8px;bottom:196px;background:radial-gradient(circle at 40% 35%,#d8f6ff,#2a9ad8 55%,#0a2a4a)}
+body #btns #bDodge{--sz:54px;--rc:#c9a8ff;right:274px;bottom:20px;background:radial-gradient(circle at 40% 35%,#efe1ff,#8a4cf0 55%,#241048)}
+body #btns #bCrouch.on{box-shadow:0 0 0 3px #fff,0 0 18px #7cf4ff!important;filter:brightness(1.25)}

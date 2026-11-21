@@ -7,7 +7,7 @@
 'use strict';
 const $=id=>document.getElementById(id);
 const E={MAXLV:20,DAY:{coins:600,fichas:35},SOFT:.2,GEM_COIN:25,GEM_FICHA:5,XCH_DAY:20,
-  hp:.021,dmg:.016,spd:.005,MS:{5:{gems:3,coins:100},10:{gems:5,coins:250},15:{gems:8,coins:500},20:{gems:15,coins:1000}}};
+  MS:{5:{gems:3,coins:100},10:{gems:5,coins:250},15:{gems:8,coins:500},20:{gems:15,coins:1000}}};
 const jget=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))||d}catch(_){return d}};
 const jset=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(_){}};
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -18,8 +18,9 @@ const remote=()=>typeof cyberRemoteMode!=='undefined'&&cyberRemoteMode;
 const chars=()=>{const c=jget('cyberarena.chars.v1',{});for(const k in CH)c[k]=Object.assign({lvl:1,xp:0,ms:[]},c[k]);return c};
 const saveChars=c=>jset('cyberarena.chars.v1',c);
 const costOf=L=>{const coins=Math.round(100*Math.pow(1.2,L-1)/10)*10;return{coins,fichas:Math.ceil(coins/12),xp:60+30*(L-1)}};
-const statsOf=L=>({hp:Math.round(100*(1+E.hp*(L-1))),dmg:Math.round(100*(1+E.dmg*(L-1))),spd:Math.round(1000*(1+E.spd*(L-1)))/10});
-const power=L=>Math.round(100+L*37+L*L*1.4);
+/* status vêm de mundo/js/charstats.js (mesma conta que o jogo usa): vida, velocidade e dano em números inteiros por personagem e nível */
+const statsOf=(id,L)=>window.CYBER_STATS.at(id,L);
+const nf=n=>String(n).replace(/\B(?=(\d{3})+(?!\d))/g,'.');
 function addCharXp(id,n){const c=chars();c[id].xp+=n;saveChars(c);}
 /* ---- teto diário ---- */
 const dayKey=()=>new Date(Date.now()-3*36e5).toISOString().slice(0,10);
@@ -55,29 +56,39 @@ function levelUp(id,useGems){
 }
 function celebrate(id,a,b,rw){
   let o=$('evoUp');if(!o){o=document.createElement('div');o.id='evoUp';document.body.appendChild(o);}
-  const sa=statsOf(a),sb=statsOf(b);
+  const sa=statsOf(id,a),sb=statsOf(id,b), row=(t,x,y)=>`<div><em>${t}</em><b>${nf(x)} ➜ ${nf(y)}</b><small>+${nf(y-x)}</small></div>`;
   o.innerHTML=`<div class="eu-card"><i class="eu-ray"></i><small>${CH[id]} EVOLUIU</small><div class="eu-lv"><b>${a}</b><span>➜</span><b class="n">${b}</b></div>
-   <div class="eu-st"><div><em>VIDA</em><b>${sa.hp}% ➜ ${sb.hp}%</b></div><div><em>DANO</em><b>${sa.dmg}% ➜ ${sb.dmg}%</b></div><div><em>VELOCIDADE</em><b>${sa.spd}% ➜ ${sb.spd}%</b></div></div>
+   <div class="eu-st">${row('VIDA',sa.hp,sb.hp)}${row('DANO DO COMBO',sa.comboTotal,sb.comboTotal)}${row('VELOCIDADE',sa.spd,sb.spd)}</div>
    ${rw.length?`<p class="eu-ms">★ MARCO DO NÍVEL ${b}: ${rw.map(r=>'+'+r.amount+' '+(r.kind==='gems'?'GEMAS':'MOEDAS')).join(' · ')}</p>`:''}<button onclick="document.getElementById('evoUp').classList.remove('on')">CONTINUAR</button></div>`;
   o.classList.remove('on');void o.offsetWidth;o.classList.add('on');
   try{playGameSound(rw.length?'premium':'mixed',1.2);vibratePattern([40,60,90,60,40],1.3)}catch(_){}
 }
 window.econLevelUp=levelUp;
+function hitRows(h,hn){return h.map((x,i)=>{const num=typeof x.v==='number';return `<div class="cs-h"><span>${esc(x.n)}</span><b>${num?nf(x.v):esc(x.v)}</b>${num&&hn&&hn[i].v>x.v?`<s>➜ ${nf(hn[i].v)}</s>`:''}</div>`}).join('')}
+function atkCard(tag,d,dn,slot,prev,note){
+  const pv=prev?`<button class="cs-pv" onclick="cyberPreview('${prev}')" aria-label="Ver animação">▶</button>`:'';
+  return `<div class="cs-atk"><div class="cs-ah"><i>${tag}</i><b>${esc(d.name)}</b>${d.cd?`<em>recarga ${d.cd} s</em>`:''}${pv}</div>${d.info?`<p>${esc(d.info)}</p>`:''}${hitRows(d.hits,dn&&dn.hits)}${note?`<div class="cs-note">${note}</div>`:''}</div>`;
+}
 function renderEvo(){
   const page=document.querySelector('#characters .lc-side');if(!page)return;
   let b=$('evoBox');if(!b){b=document.createElement('div');b.id='evoBox';const ref=page.querySelector('.lc-chars');if(ref)ref.insertAdjacentElement('afterend',b);else page.appendChild(b);}
   const id=curChar(),c=chars()[id],L=c.lvl;
   const sig=[id,L,c.xp,player.coins,player.cyber_fichas,player.gems].join('|');if(b.dataset.sig===sig)return;b.dataset.sig=sig;
-  const s=statsOf(L);
-  if(L>=E.MAXLV){b.innerHTML=`<div class="ev-head"><b>NÍVEL ${L}</b><span class="ev-max">MÁXIMO</span></div><div class="ev-stats"><div><em>VIDA</em><b>${s.hp}%</b></div><div><em>DANO</em><b>${s.dmg}%</b></div><div><em>VELOCIDADE</em><b>${s.spd}%</b></div></div>`;return}
-  const k=costOf(L),n=statsOf(L+1),okXp=c.xp>=k.xp,okC=player.coins>=k.coins,okF=player.cyber_fichas>=k.fichas;
+  const s=statsOf(id,L),max=L>=E.MAXLV,n=max?s:statsOf(id,L+1);
+  const st=(t,v,nv,u,sub)=>`<div><em>${t}</em><b>${nf(v)}${u||''}</b>${nv>v?`<s>➜ ${nf(nv)}</s>`:''}${sub?`<small>${sub}</small>`:''}</div>`;
+  const stats=`<div class="ev-stats cs-stats">${st('VIDA',s.hp,n.hp)}${st('VELOCIDADE',s.spd,n.spd)}${st('DANO DO COMBO',s.comboTotal,n.comboTotal,'','3 socos')}${st('REGENERAÇÃO',s.regen,n.regen,'/s','após 6 s sem dano')}${st('CURA DO KIT',s.kit,n.kit)}${st('PODER POR COMBO',s.comboPower,s.comboPower,'','de 100 · '+Math.ceil(100/s.comboPower)+' combos = super')}</div>`;
+  const combo={name:'COMBO',info:'3 golpes seguidos. Cada golpe que acerta gera poder para o super.',hits:s.combo.map(x=>({n:x.n+' · +'+x.pw+' poder',v:x.v}))};
+  const comboN={hits:n.combo};
+  const atk=`<div class="cs-atks">${atkCard('ATAQUE',combo,comboN,'combo',s.prev.combo)}${atkCard('HABILIDADE',s.skill,n.skill,'skill',s.prev.skill)}${atkCard('SUPER',s.super,n.super,'super',s.prev.super,'Carrega com o poder dos golpes que acertam (100 de poder) e com orbes de energia (+'+window.CYBER_STATS.RULES.orbPower+').')}${atkCard('EXTRA',s.extra,n.extra,'extra',null)}</div>`;
+  if(max){b.innerHTML=`<div class="ev-head"><b>NÍVEL ${L}</b><span class="ev-max">MÁXIMO</span><em>${s.role}</em></div>${stats}${atk}`;return}
+  const k=costOf(L),okXp=c.xp>=k.xp,okC=player.coins>=k.coins,okF=player.cyber_fichas>=k.fichas;
   const mc=Math.max(0,k.coins-player.coins),mf=Math.max(0,k.fichas-player.cyber_fichas),gems=Math.ceil(mc/E.GEM_COIN+mf/E.GEM_FICHA);
   const nextMs=[5,10,15,20].find(x=>x>L);
-  b.innerHTML=`<div class="ev-head"><b>NÍVEL ${L}</b><span>PODER ${power(L)}</span><em>próx. marco: nível ${nextMs} ★</em></div>
+  b.innerHTML=`<div class="ev-head"><b>NÍVEL ${L}</b><span>${s.role}</span><em>próx. marco: nível ${nextMs} ★</em></div>
    <div class="ev-xp"><u style="width:${Math.min(100,c.xp/k.xp*100)}%"></u><i>${Math.min(c.xp,k.xp)} / ${k.xp} XP</i></div>
-   <div class="ev-stats"><div><em>VIDA</em><b>${s.hp}%</b><s>➜ ${n.hp}%</s></div><div><em>DANO</em><b>${s.dmg}%</b><s>➜ ${n.dmg}%</s></div><div><em>VELOCIDADE</em><b>${s.spd}%</b><s>➜ ${n.spd}%</s></div></div>
    <div class="ev-cost"><span class="${okC?'ok':'no'}"><img src="assests/ui/coin_logo.svg" alt="">${k.coins}</span><span class="${okF?'ok':'no'}"><img src="assests/ui/token_logo.svg" alt="">${k.fichas}</span></div>
-   <div class="ev-act"><button class="ev-btn" ${okXp?'':'disabled'} onclick="econLevelUp('${id}')">${okXp?'EVOLUIR':'FALTA XP'}</button>${okXp&&gems>0?`<button class="ev-gem" onclick="econLevelUp('${id}',1)"><img src="assests/ui/gem_logo.svg" alt="">COMPLETAR · ${gems}</button>`:''}</div>`;
+   <div class="ev-act"><button class="ev-btn" ${okXp?'':'disabled'} onclick="econLevelUp('${id}')">${okXp?'EVOLUIR PARA O NÍVEL '+(L+1):'FALTA XP'}</button>${okXp&&gems>0?`<button class="ev-gem" onclick="econLevelUp('${id}',1)"><img src="assests/ui/gem_logo.svg" alt="">COMPLETAR · ${gems}</button>`:''}</div>
+   ${stats}${atk}`;
 }
 /* ---- caixas ---- */
 const BOX={

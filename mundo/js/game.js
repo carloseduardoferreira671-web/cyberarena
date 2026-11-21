@@ -8,6 +8,8 @@ import { PostFX } from './post.js';
 import { syncPBR, PBR_CFG } from './pbr.js';
 import { CamShake, PhysParticles } from './combatfx.js';
 import { loadClassic, makeCharacter, classicReady, loadAtlasGLB } from './classic.js';
+import { FIGHT } from './fightdata.js';
+import { MOVES } from './fightatk.js';
 import { SOFT as SOFTBODY } from './softbody.js';
 import { Realm, REALM_X } from './realm.js';
 import { ensurePacks } from './packs_ui.js';
@@ -98,19 +100,20 @@ class Actor {
     this.id = id; this.name = name || 'Cyber'; this.skin = SKINS[skin] ? skin : 'cyber'; this.kind = kind; // me | remote | bot
     this.char = kind === 'bot' && BOTS_ATLAS ? 'atlas' : CHARS[char] ? char : 'nexus'; this.hero = makeCharacter(this.char, this.skin); this.hero.attach(scene); { const rg = this.hero.atlasRig; if (rg) { rg.wrap.scale.multiplyScalar(1.18); rg.wrap.position.y *= 1.18; } }   // personagens maiores nas partidas
     this.x = 0; this.y = 5; this.z = 0; this.yaw = 0; this.vx = 0; this.vz = 0; this.vy = 0; this.spd = 0; this.grounded = true; this.inWater = 0;
-    this.hp = 100; this.maxHp = 100; this.energy = 0; this.alive = true; this.kills = 0; this.charges = 3; this.chargeT = 0; this.cd = { punch: 0, laser: 0, super: 0, jump: 0, vel: 0, solar: 0 }; this.solarSequence = null; this.solarVictim = null;
+    this.lvl = 1; this.maxHp = CS.hpAt(this.char, 1); this.hp = this.maxHp; this.energy = 0; this.alive = true; this.kills = 0; this.charges = 3; this.chargeT = 0; this.cd = { punch: 0, laser: 0, super: 0, jump: 0, vel: 0, solar: 0 }; this.solarSequence = null; this.solarVictim = null;
+    this.crouch = false; this.dodgeT = 0; this.dodgeCd = 0; this.down = false; this.downT = 0; this.downKind = 'back'; this.gettingUp = false; this.lunge = null;
     this.anim = ['idle', 0]; this.lastSeq = 0; this.pending = []; this.buf = []; this.atlasSequence = null; this.atlasVictim = null; this.velocityDuel = null; this.velocityDuelBy = null; this.vault = null; this.drop = 0; this.healT = 0; this.lastHitT = -99; this.lastBy = null; this.stepPh = 0; this.simulated = kind !== 'remote';
     this.tag = null; this.busyMove = 0; this.wasInWater = false; this.lastShotT = -99; this.aimT = 0;
   }
   play(name, arg) { const r = this.hero.play(name, arg); this.anim = [name, (this.anim[1] + 1) % 1000]; return r; }
   get pos() { return new THREE.Vector3(this.x, this.y, this.z); }
-  chest(out) { return (out || new THREE.Vector3()).set(this.x, this.y + 1.85, this.z); }
+  chest(out) { const c = this.hero && this.hero.atlasRig && this.hero.atlasRig.ctl; if (c) return c.zoneWorld('chest', out || new THREE.Vector3()); return (out || new THREE.Vector3()).set(this.x, this.y + 1.85, this.z); }
   dispose() { this.hero.dispose(); if (this.tag) this.tag.remove(); }
 }
 const actors = new Map(); let me = null;
-const BOTS_ATLAS = true;   // fase de testes: bots/inimigos só do Atlas (o que está sendo construído)
+const BOTS_ATLAS = false;   // bots voltam a ser aleatórios (Cyber, Nexus e Atlas) — os 3 personagens novos já estão prontos
 const addActor = (id, name, skin, kind, char) => { let a = actors.get(id); if (!a) { a = new Actor(id, name, skin, kind, char); actors.set(id, a); } else if (char && CHARS[char] && a.char !== char && a.kind !== 'me' && !(a.kind === 'bot' && BOTS_ATLAS)) { swapChar(a, char); } return a; };
-function swapChar(a, char) { const vis = a.hero.object.visible; a.hero.dispose(); a.char = char; a.hero = makeCharacter(char, a.skin); a.hero.attach(scene); a.hero.setVisible(vis); if (!a.alive) a.hero.play('death'); }
+function swapChar(a, char) { const vis = a.hero.object.visible; a.hero.dispose(); a.char = char; { const f = a.maxHp ? a.hp / a.maxHp : 1; a.maxHp = CS.hpAt(char, a.lvl || 1); a.hp = Math.round(a.maxHp * f); } a.hero = makeCharacter(char, a.skin); a.hero.attach(scene); a.hero.setVisible(vis); if (!a.alive) a.hero.play('death'); }
 const removeActor = id => { const a = actors.get(id); if (a) { a.dispose(); actors.delete(id); } };
 /* grupo do lobby: colegas de grupo são aliados (não causam dano entre si e não entram em "inimigos" / mira) */
 let _team = null, _teamT = -1e9;
@@ -201,11 +204,13 @@ const camS = { yaw: PI, pitch: .2, dist: 5.6, mode: SET.cam, x: 0, y: 8, z: 0, t
 }
 const hold = (el, fn) => { el.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); audio.unlock(); fn(); }); };
 hold($('bAtk'), () => act('punch')); hold($('bLas'), () => act('laser')); hold($('bSup'), () => act('super')); hold($('bSolar'), () => act('solar')); hold($('bJmp'), () => { input.jump = true; }); hold($('bVel'), () => act('extra')); hold($('bSwap'), () => swapAbyss(me));
+hold($('bKick'), () => act('kick')); hold($('bCrouch'), () => act('crouch')); hold($('bDodge'), () => act('dodge'));
 hold($('eWave'), () => act('wave')); hold($('eDance'), () => act('dance'));
 addEventListener('keydown', e => {
   if (document.activeElement === $('chatIn')) { if (e.key === 'Enter') sendChat(); if (e.key === 'Escape') closeChat(); return; }
   audio.unlock(); const k = e.key.toLowerCase(); input.keys.add(k);
   if (k === ' ') { input.jump = true; e.preventDefault(); }
+  if (k === 'h') act('kick'); if (k === 'c') act('crouch'); if (k === 'x') act('dodge');
   if (k === 'j') act('punch'); if (k === 'k') act('laser'); if (k === 'l' || k === 'q') act('super');
   if (k === 'e') act(MODE === 'open' ? 'wave' : 'laser'); if (k === 'r') act(MODE === 'open' ? 'dance' : 'extra'); if (k === 'b') act('solar'); if (k === 'f' && me && me.abyss) swapAbyss(me);
   if (k === 'v') toggleView(); if (k === 'm') toggleMap(); if (k === 'enter') openChat(); if (k === 'escape') { if (!$('bigmap').classList.contains('hidden')) toggleMap(); }
@@ -247,6 +252,7 @@ function tryClimb(a, hit) {
 }
 function stepActor(a, dt, mx, mz, mag, wantJump) {
   const E = envOf(a);
+  tickCombat(a, dt); if (a.crouch && wantJump) { setCrouch(a, false); wantJump = false; }
   if (a.held) { a.x = a.held.x; a.y = a.held.y; a.z = a.held.z; a.vx = a.vz = a.vy = 0; a.spd = 0; a.grounded = true; a.peakY = a.y; return; }
   if (a.dash) { const D = a.dash, sg = D.segs[D.i]; if (!sg || !a.alive) { a.dash = null; } else { D.t += dt; const k = clamp(D.t / sg.du, 0, 1);
       const ox = a.x, oz = a.z; a.x = lerp(sg.x0, sg.x1, k); a.z = lerp(sg.z0, sg.z1, k); a.y = E.groundAt(a.x, a.z, a.y + 3, 3); a.yaw = Math.atan2(sg.x1 - sg.x0, sg.z1 - sg.z0); a.vx = a.vz = a.vy = 0; a.grounded = true; a.spd = Math.hypot(a.x - ox, a.z - oz) / Math.max(dt, 1e-4); a.peakY = a.y;
@@ -256,12 +262,15 @@ function stepActor(a, dt, mx, mz, mag, wantJump) {
   if (!a.alive) { a.vx *= .9; a.vz *= .9; a.y = lerp(a.y, E.groundAt(a.x, a.z, a.y + 1), .2); a.spd = 0; return; }
   if (a.vault) { const v = a.vault; v.t += dt; const k = clamp(v.t / v.dur, 0, 1), e = k * k * (3 - 2 * k); a.x = lerp(v.x0, v.x1, e); a.z = lerp(v.z0, v.z1, e); a.y = lerp(v.y0, v.y1, e) + Math.sin(PI * k) * Math.max(0, v.top - Math.max(v.y0, v.y1)); a.spd = 5; a.grounded = true; a.vy = 0; if (k >= 1) { a.vault = null; a.y = E.groundAt(a.x, a.z, a.y + .3); } return; }
   if (a.climb && wantJump && a.climb.t > .25 && a.climb.t / a.climb.dur < .72) { // salta para trás e solta da parede
-    const c = a.climb; a.climb = null; a.yaw += PI; a.vx = Math.sin(a.yaw) * 6; a.vz = Math.cos(a.yaw) * 6; a.vy = JUMP_V * .8; a.grounded = false; a.peakY = a.y; a.hero.climbUntil = 0; a.play('jump'); sfx('jump', a); return; }
+    const c = a.climb; a.climb = null; a.yaw += PI; a.vx = Math.sin(a.yaw) * 6; a.vz = Math.cos(a.yaw) * 6; a.vy = JUMP_V * .8; a.grounded = false; a.peakY = a.y; a.hero.climbUntil = 0; a.hero.climbCycle = null; a.play('jump'); sfx('jump', a); return; }
   if (a.climb) { const c = a.climb; c.t += dt; const k = clamp(c.t / c.dur, 0, 1), k1 = clamp(k / .72, 0, 1), e1 = k1 * k1 * (3 - 2 * k1), k2 = clamp((k - .72) / .28, 0, 1);
-    const nn = c.n || 1, pull = k1 - Math.sin(k1 * TAU * nn) / (TAU * nn) * .85; a.y = lerp(c.y0, c.y1 + .05, nn > 1 ? pull : e1);
+    const nn = c.n || 1, rg = a.hero.atlasRig, ws = rg ? rg.wrap.scale.x : 1, hang = Math.min(.88 * ws, (c.y1 - c.y0) * .55), yTop = c.y1 + .05;
+    a.y = k2 > 0 ? lerp(yTop - hang, yTop, k2 * k2 * (3 - 2 * k2)) : lerp(c.y0, yTop - hang, nn > 1 ? k1 : e1);
+    const ncy = Math.max(1, Math.round((c.y1 - c.y0 - hang) / (.34 * ws)));   // passo de ~1/3 de altura do corpo por ciclo, em qualquer altura de parede
+    a.hero.climbCycle = { phase: k1 * ncy, H: ((c.y1 - c.y0 - hang) / ncy) / ws, wall: .2, tilt: 0, over: k2 };
     if (nn > 1 && Math.floor(k1 * nn * 2) !== c.lastGrab && k1 < 1) { c.lastGrab = Math.floor(k1 * nn * 2); if (Math.random() < .5) fx.puff(a.x + Math.sin(a.yaw) * .4, a.y + 2.6, a.z + Math.cos(a.yaw) * .4, 3, { r: .1, speed: .6, up: -.3, size: .3, life: .6 }); sfx('step', a, .9); } a.x = lerp(c.xw, c.x1, k2 * k2 * (3 - 2 * k2)); a.z = lerp(c.zw, c.z1, k2 * k2 * (3 - 2 * k2));
     a.vx = a.vz = a.vy = 0; a.spd = k2 > 0 ? 2.5 : 0; a.grounded = true; a.peakY = a.y; a.scramble = 0;
-    if (k >= 1) { a.climb = null; a.y = E.groundAt(a.x, a.z, a.y + .3); fx.dustStep(a.x, a.y, a.z, .8); } return; }
+    if (k >= 1) { a.climb = null; a.hero.climbCycle = null; a.y = E.groundAt(a.x, a.z, a.y + .3); fx.dustStep(a.x, a.y, a.z, .8); } return; }
   if (a.drop > 0) { // queda do céu no início da batalha (planando)
     a.peakY = a.y; a.vy = Math.max(a.vy - 6 * dt, -9); a.y += a.vy * dt; a.x += mx * 5 * dt; a.z += mz * 5 * dt; if (mag > .1) a.yaw += angDiff(Math.atan2(mx, mz), a.yaw) * Math.min(1, 6 * dt);
     const g = E.groundAt(a.x, a.z, a.y); if (a.y <= g) { a.y = g; a.drop = 0; a.grounded = true; a.play('land', 14); sfx('land', a, 1); fx.dustStep(a.x, a.y, a.z, 3); fx.ring(a.x, a.y, a.z, 0x38f2ff, 3, .5); }
@@ -272,7 +281,7 @@ function stepActor(a, dt, mx, mz, mag, wantJump) {
   // ladeiras: subida íngreme fica lenta e o personagem usa mãos e pés; descida acelera um pouco
   let slope = 0; if (mag > .1 && a.grounded) { const t0 = E.terrainAt(a.x, a.z), t1 = E.terrainAt(a.x + mx / mag * .7, a.z + mz / mag * .7); if (t0 > -100 && t1 > -100) slope = (t1 - t0) / .7; }
   a.slope = lerp(a.slope || 0, slope, Math.min(1, dt * 10)); a.scramble = lerp(a.scramble || 0, clamp((a.slope - .55) / .7, 0, 1) * (mag > .1 ? 1 : 0), Math.min(1, dt * 6));
-  const busy = a.busyMove > 0 ? .35 : 1, sp = RUN * (a === me ? ME_BUFF.spd : 1) * (1 - .42 * a.inWater) * busy * (1 - .5 * a.scramble) * (1 + clamp(-a.slope - .3, 0, .5) * .25), acc = a.grounded ? 46 : 14;
+  const busy = a.busyMove > 0 ? .35 : 1, sp = RUN * (a.crouch ? .42 : 1) * (a.simulated ? CS.spdAt(a.char, a.lvl || 1) / 720 : 1) * (1 - .42 * a.inWater) * busy * (1 - .5 * a.scramble) * (1 + clamp(-a.slope - .3, 0, .5) * .25), acc = a.grounded ? 46 : 14;
   const tx = mx * sp, tz = mz * sp; let dvx = tx - a.vx, dvz = tz - a.vz; const dl = Math.hypot(dvx, dvz), mxd = acc * dt; if (dl > mxd) { dvx *= mxd / dl; dvz *= mxd / dl; } a.vx += dvx; a.vz += dvz;
   if (wantJump && a.grounded && a.cd.jump <= 0) {
     // pular janelas/cercas: se há algo pulável à frente, faz o salto acrobático
@@ -308,13 +317,15 @@ let ripK = 0; function ripple(x, z, s) { const r = U.uRip.value[ripK = (ripK + 1
 /* ===================================================== combate ===================================================== */
 const DMG = { punch: [10, 12, 20], laser: 18, super: 42 };
 /* nível do personagem (vem do lobby): HP, dano e velocidade crescem com a evolução — limites pensados p/ não quebrar o PvP */
-const ME_BUFF = (() => { try { const id = JSON.parse(localStorage.getItem('cyberarena.identity') || '{}'), c = JSON.parse(localStorage.getItem('cyberarena.chars.v1') || '{}'), l = Math.max(1, Math.min(20, (c[id.char || 'nexus'] || {}).lvl | 0 || 1)) - 1; return { lvl: l + 1, hp: 1 + .021 * l, dmg: 1 + .016 * l, spd: 1 + .005 * l }; } catch (_) { return { lvl: 1, hp: 1, dmg: 1, spd: 1 }; } })();
+const CS = globalThis.CYBER_STATS;   // mundo/js/charstats.js (carregado antes deste módulo)
+const hpPct = a => a.maxHp ? a.hp / a.maxHp * 100 : a.hp;   // só para a IA/efeitos: vida como % da vida máxima
+const ME_BUFF = (() => { try { const id = JSON.parse(localStorage.getItem('cyberarena.identity') || '{}'), c = JSON.parse(localStorage.getItem('cyberarena.chars.v1') || '{}'), ch = CS.idOf(id.char || 'nexus'); return { lvl: CS.clampL((c[ch] || {}).lvl) }; } catch (_) { return { lvl: 1 }; } })();
 
 function canFight() { return (MODE === 'battle' && G.phase === 'live') || TRAINLIKE; }
 function findTarget(a, range, cone, dir) {
   let best = null, bs = 1e9; const fx0 = dir ? dir[0] : Math.sin(a.yaw), fz0 = dir ? dir[1] : Math.cos(a.yaw);
   for (const b of enemiesOf(a)) { const dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz); if (d > range || d < .01) continue; const ang = Math.acos(clamp((dx * fx0 + dz * fz0) / d, -1, 1)); if (ang > cone) continue; if (Math.abs(b.y - a.y) > 6) continue;
-    if (d > 3 && envOf(a).rayBlocked(a.x, a.y + 1.8, a.z, b.x, b.y + 1.6, b.z)) continue; const s = d * (1 + ang * 1.5) * (b.hp < 40 ? .8 : 1); if (s < bs) { bs = s; best = b; } }
+    if (d > 3 && envOf(a).rayBlocked(a.x, a.y + 1.8, a.z, b.x, b.y + 1.6, b.z)) continue; const s = d * (1 + ang * 1.5) * (hpPct(b) < 40 ? .8 : 1); if (s < bs) { bs = s; best = b; } }
   return best;
 }
 function faceTo(a, b) { a.yaw = Math.atan2(b.x - a.x, b.z - a.z); a.aimT = .45; }
@@ -322,22 +333,73 @@ function moveIntent(a) { if (a === me) { const m = readMove(); return m[2] > .1 
 function act(name) {
   if (!me || !me.alive || me.drop > 0 || G.phase === 'loading') return;
   if (name === 'wave' || name === 'dance') { if (MODE === 'battle' && G.phase === 'live') return; if (!me.hero.isBusy()) me.play(name); return; }
-  if (!canFight()) { if (name === 'punch' || name === 'laser' || name === 'super' || name === 'extra' || name === 'solar') banner(MODE === 'open' ? 'Mundo aberto: sem combate' : 'Aguarde o início da partida', 1200); return; }
-  if (name === 'punch') doPunch(me); else if (name === 'laser') doSkill(me); else if (name === 'super') doSuper(me); else if (name === 'extra') doExtra(me); else if (name === 'solar') doSolar(me);
+  if (!canFight()) { if (name === 'punch' || name === 'kick' || name === 'laser' || name === 'super' || name === 'extra' || name === 'solar') banner(MODE === 'open' ? 'Mundo aberto: sem combate' : 'Aguarde o início da partida', 1200); return; }
+  if (name === 'crouch') { setCrouch(me, !me.crouch); return; }
+  if (name === 'dodge') { doDodge(me); return; }
+  if (name === 'punch') doPunch(me); else if (name === 'kick') doPunch(me, null, 'kick'); else if (name === 'laser') doSkill(me); else if (name === 'super') doSuper(me); else if (name === 'extra') doExtra(me); else if (name === 'solar') doSolar(me);
 }
-function doPunch(a, target) {
-  if (a.cd.punch > 0 || a.vault || a.climb || a.drop || a.dash) return false;
+/* ===================== v147 · COMBATE POR ZONAS =====================
+   Cada golpe tem uma zona (cabeça / peito / barriga / pernas) e uma variação POR OPONENTE (fightdata.js): a distância e a altura
+   de impacto vêm do corpo de quem apanha. O atingido reage SÓ na região acertada; golpe forte derruba e ele levanta sozinho. */
+const MV = { punch0: 'Punch_L', punch1: 'Punch_R', punch2: 'Kick_R', kick: 'Kick_L', cpunch: 'CrouchPunch', sweep: 'Sweep' };
+const MDMG = { Punch_L: 10, Punch_R: 12, Kick_R: 20, Kick_L: 15, CrouchPunch: 13, Sweep: 11 };
+const DOWN_T = { sweep: 1.25, head: 1.4, back: 1.2 }, GETUP_T = 1.5;
+const pairSg = (a, b, mv) => { const p = FIGHT.params[a.char], q = p && (p[mv + '@' + b.char] || p[mv + '@' + a.char]); return q ? q.Sg : MOVES[mv].Sg; };
+function setCrouch(a, on) {
+  on = !!on; if (a.crouch === on || a.down || !a.alive || a.climb || a.vault) return; a.crouch = on; a.hero.crouch = on; a.play(on ? 'crouch_on' : 'crouch_off');
+  if (a === me) { const el = $('bCrouch'); if (el) el.classList.toggle('on', on); }
+}
+function doPunch(a, target, kind) {
+  if (a.cd.punch > 0 || a.vault || a.climb || a.drop || a.dash || a.down || a.stunT > 0) return false;
   const t = target || findTarget(a, 5, 1.3, moveIntent(a)); if (t) faceTo(a, t);
-  const punch = a.play('punch'), combo = punch.combo; const r = combo === 2 ? a.play('kick') : punch; a.cd.punch = r.duration - .12; a.busyMove = r.duration * .8;
-  const fwd = .9 + combo * .3; a.vx += Math.sin(a.yaw) * fwd * 3; a.vz += Math.cos(a.yaw) * fwd * 3;
-  a.pending.push({ t: r.impact, fn: () => meleeHit(a, combo) }); sendFx(a, 'punch', {});
+  let key = null; if (a.crouch) key = kind === 'kick' ? 'sweep' : 'cpunch'; else if (kind === 'kick') key = 'kick';
+  a.hero.fightTarget = t ? t.hero : null;
+  let r; if (key) r = a.play(key); else { r = a.play('punch'); key = 'punch' + r.combo; }
+  const mv = MV[key]; a.cd.punch = r.duration - .1; a.busyMove = r.duration * .8;
+  // aproximação: fecha (ou abre) a distância até a distância de impacto DESTE par de personagens
+  if (t) { const dx = t.x - a.x, dz = t.z - a.z, d = Math.hypot(dx, dz) || 1, Sg = pairSg(a, t, mv); a.lunge = { t: 0, dur: Math.max(.08, r.impact * .9), dist: clamp(d - Sg, -.9, 2.6), dx: dx / d, dz: dz / d }; }
+  else { a.vx += Math.sin(a.yaw) * 2.4; a.vz += Math.cos(a.yaw) * 2.4; }
+  a.pending.push({ t: r.impact, fn: () => meleeHit(a, mv) }); sendFx(a, 'punch', {});
   return true;
 }
-function meleeHit(a, combo) {
-  if (!a.alive) return; const range = combo === 2 ? 3.1 : 2.6, cone = combo === 2 ? 1.5 : 1.15, fx0 = Math.sin(a.yaw), fz0 = Math.cos(a.yaw); let any = false;
-  for (const b of enemiesOf(a)) { const dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz) - RAD; if (d > range || Math.abs(b.y - a.y) > 1.8) continue; const ang = Math.acos(clamp((dx * fx0 + dz * fz0) / Math.max(d + RAD, .01), -1, 1)); if (ang > cone && d > .5) continue;
-    any = true; const p = b.chest(); p.y -= .1; fx.hitSpark(p); damage(b, DMG.punch[combo], a, 'punch', { kx: dx / (d + RAD) * (combo === 2 ? 9 : 4), kz: dz / (d + RAD) * (combo === 2 ? 9 : 4) }); }
-  sfx(any ? 'punch' : 'whoosh', a, any ? 1 : .4); if (any && a === me) { G.shake = Math.max(G.shake, combo === 2 ? .35 : .15); hitMarker(); }
+function meleeHit(a, mv) {
+  if (!a.alive || a.down) return; const M = MOVES[mv], fx0 = Math.sin(a.yaw), fz0 = Math.cos(a.yaw); let any = false;
+  for (const b of enemiesOf(a)) {
+    if (!b.alive || b.down || Math.abs(b.y - a.y) > 1.8) continue;
+    const dx = b.x - a.x, dz = b.z - a.z, dc = Math.hypot(dx, dz) || .01, Sg = pairSg(a, b, mv);
+    if (dc > Sg + 1.05) continue;
+    if (Math.acos(clamp((dx * fx0 + dz * fz0) / dc, -1, 1)) > 1.0) continue;
+    if ((b.crouch && M.zone === 'head') || b.dodgeT > 0) continue;       // agachado/esquivando: o golpe alto passa
+    any = true; const zone = M.zone, resist = b.busyMove > .25 && !M.knock;
+    const hp = b.hero.atlasRig ? b.hero.atlasRig.ctl.zoneWorld(zone) : b.chest(); fx.hitSpark(hp);
+    damage(b, MDMG[mv], a, 'punch', { kx: dx / dc * M.kb, kz: dz / dc * M.kb, zone, knock: M.knock || null, resist, stun: M.stun });
+  }
+  sfx(any ? 'punch' : 'whoosh', a, any ? 1 : .4); if (any && a === me) { G.shake = Math.max(G.shake, M.knock ? .35 : .15); hitMarker(); }
+}
+function doDodge(a) {
+  if (!a.alive || a.down || a.stunT > 0 || a.dodgeCd > 0 || a.climb || a.vault || a.drop) return;
+  let k = 'd'; if (a === me) { const m = readMove(), fy = Math.sin(a.yaw), fz = Math.cos(a.yaw), lat = m[0] * fz - m[1] * fy * 0 + 0; const lx = Math.cos(a.yaw), lz = -Math.sin(a.yaw), l = m[0] * lx + m[1] * lz, f = m[0] * fy + m[1] * fz; if (m[2] > .1) { if (Math.abs(l) > .45) k = l > 0 ? 'l' : 'r'; else if (f < -.3) k = 'b'; } }
+  a.dodgeT = .42; a.dodgeCd = .9; a.busyMove = 0; a.play({ l: 'dodge_l', r: 'dodge_r', b: 'dodge_b', d: 'duck' }[k]);
+  const lx = Math.cos(a.yaw), lz = -Math.sin(a.yaw), sx = k === 'l' ? 1 : k === 'r' ? -1 : 0, bk = k === 'b' ? -1 : 0; a.vx += (lx * sx + Math.sin(a.yaw) * bk) * 6; a.vz += (lz * sx + Math.cos(a.yaw) * bk) * 6;
+}
+function reactTo(t, kb, yaw) {
+  if (!t.alive || t.down) return;
+  if (kb && kb.zone) {
+    if (t.crouch && kb.zone !== 'shin') setCrouch(t, false);
+    if (kb.knock) { startDown(t, kb.knock, yaw); return; }
+    if (kb.resist) { t.play('rhit_' + kb.zone); return; }
+    t.yaw = yaw; t.play('hit_' + kb.zone); t.stunT = Math.max(t.stunT || 0, kb.stun || .3); t.busyMove = 0; t.cd.punch = Math.max(t.cd.punch, .22); return;
+  }
+  if (!t.hero.isBusy()) t.play('hit', yaw);
+}
+function startDown(t, kind, yaw) {
+  if (t.crouch) { t.crouch = false; t.hero.crouch = false; } t.yaw = yaw; t.down = true; t.downT = 0; t.downKind = kind; t.gettingUp = false; t.busyMove = 0; t.cd.punch = Math.max(t.cd.punch, 1);
+  t.play(kind === 'sweep' ? 'fall_sweep' : kind === 'head' ? 'fall_head' : 'fall_back'); t.stunT = Math.max(t.stunT || 0, DOWN_T[kind] + GETUP_T * .85);
+}
+function tickCombat(a, dt) {
+  if (a.dodgeT > 0) a.dodgeT -= dt; if (a.dodgeCd > 0) a.dodgeCd -= dt;
+  if (a.lunge) { const L = a.lunge, st = Math.min(dt, L.dur - L.t); if (st > 0) { const f = L.dist * st / L.dur; a.x += L.dx * f; a.z += L.dz * f; } L.t += dt; if (L.t >= L.dur) a.lunge = null; }
+  if (a.down) { a.downT += dt; if (!a.alive) { a.down = false; return; } const dn = DOWN_T[a.downKind] || 1.2; if (!a.gettingUp && a.downT >= dn) { a.gettingUp = true; a.play('getup'); } if (a.downT >= dn + GETUP_T) { a.down = false; a.gettingUp = false; } }
 }
 const _v1 = new THREE.Vector3(), _v2 = new THREE.Vector3();
 function doLaser(a, target, err = 0) {
@@ -580,7 +642,7 @@ function updateNovaSequence(a,dt){
           if(MODE==='battle')realityFracture(target,8.5);sfx('nova',a,1.65);
           fx.flash(target,0xffffff,230,.85);fx.ring(target.x,target.y,target.z,0xffe3a1,260,1.2,.9);fx.ring(target.x,target.y,target.z,0xff7b24,390,1.8,1.2);
           if(s.env===world){const gone=world.destroyAlong(target.x,target.z,target.x,target.z,145);debris(gone.slice(0,180));const pts=[{x:target.x,y:world.terrainAt(target.x,target.z),z:target.z}];for(let i=0;i<64;i++){const an=i/64*TAU,d=8+(i%8)*13,x=target.x+Math.cos(an)*d,z=target.z+Math.sin(an)*d;pts.push({x,y:world.terrainAt(x,z),z});}powers.scorch(pts,24,28);}
-          if(authOf(a))for(const e of enemiesOf(a)){const dx=e.x-target.x,dz=e.z-target.z,d=Math.hypot(dx,dz);if(d<145&&Math.abs(e.y-target.y)<95)damage(e,Math.max(1,e.hp),a,'super',{kx:dx/(d||1)*55,kz:dz/(d||1)*55,up:28});}
+          if(authOf(a))for(const e of enemiesOf(a)){const dx=e.x-target.x,dz=e.z-target.z,d=Math.hypot(dx,dz);if(d<145&&Math.abs(e.y-target.y)<95)damage(e,Math.max(1,Math.ceil(e.hp/CS.mulAt(a.char,a.lvl||1))),a,'super',{kx:dx/(d||1)*55,kz:dz/(d||1)*55,up:28});}
           G.shake=Math.max(G.shake,3.2);powers.screenFlash('rgba(255,246,224,1)',.9,1);
         });
       },18);
@@ -1056,7 +1118,7 @@ function updateSolarSequence(a, dt) {
   // A estrela explode depois de o alvo quase alcançar a superfície.
   if (t >= 26.15 && !s.flags.nova) { s.flags.nova = true; powers.supernova(new THREE.Vector3(s.sun.x, s.sun.y, s.sun.z), 58, 0xffa23a, () => { fx.flash(new THREE.Vector3(s.sun.x, s.sun.y, s.sun.z), 0xffffff, 38, .72); }); sfx('nova', a, 1.3); G.shake = Math.max(G.shake, 1.4); }
   // O golpe final é resolvido no clarão; evita eliminar um oponente com pouca vida por um erro de sincronização.
-  if (t >= 26.35 && !s.flags.damage && v && v.alive && authOf(a)) { s.flags.damage = true; const dmg = Math.max(0, Math.min(68, v.hp - 1)); if (dmg > 0) damage(v, dmg, a, 'super', { kx: d.x * 16, kz: d.z * 16, up: 8 }); if (a === me) hitMarker(); }
+  if (t >= 26.35 && !s.flags.damage && v && v.alive && authOf(a)) { s.flags.damage = true; const dmg = Math.max(0, Math.min(68, (v.hp - 1) / CS.mulAt(a.char, a.lvl || 1))); if (dmg > 0) damage(v, dmg, a, 'super', { kx: d.x * 16, kz: d.z * 16, up: 8 }); if (a === me) hitMarker(); }
   // O universo da técnica também colapsa; o mundo de origem permaneceu guardado e intacto.
   if (t >= 29.15 && !s.flags.dimensionBoom) { s.flags.dimensionBoom = true; const c = new THREE.Vector3(s.spaceCenter.x, s.spaceCenter.y, s.spaceCenter.z); fx.ring(c.x, c.y, c.z, 0xffffff, 150, .9, .65); fx.flash(c, 0xffffff, 55, .55); powers.screenFlash('rgba(255,255,255,.98)', .32, 1); sfx('super', a, 1.2); G.shake = Math.max(G.shake, 1.8); }
   if (t >= 30) finishSolarSequence(a, s, false);
@@ -1090,7 +1152,8 @@ function doOmega(a, remote, target) {
   return true;
 }
 function damage(t, dmg, src, kind, kb) {
-  if (src && src === me && dmg > 0) dmg = Math.max(1, Math.round(dmg * ME_BUFF.dmg));
+  const base = dmg;   // dano-base do ataque (unidade interna); o dano real depende do personagem e do nível de quem ataca
+  if (src && dmg > 0 && (src === me || (src.kind === 'bot' && src.simulated))) dmg = CS.dmgOf(src.char, src.lvl || 1, dmg);
   if (!t.alive || !canFight() || dmg <= 0 || mates(src, t)) return;
   if (t.atlasVictim && src && src.id !== t.atlasVictim) return; // o alvo fica preso na coreografia e não pode contra-atacar/interromper
   if (t.char==='atlas' && t.atlasGuardUntil>world.time && src && src.alive) {
@@ -1100,11 +1163,11 @@ function damage(t, dmg, src, kind, kb) {
     fx.ring(t.x,t.y+1.1,t.z,0xd18aff,6,.55,.3);fx.flash(t.chest(),0xe6c7ff,5,.22);sfx('punch',t,.9);
     dmg=Math.max(1,Math.round(dmg*.28)); kb=kb?{...kb,kx:(kb.kx||0)*.25,kz:(kb.kz||0)*.25,up:(kb.up||0)*.25}:null;
   }
-  if (src && (src === me || (src.kind === 'bot' && src.simulated))) src.energy = Math.min(100, src.energy + dmg * .9);
+  if (src && (src === me || (src.kind === 'bot' && src.simulated))) src.energy = Math.min(100, src.energy + CS.powerOf(src.char, base));
   fx.number(t.chest(), dmg, t === me ? 'hurt' : src === me ? (kind === 'super' ? 'k-super' : kind === 'laser' ? 'k-skill' : 'k-punch') : 'other');
   t.hero.hitFlash();
   if (t === me || (t.kind === 'bot' && t.simulated)) applyDamage(t, dmg, src ? src.id : null, kind, kb);
-  else net.send('hit', { target: t.id, dmg, kind, by: src ? src.id : '', x: r2(kb ? kb.kx : 0), z: r2(kb ? kb.kz : 0) });
+  else net.send('hit', { target: t.id, dmg, kind, by: src ? src.id : '', x: r2(kb ? kb.kx : 0), z: r2(kb ? kb.kz : 0), zn: kb && kb.zone || 0, kn: kb && kb.knock || 0, rs: kb && kb.resist ? 1 : 0, st: kb && kb.stun || 0 });
 }
 const _hp = new THREE.Vector3(), _hd = new THREE.Vector3();
 /* peso do golpe: força nas juntas, hit stop de 2–5 quadros, câmera direcional, aberração, suor/sangue/faíscas com física */
@@ -1124,13 +1187,13 @@ function hitPhysics(t, src, dmg, kind, kb) {
   if (t.hero.J && t.hero.J.head) { t.hero.J.head.getWorldPosition(_hp); phys.sweat(_hp, _hd, 3 + (dmg * .2 | 0), force); }
 }
 function applyDamage(t, dmg, byId, kind, kb) {
-  if (!t.alive) return; t.hp -= dmg; t.lastHitT = world.time; t.lastBy = byId; t.healT = 0;
+  if (!t.alive) return; const dn = dmg / CS.NORM; /* dn: dano na escala dos efeitos (faíscas, tremor, impacto) */ t.hp -= dmg; t.lastHitT = world.time; t.lastBy = byId; t.healT = 0;
   if (kb) { t.vx += kb.kx || 0; t.vz += kb.kz || 0; if (kb.up && t.grounded) { t.vy = kb.up; t.grounded = false; } }
   const src = actors.get(byId);
   const impactYaw = src ? Math.atan2(src.x - t.x, src.z - t.z) : (t.yaw || 0);
-  if (t.hero && t.hero.receiveImpact) t.hero.receiveImpact(impactYaw, Math.min(1.6, .35 + dmg / 34));
-  if (src && t.hero && t.hero.reactForce) hitPhysics(t, src, dmg, kind, kb);
-  if (!t.hero.isBusy()) t.play('hit', impactYaw);
+  if (t.hero && t.hero.receiveImpact) t.hero.receiveImpact(impactYaw, Math.min(1.6, .35 + dn / 34));
+  if (src && t.hero && t.hero.reactForce) hitPhysics(t, src, dn, kind, kb);
+  reactTo(t, kb, impactYaw);
   if (t === me) { sfx('hurt', t); flashVig(); if (src) dmgDir(src); G.shake = Math.max(G.shake, .2); if (navigator.vibrate) try { navigator.vibrate(30); } catch (_) { } }
   else if (src === me || !src) sfx('hit', t);
   if (t.kind === 'bot' && t.brain && src) t.brain.onHurt(src);
@@ -1149,12 +1212,12 @@ function kill(t, byId, remote) {
   checkEnd();
 }
 function sendFx(a, kind, data) { if (a === me || (a.kind === 'bot' && a.simulated && !net.offline)) net.send('fx', Object.assign({ kind, a: a.id }, data)); }
-
 /* ===================================================== ausência (o bot joga por você) ===================================================== */
 let awayBrain = null;
 function awayStart() { if (awayBrain || !me || MODE !== 'battle' || NOPROG || G.phase !== 'live') return; try { awayBrain = new Brain(me, .55, false); } catch (e) { console.warn('away', e); } }
 document.addEventListener('visibilitychange', () => { if (document.hidden) awayStart(); });
 window.__away = { mode: MODE, noprog: NOPROG, start: awayStart, end() { awayBrain = null; }, ongoing: () => MODE === 'battle' && !NOPROG && !G.ended && G.phase !== 'over' && !G.result && !!me, get active() { return !!awayBrain; }, get brain() { return awayBrain; } };
+
 /* ===================================================== bots ===================================================== */
 class Brain {
   constructor(a, skill, passive) { this.a = a; this.skill = skill; this.passive = passive; this.think = Math.random() * .3; this.goal = null; this.target = null; this.strafe = Math.random() < .5 ? 1 : -1; this.strafeT = 1; this.stuckT = 0; this.lastPos = [a.x, a.z]; this.wander = null; this.hurtBy = null; this.react = 0; this.jump = false; this.mx = 0; this.mz = 0; this.dodgeT = 0; }
@@ -1177,10 +1240,10 @@ class Brain {
       const sx = -uz * this.strafe, sz = ux * this.strafe, sw = this.melee ? .25 : .75;
       gx = ux * fwd + sx * sw; gz = uz * fwd + sz * sw;
       if (this.react <= 0) {
-        if (this.melee && d < 2.9) { if (doPunch(a, t)) this.react = .08; }
+        if (this.melee && d < 2.9) { if (doPunch(a, t, Math.random() < .28 ? 'kick' : undefined)) this.react = .08; }
         else if (d < (a.char === 'cyber' ? 15 : 20) && d > (this.melee ? 3.2 : 0) && a.cd.laser <= 0 && !(a.busyMove > 0) && Math.random() < .3 + S * .5) { const vis = !envOf(a).rayBlocked(a.x, a.y + 1.8, a.z, t.x, t.y + 1.6, t.z); if (vis) { if (doSkill(a, t)) this.react = .6 - S * .3 + Math.random() * .3; } else { gx = ux; gz = uz; } }
         if (a.cd.vel <= 0 && d < 24 && Math.random() < .12 + S * .1) doExtra(a);
-        if (a.energy >= 100) { const near = enemiesOf(a).filter(b => Math.hypot(b.x - a.x, b.z - a.z) < 5.5).length; if ((near >= 2 || (near >= 1 && t.hp < 50)) && Math.random() < .5 + S * .4) doSuper(a); }
+        if (a.energy >= 100) { const near = enemiesOf(a).filter(b => Math.hypot(b.x - a.x, b.z - a.z) < 5.5).length; if ((near >= 2 || (near >= 1 && hpPct(t) < 50)) && Math.random() < .5 + S * .4) doSuper(a); }
       }
     } else if (this.goal) { gx = this.goal[0] - a.x; gz = this.goal[1] - a.z; const d = Math.hypot(gx, gz); if (d < 1.5) { this.goal = null; gx = gz = 0; } else { gx /= d; gz /= d; } if (this.mode === 'roam') run = .9; }
     // esquivar de lasers vindo na direção do bot
@@ -1199,13 +1262,13 @@ class Brain {
     const vis = enemiesOf(a).filter(b => { const d = Math.hypot(b.x - a.x, b.z - a.z); return d < 34 && (d < 7 || !envOf(a).rayBlocked(a.x, a.y + 1.8, a.z, b.x, b.y + 1.6, b.z)); });
     // não amontoar: no máximo 2 bots no mesmo humano
     const focus = new Map(); for (const b of actors.values()) if (b.brain && b !== a && b.brain.target) focus.set(b.brain.target.id, (focus.get(b.brain.target.id) || 0) + 1);
-    let best = null, bs = 1e9; for (const b of vis) { const d = Math.hypot(b.x - a.x, b.z - a.z); let s = d + (b.hp / 100) * 8 * S; if (b === this.hurtBy) s -= 8; if (b.kind !== 'bot' && (focus.get(b.id) || 0) >= 2 && b !== this.target) s += 25; if (b.kind !== 'bot' && b.hp < 30 && G.adapt < 0) s += 10; if (s < bs) { bs = s; best = b; } }
+    let best = null, bs = 1e9; for (const b of vis) { const d = Math.hypot(b.x - a.x, b.z - a.z); let s = d + (hpPct(b) / 100) * 8 * S; if (b === this.hurtBy) s -= 8; if (b.kind !== 'bot' && (focus.get(b.id) || 0) >= 2 && b !== this.target) s += 25; if (b.kind !== 'bot' && hpPct(b) < 30 && G.adapt < 0) s += 10; if (s < bs) { bs = s; best = b; } }
     const outZone = zone && Math.hypot(a.x - zone.x, a.z - zone.z) > zone.r - 4;
-    const lowHp = a.hp < 38 + (1 - S) * 15;
+    const lowHp = hpPct(a) < 38 + (1 - S) * 15;
     if (lowHp) { const kit = nearestItem(G.kits, a, 45); if (kit && (!best || Math.hypot(best.x - a.x, best.z - a.z) > 6)) { this.mode = 'heal'; this.goal = [kit.x, kit.z]; this.target = best; return; } }
     if (outZone && (!best || Math.hypot(best.x - a.x, best.z - a.z) > 9)) { this.mode = 'zone'; this.goal = [zone.x + (Math.random() - .5) * zone.r * .5, zone.z + (Math.random() - .5) * zone.r * .5]; return; }
     if (best) { this.mode = 'fight'; if (this.target !== best) this.react = .55 - S * .4; this.target = best; const d = Math.hypot(best.x - a.x, best.z - a.z);
-      this.melee = (d < 5 && (S > .5 || a.charges < 1)) || (best.hp < 30 && d < 8) || a.charges < 1 && d < 10; this.pref = 8 + (1 - S) * 6 + (a.hp < 50 ? 4 : 0); return; }
+      this.melee = (d < 5 && (S > .5 || a.charges < 1)) || (hpPct(best) < 30 && d < 8) || a.charges < 1 && d < 10; this.pref = 8 + (1 - S) * 6 + (hpPct(a) < 50 ? 4 : 0); return; }
     this.target = null;
     if (a.energy < 100 && Math.random() < .5) { const o = nearestItem(G.orbs, a, 30); if (o) { this.mode = 'loot'; this.goal = [o.x, o.z]; return; } }
     if (!this.goal || Math.random() < .05) { this.mode = 'roam'; const zc = zone || { x: 0, z: 0, r: 230 }; for (let k = 0; k < 10; k++) { const ang = Math.random() * TAU, dd = Math.random() * zc.r * .7, x = zc.x + Math.cos(ang) * dd, z = zc.z + Math.sin(ang) * dd; if (world.isFree(x, z, 1)) { this.goal = [clamp(x, -WD.HX + 4, WD.HX - 4), clamp(z, -WD.HZ + 4, WD.HZ - 4)]; break; } } }
@@ -1213,8 +1276,8 @@ class Brain {
 }
 function nearestItem(list, a, r) { let best = null, bd = r; for (const k of list) { if (k.t > 0) continue; const d = Math.hypot(k.x - a.x, k.z - a.z); if (d < bd) { bd = d; best = k; } } return best; }
 function makeBot(i, slot, sk, passive) {
-  const r = mulberry32(G.seed + i * 977), name = BOT_NAMES[(r() * BOT_NAMES.length) | 0] + (r() < .6 ? Math.floor(r() * 99) : ''), skin = BOT_SKINS[(r() * BOT_SKINS.length) | 0], ch = r() < .45 ? 'cyber' : 'nexus';
-  const a = addActor('b' + i, name, skin, 'bot', ch); a.simulated = true; a.brain = new Brain(a, clamp(sk + (r() - .5) * .25, .25, .95), passive); if (slot) placeAt(a, slot);
+  const r = mulberry32(G.seed + i * 977), name = BOT_NAMES[(r() * BOT_NAMES.length) | 0] + (r() < .6 ? Math.floor(r() * 99) : ''), skin = BOT_SKINS[(r() * BOT_SKINS.length) | 0], ch = (v => v < .34 ? 'cyber' : v < .67 ? 'nexus' : 'atlas')(r());
+  const a = addActor('b' + i, name, skin, 'bot', ch); a.simulated = true; a.brain = new Brain(a, clamp(sk + (r() - .5) * .25, .25, .95), passive); a.lvl = clamp(Math.round(1 + sk * 9 + (r() - .5) * 2), 1, 12); a.maxHp = CS.hpAt(a.char, a.lvl); a.hp = a.maxHp; if (slot) placeAt(a, slot);
   return a;
 }
 function respawnDummy(a) { a.alive = true; a.hp = a.maxHp; if (a.brain && a.brain.home && MODE === 'space') { a.x = a.brain.home[0]; a.z = a.brain.home[1]; a.y = envOf(a).groundAt(a.x, a.z) + .1; a.vx = a.vz = a.vy = 0; } a.play('revive'); G.deadSet.delete(a.id); }
@@ -1232,7 +1295,7 @@ function plazaSpot(i) { const p = CW.PLAZA, a = (i * 2.399) % TAU, d = 2 + (i % 
 let bannerT = 0; function banner(text, ms = 2000) { const b = $('banner'); b.textContent = text; b.classList.add('on'); clearTimeout(bannerT); bannerT = setTimeout(() => b.classList.remove('on'), ms); }
 function feed(k, v, mine) { const f = $('feed'), d = document.createElement('div'); d.className = mine ? 'me' : ''; d.innerHTML = `<b>${esc(k)}</b> ⚡ ${esc(v)}`; f.prepend(d); while (f.children.length > 5) f.lastChild.remove(); setTimeout(() => d.remove(), 6000); }
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-let vigT = 0; function flashVig() { $('vig').style.opacity = .9; clearTimeout(vigT); vigT = setTimeout(() => $('vig').style.opacity = me && me.hp < 30 ? .55 : 0, 180); }
+let vigT = 0; function flashVig() { $('vig').style.opacity = .9; clearTimeout(vigT); vigT = setTimeout(() => $('vig').style.opacity = me && hpPct(me) < 30 ? .55 : 0, 180); }
 let hmT = 0; function hitMarker() { $('cross').classList.add('on'); clearTimeout(hmT); hmT = setTimeout(() => $('cross').classList.remove('on'), 120); }
 function dmgDir(src) { const ang = Math.atan2(src.x - me.x, src.z - me.z) - camS.yaw; const i = $('dmgDir').firstChild; i.style.transform = `rotate(${-ang * 180 / PI}deg)`; i.style.opacity = 1; i.style.transition = 'none'; requestAnimationFrame(() => { i.style.transition = 'opacity .8s'; i.style.opacity = 0; }); }
 function setCameraMode(mode, announce = true) {
@@ -1330,7 +1393,7 @@ function updateTags() {
     if (!a.tag) { a.tag = document.createElement('div'); a.tag.className = 'tag' + (MODE !== 'battle' || a.kind === 'remote' && MODE !== 'battle' || mates(me, a) ? ' friend' : ''); a.tag.innerHTML = `<span></span><div class="tb"><i></i></div>`; tagLayer.appendChild(a.tag); a.tag.firstChild.textContent = a.name; }
     v.set(a.x, a.y + 3.45, a.z).project(camera); if (v.z > 1 || Math.abs(v.x) > 1.1 || Math.abs(v.y) > 1.1) { a.tag.style.display = 'none'; continue; }
     a.tag.style.display = ''; a.tag.classList.toggle('speak', !!a.speaking); a.tag.style.left = (v.x * W2 + W2) + 'px'; a.tag.style.top = (-v.y * H2 + H2) + 'px'; a.tag.style.opacity = clamp(1.4 - d / 30, .3, 1);
-    a.tag.lastChild.style.display = MODE === 'open' ? 'none' : ''; a.tag.lastChild.firstChild.style.width = clamp(a.hp, 0, 100) + '%';
+    a.tag.lastChild.style.display = MODE === 'open' ? 'none' : ''; a.tag.lastChild.firstChild.style.width = clamp(hpPct(a), 0, 100) + '%';
   }
 }
 /* ---------- minimapa e mapa grande ---------- */
@@ -1392,11 +1455,11 @@ function updateHud(dt) {
   { const ab = me.abyss || (me.abyssBy && me.abyssBy.abyss); $('bSwap').classList.toggle('hidden', !me.abyss); const el = $('abyssT');
     if (ab) { el.classList.remove('hidden'); const left = Math.max(0, ABYSS_DUR - ab.t), rain = Math.max(0, 1.4 + ABYSS_RAIN - ab.t); el.innerHTML = `<b>ABISMO ESTELAR</b> ${Math.ceil(left)}s` + (rain > 0 ? `<small>chuva cósmica · ${Math.ceil(rain)}s</small>` : '<small>a chuva acabou</small>') + (me.abyss ? `<small>${me.dim ? 'TROCAR (F): ir ao mundo real' : 'TROCAR (F): voltar ao abismo'}</small>` : '<small>não há saída</small>'); }
     else el.classList.add('hidden'); }
-  $('hpNum').textContent = Math.max(0, Math.round(me.hp)); $('enNum').textContent = me.energy >= 100 ? 'PRONTO' : Math.round(me.energy) + '%'; $('hpFill').style.width = clamp(me.hp / (me.maxHp || 100) * 100, 0, 100) + '%'; $('hpLag').style.width = clamp(me.hp, 0, 100) + '%'; $('hpFill').style.background = me.hp < 30 ? 'linear-gradient(90deg,#ff3b3b,#ff8a5a)' : '';
+  $('hpNum').textContent = Math.max(0, Math.round(me.hp)); $('enNum').textContent = me.energy >= 100 ? 'PRONTO' : Math.round(me.energy) + '%'; $('hpFill').style.width = clamp(me.hp / (me.maxHp || 100) * 100, 0, 100) + '%'; $('hpLag').style.width = clamp(me.hp / (me.maxHp || 100) * 100, 0, 100) + '%'; $('hpFill').style.background = me.hp < 30 ? 'linear-gradient(90deg,#ff3b3b,#ff8a5a)' : '';
   $('enFill').style.width = me.energy + '%'; $('enBar').classList.toggle('full', me.energy >= 100); $('bSup').classList.toggle('ready', me.energy >= 100);
   $('bSup').firstChild.style.setProperty('--p', (100 - me.energy) + '%'); $('bAtk').firstChild.style.setProperty('--p', clamp(me.cd.punch / .5, 0, 1) * 100 + '%'); $('bLas').firstChild.style.setProperty('--p', clamp(me.cd.laser / (SKILL_CD[me.char] || 4), 0, 1) * 100 + '%'); $('bLas').classList.toggle('ready', me.cd.laser <= 0);
   [...$('lasCh').children].forEach((c, i) => c.classList.toggle('off', i >= me.charges));
-  if (me.hp < 30 && me.alive) $('vig').style.opacity = .45 + Math.sin(world.time * 6) * .1;
+  if (hpPct(me) < 30 && me.alive) $('vig').style.opacity = .45 + Math.sin(world.time * 6) * .1;
   if (hudT > 0) return; hudT = .1;
   $('tKills').textContent = me.kills;
   if (MODE === 'battle') {
@@ -1433,16 +1496,18 @@ function footsteps(a, dt) {
 }
 
 /* ===================================================== rede ===================================================== */
-function packState(a) { return { x: r2(a.x), y: r2(a.y), z: r2(a.z), r: r2(a.yaw), sp: r2(a.spd), g: a.grounded ? 1 : 0, vy: r2(a.vy), w: r2(a.inWater), hp: Math.round(a.hp), e: Math.round(a.energy), d: a.alive ? 0 : 1, an: a.anim, k: a.kills, dr: a.drop ? 1 : 0, sk: a.skin, ch: a.char, n: a.name.slice(0, 16), ts: Math.round(now()) }; }
+function packState(a) { return { x: r2(a.x), y: r2(a.y), z: r2(a.z), r: r2(a.yaw), sp: r2(a.spd), g: a.grounded ? 1 : 0, vy: r2(a.vy), w: r2(a.inWater), hp: Math.round(a.hp), mh: Math.round(a.maxHp), e: Math.round(a.energy), d: a.alive ? 0 : 1, an: a.anim, cr: a.crouch ? 1 : 0, k: a.kills, dr: a.drop ? 1 : 0, sk: a.skin, ch: a.char, n: a.name.slice(0, 16), ts: Math.round(now()) }; }
 function applyRemote(a, s, t) {
   if (!s || typeof s.x !== 'number') return;
   if (s.ch && s.ch !== a.char && CHARS[s.ch] && !(a.kind === 'bot' && BOTS_ATLAS)) swapChar(a, s.ch);
   // carimbo de tempo do remetente (relógio do servidor): ignora repetidos e mede o intervalo real entre pacotes
   const ts = typeof s.ts === 'number' ? s.ts : null, lastB = a.buf[a.buf.length - 1];
+  if (s.mh > 0) a.maxHp = s.mh;
   if (ts != null && lastB && lastB.ts != null && ts <= lastB.ts) { a.hp = s.hp; return; }
   if (ts != null && lastB && lastB.ts != null) { const gap = ts - lastB.ts; a.gap = a.gap ? a.gap * .85 + gap * .15 : gap; }
   a.buf.push({ t: ts != null ? ts : now(), ts, s }); if (a.buf.length > 30) a.buf.shift();
-  if (s.an && s.an[1] !== a.lastSeq) { const first = a.lastSeq === 0 && a.buf.length < 2; a.lastSeq = s.an[1]; if (!first && s.an[0] !== 'death' && s.an[0] !== 'idle') a.hero.play(s.an[0]); }
+  if (s.an && s.an[1] !== a.lastSeq) { const first = a.lastSeq === 0 && a.buf.length < 2; a.lastSeq = s.an[1]; if (!first && s.an[0] !== 'death' && s.an[0] !== 'idle') { const ft = findTarget(a, 7, 2, null); a.hero.fightTarget = ft ? ft.hero : null; a.hero.play(s.an[0]); } }
+  a.crouch = !!s.cr; a.hero.crouch = a.crouch;
   a.hp = s.hp; a.energy = s.e || 0; a.kills = s.k || 0; a.drop = s.dr || 0;
   if (s.d && a.alive) { a.alive = false; a.hero.play('death'); G.deadSet.add(a.id); }
   if (!s.d && !a.alive && MODE !== 'battle') { a.alive = true; a.hero.play('revive'); }
@@ -1478,7 +1543,7 @@ function onSync(r) {
   for (const e of r.events || []) {
     if (e.from === myId && e.type !== 'chat') continue; const d = e.data || {};
     if (e.type === 'chat') { chatLine(d.name, d.text); sfx('chat'); }
-    else if (e.type === 'hit') { const tg = actors.get(d.target); const src = actors.get(d.by); if (!tg || mates(src, tg)) continue; if (tg === me || (tg.kind === 'bot' && tg.simulated)) applyDamage(tg, Math.min(60, d.dmg), d.by, d.kind, { kx: d.x, kz: d.z }); else tg.hero.hitFlash(); if (src && tg === me) { /* direção do dano já aplicada */ } }
+    else if (e.type === 'hit') { const tg = actors.get(d.target); const src = actors.get(d.by); if (!tg || mates(src, tg)) continue; if (tg === me || (tg.kind === 'bot' && tg.simulated)) applyDamage(tg, Math.min(20000, d.dmg), d.by, d.kind, { kx: d.x, kz: d.z, zone: d.zn || null, knock: d.kn || null, resist: !!d.rs, stun: d.st || 0 }); else tg.hero.hitFlash(); if (src && tg === me) { /* direção do dano já aplicada */ } }
     else if (e.type === 'death') { const v = actors.get(d.victim), k = actors.get(d.killer); if (d.killer === myId && !(v && v.kind === 'bot' && v.simulated)) { me.kills++; sfx('kill'); banner('ELIMINOU ' + String(d.name || 'inimigo').toUpperCase(), 1500); } if (v && v.alive) { v.alive = false; v.hp = 0; v.hero.play('death'); } if (!G.deadSet.has(d.victim)) { G.deadSet.add(d.victim); feed(d.kname || (k ? k.name : 'Zona'), d.name || (v ? v.name : '?'), d.killer === myId); } checkEnd(); }
     else if (e.type === 'fx') { const a = actors.get(d.a); if (!a || a === me || (a.kind === 'bot' && a.simulated)) continue;
       if (d.kind === 'laser' && d.o && d.d) fireLaser(a, new THREE.Vector3(...d.o), new THREE.Vector3(...d.d), false);
@@ -1507,7 +1572,7 @@ function beginBattle(players) {
   if (G.started) return; G.started = true; G.phase = 'live'; G.zone = null; buildItems(G.seed); /* zona segura removida da batalha de 16 */
   const humans = (players && players.length ? players.map(p => p.id) : [myId]); if (!humans.includes(myId)) humans.push(myId); humans.sort(); G.humansAtStart = humans;
   for (const a of [...actors.values()]) if (a.kind === 'remote' && !humans.includes(a.id)) removeActor(a.id);
-  const S = slots(G.seed); placeAt(me, S[humans.indexOf(myId) % 16], true); me.maxHp = Math.round(100 * ME_BUFF.hp); me.hp = me.maxHp; me.energy = 0; me.charges = 3;
+  const S = slots(G.seed); placeAt(me, S[humans.indexOf(myId) % 16], true); me.lvl = ME_BUFF.lvl; me.maxHp = CS.hpAt(me.char, me.lvl); me.hp = me.maxHp; me.energy = 0; me.charges = 3;
   for (const a of actors.values()) if (a.kind === 'remote') { const i = humans.indexOf(a.id); if (i >= 0) a.drop = 1; }
   if (net.isHost()) { const nb = 16 - humans.length, sk = botSkill(); for (let i = 0; i < nb; i++) makeBot(i, null, sk); [...actors.values()].filter(a => a.kind === 'bot').forEach((a, i) => placeAt(a, S[(humans.length + i) % 16], true)); }
   $('mmk').classList.add('hidden'); $('count').classList.add('hidden'); $('emotes').classList.add('hidden'); sfx('go'); banner('A BATALHA COMEÇOU! · seja o último de pé', 2600);
@@ -1539,7 +1604,7 @@ function updateItems(dt) {
     for (const a of actors.values()) { if (!a.alive || !a.simulated || a.drop) continue; if (Math.hypot(a.x - k.x, a.z - k.z) > 1.5 || Math.abs(a.y + 1 - k.m.position.y) > 2) continue;
       const orb = list === G.orbs; if (orb ? a.energy >= 100 : a.hp >= a.maxHp) continue;
       if (orb) a.energy = Math.min(100, a.energy + 40); else a.healT = 1.6;
-      k.t = 40; k.m.visible = false; fx.emit(k.x, k.m.position.y, k.z, 24, { color: orb ? [.8, .5, 1] : [.4, 1, .6], speed: 4, up: 2, life: .6 }); if (a === me) { sfx('pickup'); banner(orb ? '+40 ENERGIA' : 'CURANDO +45', 1000); }
+      k.t = 40; k.m.visible = false; fx.emit(k.x, k.m.position.y, k.z, 24, { color: orb ? [.8, .5, 1] : [.4, 1, .6], speed: 4, up: 2, life: .6 }); if (a === me) { sfx('pickup'); banner(orb ? '+40 ENERGIA' : 'CURANDO +' + Math.round(a.maxHp * CS.RULES.kitPct), 1000); }
       if (!net.offline) net.send('fx', { kind: 'pick', i: k.i, orb: orb ? 1 : 0, a: a.id }); break; }
   }
 }
@@ -1696,9 +1761,9 @@ function tick(dt) {
       else interp(a, dt);
     }
     if (a.simulated && a.alive) { // regeneração e cura
-      if (a.healT > 0) { a.healT -= dt; a.hp = Math.min(a.maxHp, a.hp + 45 / 1.6 * dt); if (Math.random() < .3) fx.emit(a.x, a.y + 1 + Math.random() * 1.5, a.z, 1, { color: [.4, 1, .6], speed: .5, up: 1.5, life: .6, grav: 0 }); }
-      else if (world.time - a.lastHitT > 6) a.hp = Math.min(a.maxHp, a.hp + 4 * dt);
-      if (MODE === 'battle' && G.phase === 'live' && G.zone) { const z = G.zone.at(battleSec()); if (Math.hypot(a.x - z.x, a.z - z.z) > z.r) { a.zoneAcc = (a.zoneAcc || 0) + z.dps * dt; if (a.zoneAcc >= 1) { const dmg = Math.floor(a.zoneAcc); a.zoneAcc -= dmg; a.hp -= dmg; a.lastHitT = world.time; if (a === me) $('zoneVig').style.opacity = 1; if (a.hp <= 0) kill(a, null); } } }
+      if (a.healT > 0) { a.healT -= dt; a.hp = Math.min(a.maxHp, a.hp + a.maxHp * CS.RULES.kitPct / CS.RULES.kitSecs * dt); if (Math.random() < .3) fx.emit(a.x, a.y + 1 + Math.random() * 1.5, a.z, 1, { color: [.4, 1, .6], speed: .5, up: 1.5, life: .6, grav: 0 }); }
+      else if (world.time - a.lastHitT > 6) a.hp = Math.min(a.maxHp, a.hp + a.maxHp * CS.RULES.regenPct * dt);
+      if (MODE === 'battle' && G.phase === 'live' && G.zone) { const z = G.zone.at(battleSec()); if (Math.hypot(a.x - z.x, a.z - z.z) > z.r) { a.zoneAcc = (a.zoneAcc || 0) + z.dps * (a.maxHp / 100) * dt; if (a.zoneAcc >= 1) { const dmg = Math.floor(a.zoneAcc); a.zoneAcc -= dmg; a.hp -= dmg; a.lastHitT = world.time; if (a === me) $('zoneVig').style.opacity = 1; if (a.hp <= 0) kill(a, null); } } }
       a.energy = Math.min(100, a.energy + dt * (MODE === 'space' ? 30 : MODE === 'train' ? 6 : 1.2));
     }
     // visual
@@ -1730,7 +1795,7 @@ function tick(dt) {
   const fr = focus && inRealm(focus); world.update(dt, camera.position, fr ? null : focus); if (realm) realm.update(world.time, camera.position); updateEnv(dt, focus);
   updateCamera(dt); updateTags(); updateHud(dt);
   // respiração do jogador (alta, por personagem)
-  try { if (audio.ctx && me) { const ex = Math.max(0, Math.min(1, me.spd / 9 + (me.busyMove > 0 ? .45 : 0) + (me.hp < 40 ? .25 : 0))); audio.breathe(dt, me.char, ex, me.alive && G.phase !== 'waiting' && !G.paused); } } catch (_) { }
+  try { if (audio.ctx && me) { const ex = Math.max(0, Math.min(1, me.spd / 9 + (me.busyMove > 0 ? .45 : 0) + (hpPct(me) < 40 ? .25 : 0))); audio.breathe(dt, me.char, ex, me.alive && G.phase !== 'waiting' && !G.paused); } } catch (_) { }
   // ambiente sonoro
   if (focus && audio.ctx) { const spatial = inRealm(focus); const ri = spatial ? null : CW.riverInfo(focus.x, focus.z), wd = ri ? Math.max(0, ri.d - ri.hw) : 30; let fd = 99; if (!spatial) for (const f of world.fires || []) fd = Math.min(fd, Math.hypot(f[0] - focus.x, f[2] - focus.z)); audio.ambient(dt, U.uWind.value.z, wd, fd, spatial, spatial ? 0 : CW.forestDensity(focus.x, focus.z)); }
 }
@@ -1787,7 +1852,7 @@ async function start() {
   const preWorld = new Set(scene.children);
   try { await world.build(setP); Object.assign(ENV, { hemiI: hemi.intensity, sunI: sun.intensity, fogC: scene.fog.color.clone(), fogN: scene.fog.near, fogF: scene.fog.far, hemiC: hemi.color.clone(), hemiG: hemi.groundColor.clone(), sunC: sun.color.clone() }); applyCinematicToonScene(scene); } catch (e) { console.error(e); $('loadTip').textContent = 'Erro ao montar o mundo: ' + e.message; return; }
   try { if (!(await ensurePacks([...new Set(['cyber', ident.char].filter(Boolean))]))) { exitToLobby(); return; } } catch (e) { console.warn('pacotes', e); }
-  setP(.95, 'Carregando os personagens…'); try { await loadClassic(); } catch (e) { console.warn('Cyber clássico indisponível', e); } try { await loadAtlasGLB(); } catch (e) { console.warn('Atlas GLB indisponível (usa o modelo antigo)', e); }
+  setP(.95, 'Carregando os personagens…'); try { await loadClassic(); } catch (e) { console.warn('Cyber indisponível', e); } try { await loadAtlasGLB(); } catch (e) { console.warn('Personagens indisponíveis', e); }
   try { // pré-compila os shaders (evita travadinha na primeira vez que um poder/efeito aparece)
     const warm = [new THREE.MeshBasicMaterial({ transparent: true, opacity: .5, blending: THREE.AdditiveBlending, depthWrite: false }), new THREE.MeshBasicMaterial({ transparent: true, opacity: .5, side: THREE.DoubleSide })].map(m => { const o = new THREE.Mesh(new THREE.SphereGeometry(.01, 4, 3), m); o.position.copy(camera.position); scene.add(o); return o; });
     // pré-compila também os dois materiais do Cyber (completo e leve), para a troca por distância não engasgar (sem dispose: senão os programas seriam liberados)
@@ -1804,14 +1869,14 @@ async function start() {
   // servidor antigo que não conhece o treino online devolve uma sala de partida: sai dela e treina offline
   if (MODE === 'train' && !net.offline && room.mode !== 'train') { try { await net.leave(); } catch (_) { } net.online = false; room = await net.queue({ mode: 'train' }); }
   G.room = room; G.seed = room.seed || 1; G.startAt = room.startAt;
-  me = addActor(myId, ident.name, ident.skin, 'me', ident.char); me.simulated = true; me.maxHp = Math.round(100 * ME_BUFF.hp); me.hp = me.maxHp; $('meName').textContent = ident.name.toUpperCase(); $('meAv').textContent = ident.name.slice(0, 2).toUpperCase(); $('meCh').textContent = ident.char === 'nexus' ? 'NEXUS' : ident.char === 'atlas' ? 'ATLAS' : 'CYBER';
+  me = addActor(myId, ident.name, ident.skin, 'me', ident.char); me.simulated = true; me.lvl = ME_BUFF.lvl; me.maxHp = CS.hpAt(me.char, me.lvl); me.hp = me.maxHp; $('meName').textContent = ident.name.toUpperCase(); $('meAv').textContent = ident.name.slice(0, 2).toUpperCase(); $('meCh').textContent = ident.char === 'nexus' ? 'NEXUS' : ident.char === 'atlas' ? 'ATLAS' : 'CYBER';
   const sp = plazaSpot((Math.random() * 12) | 0); placeAt(me, sp); me.yaw = PI; camS.yaw = PI; camS.mode = SET.cam; camS.dist = camS.mode === 'tps' ? 5.6 : 22; camS.pitch = camS.mode === 'tps' ? .2 : .95;
   if (MODE === 'open') { G.phase = 'open'; $('btns').querySelectorAll('#bAtk,#bLas,#bSup,#bVel').forEach(b => b.classList.add('hidden')); $('emotes').classList.remove('hidden'); $('players').classList.remove('hidden'); $('enBar').classList.add('hidden'); $('pKills').classList.add('hidden'); $('pAlive').querySelector('small').textContent = 'ONLINE'; chatLine('', net.offline ? 'Sem conexão: mundo aberto local.' : 'Bem-vindo ao mundo aberto! Converse, explore e divirta-se.', true); }
   else if (MODE === 'space') { G.phase = 'train'; G.started = true; $('pAlive').classList.add('hidden'); $('mmWrap').classList.add('hidden');
     realm.build(); applyCinematicToonScene(realm.group); me.x = realm.spawn[0]; me.z = realm.spawn[1]; me.y = realm.groundAt(me.x, me.z) + .1; me.yaw = PI; camS.yaw = PI; me.energy = 100;
-    const C = realm.islands[0]; for (let i = 0; i < 4; i++) { const b = makeBot(i, null, .3, true), ang = PI * .5 + (i - 1.5) * .45, d = 12 + (i % 2) * 4; b.x = C.x + Math.cos(ang) * d * -1; b.z = C.z - Math.sin(ang) * d; b.y = realm.groundAt(b.x, b.z) + .1; b.drop = 0; b.grounded = true; b.yaw = Math.atan2(me.x - b.x, me.z - b.z); b.brain.home = [b.x, b.z]; b.maxHp = 400; b.hp = 400; }
+    const C = realm.islands[0]; for (let i = 0; i < 4; i++) { const b = makeBot(i, null, .3, true), ang = PI * .5 + (i - 1.5) * .45, d = 12 + (i % 2) * 4; b.x = C.x + Math.cos(ang) * d * -1; b.z = C.z - Math.sin(ang) * d; b.y = realm.groundAt(b.x, b.z) + .1; b.drop = 0; b.grounded = true; b.yaw = Math.atan2(me.x - b.x, me.z - b.z); b.brain.home = [b.x, b.z]; b.maxHp = 400 * CS.NORM; b.hp = b.maxHp; }
     $('tTimeL').textContent = 'MODO'; $('tTime').textContent = 'TESTE'; chatLine('', net.offline ? 'Teste de Poderes: 4 bots que não atacam. Energia do super recarrega rápido.' : 'Teste de Poderes ONLINE: treine com amigos! Você tem 4 bots só seus e pode atacar os outros jogadores.', true); banner('TESTE DE PODERES · MUNDO ESPACIAL', 3000); }
-  else if (MODE === 'train') { G.phase = 'train'; G.started = true; $('pAlive').classList.add('hidden'); for (let i = 0; i < 4; i++) { const b = makeBot(i, null, .3, true); placeAt(b, world.randomSpot(mulberry32(i * 7 + 3), { cx: sp[0] + (i - 1.5) * 6, cz: sp[1] + 10, r: 5 })); b.brain.home = [b.x, b.z]; b.maxHp = 150; b.hp = 150; } chatLine('', 'Treino: bonecos de treino nascem de novo após 3 s.', true); }
+  else if (MODE === 'train') { G.phase = 'train'; G.started = true; $('pAlive').classList.add('hidden'); for (let i = 0; i < 4; i++) { const b = makeBot(i, null, .3, true); placeAt(b, world.randomSpot(mulberry32(i * 7 + 3), { cx: sp[0] + (i - 1.5) * 6, cz: sp[1] + 10, r: 5 })); b.brain.home = [b.x, b.z]; b.maxHp = 150 * CS.NORM; b.hp = b.maxHp; } chatLine('', 'Treino: bonecos de treino nascem de novo após 3 s.', true); }
   else { G.phase = 'waiting'; $('mmk').classList.remove('hidden'); $('emotes').classList.remove('hidden'); if (net.offline) { G.startAt = now() + 4000; chatLine('', 'Sem conexão: partida offline contra 15 bots.', true); } }
   if (!net.offline) net.start({ getState: () => packState(me), getBots: () => MODE === 'battle' && G.started ? [...actors.values()].filter(a => a.kind === 'bot' && a.simulated).map(a => ({ id: a.id, name: a.name, skin: a.skin, s: packState(a) })) : null, onSync, onOffline: () => { chatLine('', 'Conexão instável… tentando reconectar.', true); } });
   else net.h = { onSync };

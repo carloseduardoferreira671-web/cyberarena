@@ -15,11 +15,11 @@
    "files": [
     {
      "path": "models/cyber_rig.glb",
-     "bytes": 8888028,
-     "sha256": "b9e021360b52ea13c276f4295e9bffc356bdfec3dc3614bd9589403bd130d66a"
+     "bytes": 5419928,
+     "sha256": "b81485bd2fe4032b34437b18ce8398761e6d01412b02ebdfda3fb171e90493f5"
     }
    ],
-   "bytes": 8888028
+   "bytes": 5419928
   },
   {
    "id": "atlas",
@@ -30,11 +30,11 @@
    "files": [
     {
      "path": "models/atlas_rig.glb",
-     "bytes": 8629108,
-     "sha256": "8ade340696738cb14c5ade9f6b02d294d5e43c84108bb762527f8315d8d6817e"
+     "bytes": 5131940,
+     "sha256": "59b9a3f22917dcb8864ac199d012eb04fe380414ed0642e9391dd0ef9a543c37"
     }
    ],
-   "bytes": 8629108
+   "bytes": 5131940
   },
   {
    "id": "nexus",
@@ -45,11 +45,11 @@
    "files": [
     {
      "path": "models/nexus_rig.glb",
-     "bytes": 8626820,
-     "sha256": "b482e1643aa62a3c5bd2349d9f1846252fcb32405393ad6734d51d1b13fa1b02"
+     "bytes": 5150488,
+     "sha256": "50391f07c513f21e4fe24e59e5313cd1d29f54e2a3726c3ae4ff83522923fcd7"
     }
    ],
-   "bytes": 8626820
+   "bytes": 5150488
   },
   {
    "id": "mapa_1k",

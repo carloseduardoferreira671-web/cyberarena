@@ -566,3 +566,29 @@ html body .pf-por{overflow:visible!important;background:radial-gradient(80% 60% 
 html body .pf-hero{position:absolute;inset:0;overflow:visible}
 html body .pf-hero canvas{width:100%;height:100%;display:block;touch-action:none}
 html body .pf-por .pf-lv{z-index:3}
+
+/* ---- v148 · tela de personagens: status e ataques (estilo Brawl Stars) ---- */
+html body .lc-desc{font-size:calc(var(--u)*9)!important;line-height:1.35;opacity:.8;margin:calc(var(--u)*4) 0 calc(var(--u)*6)!important}
+html body .lc-name{display:flex;gap:calc(var(--u)*6);margin-top:calc(var(--u)*8)}
+html body .lc-name input{flex:1;min-width:0}
+html body .cs-stats{grid-template-columns:repeat(3,1fr)}
+html body .cs-stats div{display:flex;flex-direction:column;align-items:center;gap:calc(var(--u)*2)}
+html body .cs-stats s{display:block;text-decoration:none;font:800 calc(var(--u)*9)/1 var(--fh);color:#5bffd0}
+html body .cs-stats small{display:block;font:600 calc(var(--u)*6.5)/1.2 var(--fb);color:var(--mut)}
+html body .cs-atks{display:grid;gap:calc(var(--u)*6)}
+html body .cs-atk{background:rgba(0,0,0,.32);border:1px solid rgba(255,255,255,.08);border-radius:calc(var(--u)*7);padding:calc(var(--u)*7) calc(var(--u)*9)}
+html body .cs-ah{display:flex;align-items:center;gap:calc(var(--u)*6)}
+html body .cs-ah i{font:900 calc(var(--u)*6.5)/1 var(--fh);font-style:normal;letter-spacing:.14em;color:#06222b;background:var(--cy);border-radius:calc(var(--u)*4);padding:calc(var(--u)*3) calc(var(--u)*5)}
+html body .cs-ah b{font:900 calc(var(--u)*11)/1.1 var(--fh);letter-spacing:.05em;color:#fff}
+html body .cs-ah em{margin-left:auto;font:700 calc(var(--u)*7.5)/1 var(--fh);font-style:normal;color:var(--mut)}
+html body .cs-pv{margin-left:calc(var(--u)*4);width:calc(var(--u)*22);height:calc(var(--u)*22);border:0;border-radius:50%;cursor:pointer;color:#06222b;background:linear-gradient(180deg,#8ff6ff,#16c4ff);font-size:calc(var(--u)*9);line-height:1;padding:0}
+html body .cs-ah em+.cs-pv{margin-left:calc(var(--u)*6)}
+html body .cs-atk p{margin:calc(var(--u)*4) 0 calc(var(--u)*5);font:500 calc(var(--u)*8)/1.35 var(--fb);color:var(--mut)}
+html body .cs-h{display:flex;align-items:baseline;gap:calc(var(--u)*6);padding:calc(var(--u)*3) 0;border-top:1px solid rgba(255,255,255,.06);font:600 calc(var(--u)*9)/1.2 var(--fb)}
+html body .cs-h span{flex:1;color:#cfe3f5}
+html body .cs-h b{font:900 calc(var(--u)*12)/1 var(--fh);color:#fff}
+html body .cs-h s{text-decoration:none;font:800 calc(var(--u)*8.5)/1 var(--fh);color:#5bffd0;min-width:calc(var(--u)*46);text-align:right}
+html body .cs-note{margin-top:calc(var(--u)*5);font:600 calc(var(--u)*7.5)/1.3 var(--fb);color:var(--mut)}
+html body .lc-moves,html body .lc-stats,html body .lc-xp{display:none!important}
+html body #evoUp .eu-st small{display:block;margin-top:calc(var(--u)*3);font:800 calc(var(--u)*10)/1 var(--fh);color:#5bffd0}
+html body #evoUp .eu-st b{font-size:calc(var(--u)*12)}

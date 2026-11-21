@@ -191,7 +191,7 @@ function sync(p, body) {
       pushEvent(r, p.id, 'chat', { text, name: p.name });
     } else if (type === 'hit') {
       if (!running && r.mode !== 'space' && r.mode !== 'train') continue;   // no teste de poderes e no treino online os jogadores podem se acertar
-      pushEvent(r, p.id, 'hit', { target: String(d.target ?? '').slice(0, 64), dmg: num(d.dmg, 0, 60), kind: String(d.kind ?? '').slice(0, 12), x: num(d.x, -500, 500), y: num(d.y, -50, 100), z: num(d.z, -500, 500), by: String(d.by ?? p.id).slice(0, 64) });
+      pushEvent(r, p.id, 'hit', { target: String(d.target ?? '').slice(0, 64), dmg: num(d.dmg, 0, 20000), kind: String(d.kind ?? '').slice(0, 12), x: num(d.x, -500, 500), y: num(d.y, -50, 100), z: num(d.z, -500, 500), by: String(d.by ?? p.id).slice(0, 64) });
     } else if (type === 'death') {
       if (!isBattle || r.ended_at) continue;
       const victim = String(d.victim ?? '').slice(0, 64), killer = String(d.killer ?? '').slice(0, 64);

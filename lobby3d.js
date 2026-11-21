@@ -5,9 +5,9 @@ import { initParty } from './party.js';
 
 /* Sem skins: existe só o visual padrão (mantido só porque o servidor e o jogo ainda recebem o campo 'skin'). */
 const SKINS = [{ id: 'cyber', name: 'Cyber', lvl: 1, c: '#2a8cff', a: '#38f2ff' }];
-const CHARS = [{ id: 'nexus', name: 'NEXUS', t: 'AGENTE CIBORGUE', d: 'Agente ciborgue com visor brilhante, cachecol e cabos que balançam com o vento e dedos articulados com física: fecham no soco e abrem no aceno.' },
-  { id: 'cyber', name: 'CYBER', t: 'O ORIGINAL · APRIMORADO', d: 'O Cyber original refeito com textura em alta, metal e placas brilhantes realistas, luzes que acendem e faixa e cabos com física de vento.' },
-  { id: 'atlas', name: 'ATLAS', t: 'O TITÃ DO ABISMO', d: 'Combatente de força extrema. Sua suprema ABISMO ETERNO leva a luta ao espaço e termina com o adversário no abismo.' }];
+const CHARS = [{ id: 'nexus', name: 'NEXUS', t: 'CONTROLE', d: 'Agente ciborgue que prende e puxa inimigos com buracos negros. A maior vida dos três, com dano um pouco menor.' },
+  { id: 'cyber', name: 'CYBER', t: 'EQUILIBRADO', d: 'O original. A menor vida e o maior dano dos três, com feixe devastador de longo alcance e um super letal.' },
+  { id: 'atlas', name: 'ATLAS', t: 'TANQUE', d: 'Combatente de força extrema semi-humano: o mais rápido dos três e o segundo em vida. Reflete dano e leva a luta ao abismo.' }];
 const $ = id => document.getElementById(id);
 const curChar = () => ['cyber', 'nexus', 'atlas'].includes(getIdentity().char) ? getIdentity().char : 'nexus';
 const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -54,27 +54,14 @@ window.__remountHero = () => { for (const el of document.querySelectorAll('.hero
 window.__mountHero = mountHero;
 let powersMod = null;
 function portraitOpts(f, char) {
-  const o = { factory: f };
-  if (char !== 'nexus') return o;
-  o.actions = ['orbHold'];
-  let bh = null, born = 0, loading = false;
-  const kill = () => { if (bh) { try { bh.dispose(); } catch (_) { } bh = null; } };
-  o.onAct = (n, dur, hero) => { if (n !== 'orbHold' || bh || loading || typeof hero.getHand !== 'function') return; loading = true;
-    (powersMod || (powersMod = import('./mundo/js/powers.js'))).then(m => { loading = false; if (!bh && hero.object && hero.object.parent) { bh = m.makeBlackHole(1, { particles: 40, speed: 1.4 }); born = 0; hero.object.parent.add(bh.group); } }).catch(() => { loading = false; }); };
-  const P = { x: 0, y: 0, z: 0, ok: false };
-  o.onFrame = (dt, hero, scene, cam) => { if (!bh) return; if (!hero.object.parent) { kill(); return; }
-    born += dt; const p = hero.getHand('r'); p.y += .1;
-    // segue a palma com suavidade (sem tremer nem escapar da mão)
-    if (!P.ok) { P.x = p.x; P.y = p.y; P.z = p.z; P.ok = true; } const k = 1 - Math.exp(-dt * 18); P.x += (p.x - P.x) * k; P.y += (p.y - P.y) * k; P.z += (p.z - P.z) * k;
-    bh.group.position.set(P.x, P.y + Math.sin(born * 1.7) * .006, P.z);
-    const g = Math.min(1, Math.max(0, (born - .45) / .9)), e = g * g * (3 - 2 * g); bh.group.scale.setScalar(.075 * Math.max(.02, e)); bh.update(dt, cam); };
-  o.onDispose = kill;
-  return o;
+  // Todos os personagens do lobby usam a mesma pose neutra. Sem orbHold, gestos ou animação automática.
+  return { factory: f };
 }
 function heroFrame(id, cls) { const el = document.createElement('div'); el.id = id; el.className = cls; el.innerHTML = '<span class="hero3d-ld">CARREGANDO…</span>'; mountHero(el); return el; }
 function sendSkin(id) { for (const el of document.querySelectorAll('.hero3d')) if (!el._mate) try { el._p && el._p.setSkin(id); } catch (_) { } }
 function setChar(c) { saveIdentity({ char: c }); for (const el of document.querySelectorAll('.hero3d')) { if (el._mate) continue; if (el._need) { el._need = false; el.innerHTML = '<span class="hero3d-ld">CARREGANDO…</span>'; mountHero(el); continue; } if (el._p && el._char !== c) { try { el._p.dispose(); } catch (_) { } el._p = null; el.innerHTML = '<span class="hero3d-ld">CARREGANDO…</span>'; mountHero(el); } } renderChars(); }
 function playHero(id, name) { try { $(id)._p.play(name); } catch (_) { } }
+window.cyberPreview = n => playHero('charHero', n);   // botão ▶ dos ataques na tela de personagens
 function pauseHeroes(p) { for (const el of document.querySelectorAll('.hero3d')) { el._paused = p; if (p) { if (el._p) { try { el._p.dispose(); } catch (_) { } el._p = null; el.innerHTML = ''; } } else mountHero(el); } }
 
 const center = document.querySelector('#lobby .lobby-center');
@@ -169,14 +156,10 @@ function buildCharacters() {
   page.className = 'character-page l3d-char';
   page.innerHTML = `<div class="lc-view panel"></div><div class="lc-side panel"><small class="l3d-k" id="lcKind">PERSONAGEM</small><h2 id="lcName">NEXUS</h2>
     <div class="lc-chars">${CHARS.map(c => `<button data-char="${c.id}">${c.name}<small>${c.t}</small></button>`).join('')}</div>
-    <div class="lc-stats"><div><small>TROFÉUS</small><b id="lcT">0</b></div><div><small>RANK</small><b id="lcR">Bronze</b></div><div><small>NÍVEL</small><b id="lcL">1</b></div><div><small>VITÓRIAS</small><b id="lcW">0</b></div><div><small>ABATES</small><b id="lcK">0</b></div><div><small>PARTIDAS</small><b id="lcM">0</b></div></div>
-    <div class="lc-xp"><i id="lcXp"></i></div><small id="lcXpT" style="opacity:.7"></small>
-    <div class="l3d-row"><input id="lcNameIn" maxlength="16" placeholder="Seu nome"><button id="lcNameOk">SALVAR NOME</button></div>
-    <div class="lc-moves"><button data-a="punch">✊ Combo</button><button data-a="laser">⚡ Laser</button><button data-a="super">✦ Super</button><button data-a="wave">👋 Acenar</button><button data-a="dance">🕺 Dançar</button></div>
-    <p class="lc-desc" id="lcDesc"></p></div>`;
+    <p class="lc-desc" id="lcDesc"></p>
+    <div class="lc-name"><input id="lcNameIn" maxlength="16" placeholder="Seu nome"><button id="lcNameOk">SALVAR NOME</button></div></div>`;
   page.querySelector('.lc-view').appendChild(heroFrame('charHero', 'hero3d char-hero'));
   page.querySelectorAll('.lc-chars button').forEach(b => b.onclick = () => setChar(b.dataset.char));
-  page.querySelectorAll('.lc-moves button').forEach(b => b.onclick = () => playHero('charHero', b.dataset.a));
   $('lcNameOk').onclick = async () => { const n = $('lcNameIn').value.replace(/[^\p{L}\p{N} _-]/gu, '').trim().slice(0, 16); if (n.length < 2) { toast('Nome muito curto'); return; } saveIdentity({ name: n }); const p = await net.profile({ name: n }); S.profile = p; renderProfile(); toast('Nome salvo!'); };
 }
 function renderChars() {

@@ -3,9 +3,9 @@
 import hashlib, json, os
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'mundo')
 PACKS = [
-  dict(id='cyber', nome='Cyber', desc='Personagem Cyber (humanoide encapuzado)', essencial=True, tipo='personagem', files=['models/cyber_rig.glb']),
-  dict(id='atlas', nome='Atlas', desc='Personagem Atlas (lutador)', essencial=False, tipo='personagem', files=['models/atlas_rig.glb']),
-  dict(id='nexus', nome='Nexus', desc='Personagem Nexus (robô)', essencial=False, tipo='personagem', files=['models/nexus_rig.glb']),
+  dict(id='cyber', nome='Cyber', desc='Cyber (encapuzado) · esqueleto de 52 ossos, 115 animações', essencial=True, tipo='personagem', files=['models/cyber_rig.glb']),
+  dict(id='atlas', nome='Atlas', desc='Atlas (dreads e correntes) · 115 animações', essencial=False, tipo='personagem', files=['models/atlas_rig.glb']),
+  dict(id='nexus', nome='Nexus', desc='Nexus (armadura azul e cachecol vermelho) · esqueleto de 52 ossos, 115 animações', essencial=False, tipo='personagem', files=['models/nexus_rig.glb']),
   # v142 · texturas PBR reais do mapa (cor, normal, rugosidade e AO). O jogo usa o melhor nível instalado e cai para o procedural se nenhum estiver.
   dict(id='mapa_1k', nome='Mapa · Padrão (1K)', desc='Texturas PBR do mapa em 1K + nuvens do céu, brilho da água e arbustos', essencial=True, tipo='mapa', glob='assets/map/1k'),
   dict(id='mapa_2k', nome='Mapa · HD (2K)', desc='Texturas PBR do mapa em 2K + nuvens, água e arbustos (celulares com 6 GB ou mais de RAM)', essencial=False, tipo='mapa', glob='assets/map/2k'),

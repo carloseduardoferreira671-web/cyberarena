@@ -8,6 +8,7 @@ const API = (() => {
   // dentro de um app (APK/WebView/Capacitor/file://) não existe /api no próprio app: usa o servidor padrão (troque a linha abaixo ou use o campo "Servidor" no jogo)
   const DEFAULT_API = 'https://whimsical-kataifi-2407ec.netlify.app/api/';
   const inApp = location.hostname === 'appassets.androidplatform.net' || !/^https?:$/.test(location.protocol) || (location.hostname === 'localhost' && !location.port);
+  const cfgApi = (window.PRESALE && window.PRESALE.api) || ''; if (/^https?:\/\//.test(cfgApi)) return cfgApi.replace(/\/*$/, '') + '/api/';
   return inApp ? DEFAULT_API : '/api/';
 })();
 const PLATFORM = location.hostname === 'appassets.androidplatform.net' ? 'apk' : 'web';   // APK e site entram nas MESMAS salas (cross-play)

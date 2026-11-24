@@ -1,15 +1,14 @@
-/* CyberArena · riggedglb (v147) — os 3 personagens NOVOS (Nexus, Atlas, Cyber) com esqueleto próprio.
-   Nada vem de clipes gravados: as animações são geradas do corpo de cada personagem (rigcore/fightlib/fightatk/fightrx)
-   e tocadas por camadas (fightctl). A API continua a mesma para o resto do jogo: loadRigged / buildRigged / stepRigged. */
+/* CyberArena · riggedglb (v154) — os 3 personagens (Nexus, Atlas, Cyber) com esqueleto e ANIMAÇÕES GRAVADAS dentro do próprio arquivo.
+   O corpo é tocado por clipctl.js (mistura de clipes). A API continua a mesma para o resto do jogo: loadRigged / buildRigged / stepRigged. */
 import * as THREE from '../lib/three.module.min.js';
 import { loadGLBMesh } from './glbmesh.js';
 import { addSoftShader } from './softbody.js';
 import { packURL } from './packs.js';
-import { buildTree, Rig } from './rigcore.js';
-import { buildLib } from './fightlib.js';
-import { FightCtl } from './fightctl.js';
-import { FIGHT } from './fightdata.js';
-export { MOVES } from './fightatk.js';
+import { buildTree } from './rigcore.js';
+import { ClipCtl, buildClips } from './clipctl.js';
+import { FIGHT, ANIM } from './fightdata.js';
+import { makeProps } from './props.js';
+export { MOVES } from './moves.js';
 
 const FILES = { atlas: '../models/atlas_rig.glb', nexus: '../models/nexus_rig.glb', cyber: '../models/cyber_rig.glb' };
 const caches = {}, loads = {};
@@ -33,11 +32,9 @@ export const riggedReady = (id = 'atlas') => !!caches[id];
 export function loadRigged(id = 'atlas') {
   /* o arquivo vem do pacote baixado (ver packs.js); se ainda não foi baixado, falha sem "lembrar" o erro para tentar de novo depois */
   return loads[id] || (loads[id] = packURL(FILES[id].replace('../', '')).then(u => loadGLBMesh(u)).then(r => {
-    // mestre: um esqueleto próprio só para gerar (assar) os clipes deste personagem — as instâncias em jogo reaproveitam os clipes
-    const tree = buildTree(r.json), mesh = { pos: r.geo.attributes.position.array };
-    tree.root.updateMatrixWorld(true);
-    r.master = new Rig(tree, mesh); r.sc = FIGHT.sc[id];
-    r.lib = buildLib(r.master, { id, sc: r.sc, zones: FIGHT.zones, params: FIGHT.params[id] });
+    r.clips = buildClips(r.json, r.acc); r.meta = ANIM[id] || {};
+    const p = r.geo.attributes.position.array; let lo = 1e9, hi = -1e9; for (let i = 1; i < p.length; i += 3) { if (p[i] < lo) lo = p[i]; if (p[i] > hi) hi = p[i]; }
+    r.M = { H: Math.max(.01, hi - lo), bot: lo };
     return (caches[id] = r);
   }).catch(e => { delete loads[id]; throw e; }));
 }
@@ -60,7 +57,7 @@ export function buildRigged(h, id = h.charId || 'atlas') {
   const wrap = new THREE.Group(); wrap.add(root); h.object.add(wrap); wrap.updateMatrixWorld(true);
   mesh.bind(new THREE.Skeleton(bones, inv), new THREE.Matrix4());
   // escala e apoio: cada personagem tem a SUA altura (FIGHT.H), pés no chão, de frente para +z
-  const rig = new Rig(tree, null, { shared: cache.master });
+  const by = {}; bones.forEach(b => { by[b.name.replace(/^mixamorig:?/, '')] = b; }); const rig = { by, M: cache.M, bones };
   const rigHeight = h.rigHeight || FIGHT.H[id] || 2.85, k = rigHeight / Math.max(.01, rig.M.H);
   wrap.scale.setScalar(k); wrap.position.y = -rig.M.bot * k;
   for (const o of h.object.children) if (o !== wrap && !o.isLight) o.traverse(m => { if (m.isMesh || m.isPoints || m.isLine) m.visible = false; });
@@ -71,38 +68,48 @@ export function buildRigged(h, id = h.charId || 'atlas') {
   const e = { R: em(handR), L: em(handL) };
   if (h.emitter) { for (const c of [...h.emitter.children]) e.R.add(c); h.emitter = e.R; }
   if (h.emitterL) h.emitterL = e.L;
-  const ctl = new FightCtl(rig, cache.lib, id, k);
-  h.atlasRig = { id, wrap, mesh, U, bones, rig, ctl, jig: new THREE.Vector3(), jv: new THREE.Vector3(), wind: new THREE.Vector3(), t: 0, lastRec: null, k };
+  const ctl = new ClipCtl(root, cache.clips, id, k, cache.meta);
+  const props = makeProps(THREE, by, id, k, wrap);
+  h.atlasRig = { id, wrap, mesh, U, bones, rig, ctl, props, jig: new THREE.Vector3(), jv: new THREE.Vector3(), wind: new THREE.Vector3(), t: 0, lastRec: null, k };
   h.atlasSoft = { U, kick() { } };   // sem balanço de carne: a reação vem das animações por região
   ctl.update(.016, { spd: 0, neutral: !!h.neutral });
   return mesh;
 }
 
-/* animações do poder/ação → clipe (corpo inteiro). hit/climb/death tratados à parte */
-const ONCE = { elbow: ['Uppercut', 1], super: ['Uppercut', 1], laser: ['Cast_Fwd', 1.1], flash: ['Cast_Fwd', 1.2], omega: ['Cast_Slam', 1], abyssCast: ['Cast_Slam', 1], singularity: ['Cast_Slam', 1], solar: ['Cast_Up', 1], channel: ['Channel', 1],
-  jump: ['JumpStart', 1.1], land: ['Land', 1], landHard: ['LandHard', 1], roll: ['Roll', 1.05], vault: ['Vault', 1], wave: ['Wave', 1], revive: ['GetUp_Back', 1] };
+/* ação do Hero → semântica do clipe (clipctl.js escolhe o clipe que o personagem realmente tem) */
+const ONCE = { elbow: 'Uppercut', super: 'Super', laser: 'Cast_Fwd', flash: 'Flash', omega: 'Omega', abyssCast: 'Cast_Slam', singularity: 'Cast_Slam', solar: 'Cast_Up', channel: 'Channel', blitz: 'Dash', chain: 'Chain',
+  jump: 'JumpStart', djump: 'DoubleJump', land: 'Land', landHard: 'LandHard', roll: 'Roll', flip: 'Flip', vault: 'Vault', wave: 'Wave', revive: 'GetUp_Back', pickup: 'PickUp', plant: 'Plant' };
+const HOLD = { channel: 1, solar: 1, orbPose: 1 };
 const MOVE_KEY = { punch0: 'Punch_L', punch1: 'Punch_R', punch2: 'Kick_R', kick: 'Kick_L', cpunch: 'CrouchPunch', sweep: 'Sweep' };
 export const moveOf = key => MOVE_KEY[key] || null;
 
-const _w = new THREE.Vector3();
 export function stepRigged(h, dt, ac) {
   const r = h.atlasRig; if (!r || dt <= 0) return; dt = Math.min(dt, .05); r.t += dt;
   const ctl = r.ctl, acts = h.actions, last = acts.length ? acts[acts.length - 1] : null;
   // morte: cai e fica no chão; reviver: levanta
   if (h.dead && !r.wasDead) { r.wasDead = true; if (!ctl.lying) ctl.fall('back'); }
   else if (!h.dead && r.wasDead) { r.wasDead = false; ctl.getUp(); }
-  // nova ação do Hero → clipe (golpes usam a variação do oponente: h.fightTarget)
+  // nova ação do Hero → clipe
   if (last && last !== r.lastRec && last.t < .1) {
-    r.lastRec = last;
+    r.lastRec = last; r.holdRec = null;
     const mv = MOVE_KEY[last.key];
-    if (mv) { const t = h.fightTarget; ctl.strike(mv, t && t.atlasRig ? t.atlasRig.id : r.id, t); }
-    else if (ONCE[last.key]) { const [n, sp] = ONCE[last.key]; ctl.once(n, sp, { hold: last.key === 'channel' }); }
+    if (mv) { const t = h.fightTarget; ctl.strike(mv, t && t.atlasRig ? t.atlasRig.id : r.id, t, last.key); r.props && r.props.show(null); }
+    else if (last.name && last.name.startsWith('emote_')) { r.emoting = last; }
+    else if (last.key === 'slide') { ctl.doSlide(last.a.dur || .9); }
+    else if (ONCE[last.key]) {
+      const m = ONCE[last.key], dur = last.a.dur, hold = !!HOLD[last.key];
+      const ev = ctl.once(m); if (ev && dur > .05 && !hold && !ev.loop) { const want = Math.max(.35, dur); const sp = clamp01(ev.end / want, .7, 2.2); ev.ts = sp * Math.sign(ev.ts || 1); }
+      if (hold || (ev && (ev.loop || ev.hold))) r.holdRec = last;
+      r.props && r.props.forAction(last.key);
+    }
   }
-  if (r.lastRec && r.lastRec.name === 'channel' && !acts.includes(r.lastRec)) ctl.cancel();
+  if (r.holdRec && !acts.includes(r.holdRec)) { ctl.cancel(); r.holdRec = null; }
   let cl = h.climbCycle || null;     // quem escala localmente tem a fase real (game.js); jogadores remotos usam um ciclo por tempo
   if (!cl && h.t < h.climbUntil) { r.cph = (r.cph || 0) + dt * .85; const s = r.wrap.scale.x; cl = { phase: r.cph, H: 1.15 / s, wall: .2, tilt: 0, over: 0 }; } else if (!h.climbUntil || h.t >= h.climbUntil) r.cph = 0;
-  const wasDown = ctl.lying;
-  ctl.update(dt, { spd: h.spd || 0, air: h.air > .5, vy: h.vy || 0, crouch: !!h.crouch && !h.dead, neutral: !!h.neutral, dancing: !!h.dancing, climb: cl });
+  const yw = h.object.rotation.y; let dy = yw - (r.lastYaw ?? yw); dy = Math.atan2(Math.sin(dy), Math.cos(dy)); r.lastYaw = yw; r.yr = (r.yr || 0) + (dy / dt - (r.yr || 0)) * Math.min(1, dt * 10);
+  ctl.update(dt, { yr: r.yr, spd: h.spd || 0, air: h.air > .5, vy: h.vy || 0, crouch: !!h.crouch && !h.dead, neutral: !!h.neutral, dancing: !!h.dancing, climb: cl, lv: h.lv, water: h.water || 0 });
+  r.props && r.props.update(dt, ctl);
   r.wrap.updateMatrixWorld(true);
 }
+const clamp01 = (x, a, b) => Math.max(a, Math.min(b, x));
 export const debugRig = id => caches[id];

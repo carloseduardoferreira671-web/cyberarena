@@ -43,7 +43,7 @@ export async function isInstalled(id) {
   if (!PACKS_ON) return true; const m = await getManifest(), p = m.packs.find(x => x.id === id); if (!p) return true;
   for (const f of p.files) if (!(await cacheHas(f.path, f.bytes, f.sha256))) return false; return true;
 }
-/* v146: apaga do aparelho os caches de versões antigas (cyberarena-packs-v2…v6), que guardavam os personagens antigos */
+/* v146: apaga do aparelho os caches de versões antigas (cyberarena-packs-v9…v6), que guardavam os personagens antigos */
 async function limparAntigos() { try { for (const k of await caches.keys()) if (k.startsWith('cyberarena-packs-') && k !== CACHE) await caches.delete(k); } catch (e) { } }
 export async function status() {
   await limparAntigos();

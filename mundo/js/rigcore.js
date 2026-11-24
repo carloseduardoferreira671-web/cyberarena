@@ -1,4 +1,4 @@
-/* CyberArena · rigcore (v147) — núcleo de animação procedural dos 3 personagens novos.
+/* CyberArena · rigcore (v147) — só a árvore de ossos (buildTree) — as animações agora são clipes gravados, ver clipctl.js.
    Tudo aqui é calculado a partir do ESQUELETO e da MALHA de cada GLB (medidas reais do corpo), sem nenhum clipe pré-gravado:
    · buildTree  : monta a árvore de ossos (nós com `matrix`, frente +Z, esquerda +X, altura +Y — espaço "R")
    · measure    : comprimentos de osso, alturas das zonas de golpe (cabeça/peito/barriga/canela) e profundidades da superfície do corpo

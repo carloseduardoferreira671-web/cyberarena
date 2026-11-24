@@ -9,7 +9,8 @@ import { syncPBR, PBR_CFG } from './pbr.js';
 import { CamShake, PhysParticles } from './combatfx.js';
 import { loadClassic, makeCharacter, classicReady, loadAtlasGLB } from './classic.js';
 import { FIGHT } from './fightdata.js';
-import { MOVES } from './fightatk.js';
+import { MOVES } from './moves.js';
+import { EMOTES } from './clipctl.js';
 import { SOFT as SOFTBODY } from './softbody.js';
 import { Realm, REALM_X } from './realm.js';
 import { ensurePacks } from './packs_ui.js';
@@ -205,12 +206,12 @@ const camS = { yaw: PI, pitch: .2, dist: 5.6, mode: SET.cam, x: 0, y: 8, z: 0, t
 const hold = (el, fn) => { el.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); audio.unlock(); fn(); }); };
 hold($('bAtk'), () => act('punch')); hold($('bLas'), () => act('laser')); hold($('bSup'), () => act('super')); hold($('bSolar'), () => act('solar')); hold($('bJmp'), () => { input.jump = true; }); hold($('bVel'), () => act('extra')); hold($('bSwap'), () => swapAbyss(me));
 hold($('bKick'), () => act('kick')); hold($('bCrouch'), () => act('crouch')); hold($('bDodge'), () => act('dodge'));
-hold($('eWave'), () => act('wave')); hold($('eDance'), () => act('dance'));
+
 addEventListener('keydown', e => {
   if (document.activeElement === $('chatIn')) { if (e.key === 'Enter') sendChat(); if (e.key === 'Escape') closeChat(); return; }
   audio.unlock(); const k = e.key.toLowerCase(); input.keys.add(k);
   if (k === ' ') { input.jump = true; e.preventDefault(); }
-  if (k === 'h') act('kick'); if (k === 'c') act('crouch'); if (k === 'x') act('dodge');
+  if (k === 'g') act('sit'); if (k === 'h') act('kick'); if (k === 'c') act('crouch'); if (k === 'x') act('dodge');
   if (k === 'j') act('punch'); if (k === 'k') act('laser'); if (k === 'l' || k === 'q') act('super');
   if (k === 'e') act(MODE === 'open' ? 'wave' : 'laser'); if (k === 'r') act(MODE === 'open' ? 'dance' : 'extra'); if (k === 'b') act('solar'); if (k === 'f' && me && me.abyss) swapAbyss(me);
   if (k === 'v') toggleView(); if (k === 'm') toggleMap(); if (k === 'enter') openChat(); if (k === 'escape') { if (!$('bigmap').classList.contains('hidden')) toggleMap(); }
@@ -252,7 +253,9 @@ function tryClimb(a, hit) {
 }
 function stepActor(a, dt, mx, mz, mag, wantJump) {
   const E = envOf(a);
-  tickCombat(a, dt); if (a.crouch && wantJump) { setCrouch(a, false); wantJump = false; }
+  tickCombat(a, dt); if (a.slideT > 0) a.slideT -= dt; if (a.sitting && (mag > .15 || wantJump)) { a.sitting = false; a.hero.sitting = false; a.hero.atlasRig && a.hero.atlasRig.ctl.sit(false); wantJump = false; }
+  if (a.grounded) { a.djump = false; a.airT = 0; } else a.airT = (a.airT || 0) + dt;
+  if (a.crouch && wantJump) { setCrouch(a, false); wantJump = false; }
   if (a.held) { a.x = a.held.x; a.y = a.held.y; a.z = a.held.z; a.vx = a.vz = a.vy = 0; a.spd = 0; a.grounded = true; a.peakY = a.y; return; }
   if (a.dash) { const D = a.dash, sg = D.segs[D.i]; if (!sg || !a.alive) { a.dash = null; } else { D.t += dt; const k = clamp(D.t / sg.du, 0, 1);
       const ox = a.x, oz = a.z; a.x = lerp(sg.x0, sg.x1, k); a.z = lerp(sg.z0, sg.z1, k); a.y = E.groundAt(a.x, a.z, a.y + 3, 3); a.yaw = Math.atan2(sg.x1 - sg.x0, sg.z1 - sg.z0); a.vx = a.vz = a.vy = 0; a.grounded = true; a.spd = Math.hypot(a.x - ox, a.z - oz) / Math.max(dt, 1e-4); a.peakY = a.y;
@@ -288,6 +291,8 @@ function stepActor(a, dt, mx, mz, mag, wantJump) {
     const fx2 = Math.sin(a.yaw), fz2 = Math.cos(a.yaw), probe = { x: a.x + fx2 * .5, y: a.y, z: a.z + fz2 * .5 }, h = E.collide(probe, RAD + .25, .75);
     if (!(h && (tryVault(a, h) || tryClimb(a, h)))) { a.vy = JUMP_V * (1 - .25 * a.inWater); a.grounded = false; a.play('jump'); sfx('jump', a); if (a.inWater > .1) fx.splash(a.x, WATER_Y, a.z, .8); }
     a.cd.jump = .25;
+  } else if (wantJump && !a.grounded && !a.djump && !a.climb && !a.vault && (a.airT || 0) > .16 && a.cd.jump <= 0 && a.inWater < .3 && !a.down) {
+    a.djump = true; a.vy = JUMP_V * .88; a.play('djump'); sfx('jump', a); a.cd.jump = .25; fx.splash && 0;
   }
   a.vy -= GRAV * dt; const ox = a.x, oz = a.z;
   a.x += a.vx * dt; a.z += a.vz * dt; a.y += a.vy * dt;
@@ -332,10 +337,12 @@ function faceTo(a, b) { a.yaw = Math.atan2(b.x - a.x, b.z - a.z); a.aimT = .45; 
 function moveIntent(a) { if (a === me) { const m = readMove(); return m[2] > .1 ? [m[0] / m[2], m[1] / m[2]] : [Math.sin(camS.yaw), Math.cos(camS.yaw)]; } return null; }
 function act(name) {
   if (!me || !me.alive || me.drop > 0 || G.phase === 'loading') return;
-  if (name === 'wave' || name === 'dance') { if (MODE === 'battle' && G.phase === 'live') return; if (!me.hero.isBusy()) me.play(name); return; }
-  if (!canFight()) { if (name === 'punch' || name === 'kick' || name === 'laser' || name === 'super' || name === 'extra' || name === 'solar') banner(MODE === 'open' ? 'Mundo aberto: sem combate' : 'Aguarde o início da partida', 1200); return; }
-  if (name === 'crouch') { setCrouch(me, !me.crouch); return; }
+  if (name === 'sit') { toggleSit(me); return; }
+  if (name.startsWith('emote_')) { if (MODE === 'battle' && G.phase === 'live') return; if (!me.hero.isBusy() && !me.down) me.play(name); return; }
+  if (name === 'wave' || name === 'dance') { const em = (me.hero.atlasRig ? me.hero.atlasRig.ctl.emotes() : []).filter(e => e.id !== 'sit'); const e = em[name === 'wave' ? 0 : 1] || em[0]; if (e) act('emote_' + e.id); return; }
+  if (name === 'crouch') { if (me.sitting) { toggleSit(me); return; } if (!me.crouch && me.grounded && me.spd > 4.6 && !me.climb && !me.down) { doSlide(me); return; } setCrouch(me, !me.crouch); return; }
   if (name === 'dodge') { doDodge(me); return; }
+  if (!canFight()) { if (name === 'punch' || name === 'kick' || name === 'laser' || name === 'super' || name === 'extra' || name === 'solar') banner(MODE === 'open' ? 'Mundo aberto: sem combate' : 'Aguarde o início da partida', 1200); return; }
   if (name === 'punch') doPunch(me); else if (name === 'kick') doPunch(me, null, 'kick'); else if (name === 'laser') doSkill(me); else if (name === 'super') doSuper(me); else if (name === 'extra') doExtra(me); else if (name === 'solar') doSolar(me);
 }
 /* ===================== v147 · COMBATE POR ZONAS =====================
@@ -344,10 +351,29 @@ function act(name) {
 const MV = { punch0: 'Punch_L', punch1: 'Punch_R', punch2: 'Kick_R', kick: 'Kick_L', cpunch: 'CrouchPunch', sweep: 'Sweep' };
 const MDMG = { Punch_L: 10, Punch_R: 12, Kick_R: 20, Kick_L: 15, CrouchPunch: 13, Sweep: 11 };
 const DOWN_T = { sweep: 1.25, head: 1.4, back: 1.2 }, GETUP_T = 1.5;
-const pairSg = (a, b, mv) => { const p = FIGHT.params[a.char], q = p && (p[mv + '@' + b.char] || p[mv + '@' + a.char]); return q ? q.Sg : MOVES[mv].Sg; };
+const pairSg = (a, b, mv) => {
+  const M = MOVES[mv], pl = a.hero && a.hero.atlasRig && a.hero.atlasRig.ctl.lastPlan; if (!pl) return M.Sg;
+  const Ha = FIGHT.H[a.char] || 3, Hb = FIGHT.H[b.char] || 3, zz = FIGHT.zones[b.char] && FIGHT.zones[b.char][M.zone], zt = zz ? zz[2] : .09;
+  return Math.max(1.3, (pl.reach * Ha + zt * Hb) * FIGHT.MATCH);          // alcance real do punho/pé do clipe + profundidade da zona do alvo
+};
 function setCrouch(a, on) {
   on = !!on; if (a.crouch === on || a.down || !a.alive || a.climb || a.vault) return; a.crouch = on; a.hero.crouch = on; a.play(on ? 'crouch_on' : 'crouch_off');
-  if (a === me) { const el = $('bCrouch'); if (el) el.classList.toggle('on', on); }
+  if (a === me) { const el = $('bCrouch'); if (el) { el.classList.toggle('on', on); const sp = el.querySelector('span'); if (sp) sp.textContent = on ? 'LEVANTAR' : 'AGACHAR'; } }
+}
+function doSlide(a) {
+  if (a.slideT > 0 || a.cd.slide > 0) return; a.slideT = .8; a.cd.slide = 1.2; a.busyMove = 0; a.play('slide'); const f = Math.hypot(a.vx, a.vz) || 1; a.vx += a.vx / f * 4.6; a.vz += a.vz / f * 4.6;
+  if (a === me) sfx('dodge', a);
+  setTimeout(() => { if (a.alive && !a.down && canFight()) { a.hero.atlasRig && a.hero.atlasRig.ctl.plan('sweep'); meleeHit(a, 'Sweep', null); } }, 260);
+}
+function buildEmotes() {
+  const box = $('emotes'), ctl = me.hero.atlasRig.ctl; buildEmotes.char = me.char; if (!box) return; box.innerHTML = '';
+  for (const e of ctl.emotes()) { const b = document.createElement('button'); b.className = 'em'; b.textContent = e.icon + ' ' + e.label; b.title = e.label; hold(b, () => act(e.id === 'sit' ? 'sit' : 'emote_' + e.id)); box.appendChild(b); }
+}
+function toggleSit(a) {
+  const ctl = a.hero.atlasRig && a.hero.atlasRig.ctl; if (!ctl) return;
+  if (a.sitting) { a.sitting = false; ctl.sit(false); a.hero.sitting = false; banner('Em pé', 700); return; }
+  if (a.down || a.climb || !a.grounded || a.spd > 1.2 || !ctl.canSit()) return; if (a.crouch) setCrouch(a, false);
+  a.sitting = true; a.hero.sitting = true; a.play('emote_sit'); banner(ctl.seatMode() === 'chair' ? 'Sentado · mova-se para levantar' : 'Sentou · mova-se para levantar', 1100);
 }
 function doPunch(a, target, kind) {
   if (a.cd.punch > 0 || a.vault || a.climb || a.drop || a.dash || a.down || a.stunT > 0) return false;
@@ -1735,6 +1761,7 @@ function tick(dt) {
       if (awayBrain && me.alive && G.phase === 'live') { awayBrain.update(dt); const b = awayBrain; stepActor(me, fdt(me, dt), b.mx, b.mz, Math.hypot(b.mx, b.mz), b.jump); }
       else { const [mx, mz, mag] = me.alive && G.phase !== 'over' ? readMove() : [0, 0, 0]; stepActor(me, fdt(me, dt), mx, mz, mag, input.jump && me.alive); } }
     input.jump = false;
+    if (me && me.hero.atlasRig && buildEmotes.char !== me.char) buildEmotes();
   }
   // countdown de matchmaking
   if (MODE === 'battle' && G.phase === 'waiting') {
@@ -1871,7 +1898,7 @@ async function start() {
   G.room = room; G.seed = room.seed || 1; G.startAt = room.startAt;
   me = addActor(myId, ident.name, ident.skin, 'me', ident.char); me.simulated = true; me.lvl = ME_BUFF.lvl; me.maxHp = CS.hpAt(me.char, me.lvl); me.hp = me.maxHp; $('meName').textContent = ident.name.toUpperCase(); $('meAv').textContent = ident.name.slice(0, 2).toUpperCase(); $('meCh').textContent = ident.char === 'nexus' ? 'NEXUS' : ident.char === 'atlas' ? 'ATLAS' : 'CYBER';
   const sp = plazaSpot((Math.random() * 12) | 0); placeAt(me, sp); me.yaw = PI; camS.yaw = PI; camS.mode = SET.cam; camS.dist = camS.mode === 'tps' ? 5.6 : 22; camS.pitch = camS.mode === 'tps' ? .2 : .95;
-  if (MODE === 'open') { G.phase = 'open'; $('btns').querySelectorAll('#bAtk,#bLas,#bSup,#bVel').forEach(b => b.classList.add('hidden')); $('emotes').classList.remove('hidden'); $('players').classList.remove('hidden'); $('enBar').classList.add('hidden'); $('pKills').classList.add('hidden'); $('pAlive').querySelector('small').textContent = 'ONLINE'; chatLine('', net.offline ? 'Sem conexão: mundo aberto local.' : 'Bem-vindo ao mundo aberto! Converse, explore e divirta-se.', true); }
+  if (MODE === 'open') { G.phase = 'open'; $('btns').querySelectorAll('#bAtk,#bLas,#bSup,#bVel,#bKick').forEach(b => b.classList.add('hidden')); $('emotes').classList.remove('hidden'); $('players').classList.remove('hidden'); $('enBar').classList.add('hidden'); $('pKills').classList.add('hidden'); $('pAlive').querySelector('small').textContent = 'ONLINE'; chatLine('', net.offline ? 'Sem conexão: mundo aberto local.' : 'Bem-vindo ao mundo aberto! Converse, explore e divirta-se.', true); }
   else if (MODE === 'space') { G.phase = 'train'; G.started = true; $('pAlive').classList.add('hidden'); $('mmWrap').classList.add('hidden');
     realm.build(); applyCinematicToonScene(realm.group); me.x = realm.spawn[0]; me.z = realm.spawn[1]; me.y = realm.groundAt(me.x, me.z) + .1; me.yaw = PI; camS.yaw = PI; me.energy = 100;
     const C = realm.islands[0]; for (let i = 0; i < 4; i++) { const b = makeBot(i, null, .3, true), ang = PI * .5 + (i - 1.5) * .45, d = 12 + (i % 2) * 4; b.x = C.x + Math.cos(ang) * d * -1; b.z = C.z - Math.sin(ang) * d; b.y = realm.groundAt(b.x, b.z) + .1; b.drop = 0; b.grounded = true; b.yaw = Math.atan2(me.x - b.x, me.z - b.z); b.brain.home = [b.x, b.z]; b.maxHp = 400 * CS.NORM; b.hp = b.maxHp; }

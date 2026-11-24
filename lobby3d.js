@@ -94,6 +94,10 @@ function renderMode() {
 /* ---------- abrir o mundo 3D ---------- */
 function openWorld(mode, extra = '', code = S.code) {
   if (window.cyberNeedRes && !window.cyberNeedRes()) return;   // sem os recursos: abre a barra de downloads em vez de entrar
+  if (window.cyberOfflineMode) {   // v153: modo offline = só contra bots e sem progresso; Mundo Aberto precisa de internet
+    if (mode === 'open') { toast('Mundo Aberto precisa de internet.'); return; }
+    code = ''; if (!extra.includes('offline=1')) extra += '&offline=1'; if (!extra.includes('noprog=1')) extra += '&noprog=1';
+  }
   try { window.closeCharacterTestMenu?.(); } catch (_) { }
   let w = $('world3d'); if (!w) { w = document.createElement('iframe'); w.id = 'world3d'; w.className = 'world3d-frame'; w.setAttribute('allow', 'fullscreen; autoplay'); w.title = 'CyberArena · Mundo 3D'; document.body.appendChild(w); }
   const id = getIdentity(); w.src = `mundo/index.html?mode=${mode}&char=${curChar()}${code && mode !== 'train' && mode !== 'space' ? '&code=' + encodeURIComponent(code) : ''}${S.party && (mode === 'battle' || mode === 'open' || mode === 'space') && !extra.includes('offline') ? '&party=' + S.party : ''}${extra}`; w.classList.remove('hidden');
@@ -160,7 +164,7 @@ function buildCharacters() {
     <div class="lc-name"><input id="lcNameIn" maxlength="16" placeholder="Seu nome"><button id="lcNameOk">SALVAR NOME</button></div></div>`;
   page.querySelector('.lc-view').appendChild(heroFrame('charHero', 'hero3d char-hero'));
   page.querySelectorAll('.lc-chars button').forEach(b => b.onclick = () => setChar(b.dataset.char));
-  $('lcNameOk').onclick = async () => { const n = $('lcNameIn').value.replace(/[^\p{L}\p{N} _-]/gu, '').trim().slice(0, 16); if (n.length < 2) { toast('Nome muito curto'); return; } saveIdentity({ name: n }); const p = await net.profile({ name: n }); S.profile = p; renderProfile(); toast('Nome salvo!'); };
+  $('lcNameOk').onclick = async () => { if (window.cyberOfflineMode) { toast('Indisponível no modo offline. Conecte-se à internet para usar.'); return; } const n = $('lcNameIn').value.replace(/[^\p{L}\p{N} _-]/gu, '').trim().slice(0, 16); if (n.length < 2) { toast('Nome muito curto'); return; } saveIdentity({ name: n }); const p = await net.profile({ name: n }); S.profile = p; renderProfile(); toast('Nome salvo!'); };
 }
 function renderChars() {
   const c = curChar(), d = CHARS.find(x => x.id === c) || CHARS[0], set = (i, v) => { if ($(i)) $(i).textContent = v; };

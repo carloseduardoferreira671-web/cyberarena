@@ -2,6 +2,9 @@ name: Gerar APK
 
 on:
   workflow_dispatch:        # botão "Run workflow" na aba Actions
+  push:
+    branches: [main, master]
+    paths-ignore: ['**.md']
 
 jobs:
   apk:

@@ -1,5 +1,5 @@
 /* CyberArena · personagens (v146) — SOMENTE os 3 personagens novos: Atlas, Nexus e Cyber.
-   Cada um é um GLB riggado (mundo/models/<id>_rig.glb, 52 ossos, 115 animações) baixado pelo lobby (ver packs.js).
+   Cada um é um GLB riggado (mundo/models/<id>_rig.glb, esqueleto com dedos e 72–79 animações GRAVADAS dentro do arquivo) baixado pelo lobby (ver packs.js).
    Não existe mais nenhum corpo, malha ou animação de personagem antigo no projeto: se o GLB pedido ainda não carregou,
    o jogo usa outro dos 3 novos que esteja carregado, nunca um modelo antigo. O Hero (hero.js) é só o motor de estado/ações/contato. */
 import { Hero } from './hero.js';

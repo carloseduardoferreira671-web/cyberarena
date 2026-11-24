@@ -417,6 +417,7 @@ for (const k in A) {
 }
 /* v147: golpes novos — durações/impactos iguais aos clipes procedurais (fightatk.js) */
 Object.assign(A.punch0, { dur: .46, impact: .15 }); Object.assign(A.punch1, { dur: .52, impact: .18 }); Object.assign(A.punch2, { dur: .85, impact: .30, spin: 0 }); Object.assign(A.kick, { dur: .72, impact: .26 });
+A.djump = { ...A.jump, dur: .6 }; A.flip = { ...A.roll, dur: .9, rollSpin: false }; A.slide = { ...A.roll, dur: .95, rollSpin: false }; A.pickup = { ...A.wave, dur: 1.6 }; A.plant = { ...A.wave, dur: 2.6 };
 A.cpunch = { ...A.punch0, dur: .5, impact: .16, lunge: 0 }; A.sweep = { ...A.kick, dur: .85, impact: .30, lunge: 0 };
 for (const k of ['cpunch', 'sweep']) A[k].lunge = 0; A.punch0.lunge = A.punch1.lunge = A.punch2.lunge = A.kick.lunge = 0; delete A.punch2.spin;
 /* ações de reação/estado (nomes enviados pela rede): playName → [função no controlador, duração] */
@@ -756,6 +757,7 @@ export class Hero {
       if (rx) { if (ctl) { if (rx[0] === 'react') ctl.react(rx[1]); else if (rx[0] === 'resist') ctl.react(rx[1], { resist: true }); else if (rx[0] === 'fall') ctl.fall(rx[1]); else if (rx[0] === 'getup') ctl.getUp(); else if (rx[0] === 'dodge') ctl.dodge(rx[1]); } return { duration: rx[2], impact: 0 }; }
       if (name === 'crouch_on' || name === 'crouch_off') { this.crouch = name === 'crouch_on'; if (ctl) ctl.once(this.crouch ? 'CrouchDown' : 'CrouchUp', 1, { fi: .04, fo: .1 }); return { duration: .26, impact: 0 }; }
       if (name === 'hit' && ctl) { ctl.react('chest'); return { duration: .5, impact: 0 }; } }
+    if (name.startsWith('emote_')) { const ctl = this.atlasRig && this.atlasRig.ctl, d = ctl ? ctl.emote(name.slice(6)) : 0; this.dancing = false; return { duration: d || 1, impact: 0 }; }
     if (name === 'dance') { this.dancing = true; this.danceT = 0; return { duration: 2.4, impact: 0 }; }
     if (name === 'climb') { this.climbUntil = this.t + (arg || 1.1); this.climbDur = arg || 1.1; this.dancing = false; return { duration: arg || 1.1, impact: 0 }; }
     // impulsos físicos: a pancada empurra o tronco, o pouso comprime as pernas
@@ -765,7 +767,9 @@ export class Hero {
     if (name !== 'land' && name !== 'jump') this.dancing = false;
     let key = name;
     if (name === 'punch') { this.combo = this.t < this.comboUntil ? (this.combo + 1) % 3 : 0; key = 'punch' + this.combo; }
-    const a = A[key]; if (!a) return { duration: 0, impact: 0 };
+    let a = A[key]; if (!a) return { duration: 0, impact: 0 };
+    let planned = null;
+    if (this.atlasRig && (key === 'punch0' || key === 'punch1' || key === 'punch2' || key === 'kick' || key === 'cpunch' || key === 'sweep')) { planned = this.atlasRig.ctl.plan(key); a = { ...a, dur: planned.dur, impact: planned.imp }; }
     if (name === 'death') { this.dead = true; this.actions.length = 0; }
     if (name === 'revive') { this.dead = false; this.actions.length = 0; }
     // ações de ataque substituem ações iguais em andamento; reações curtas sobrepõem
@@ -944,6 +948,7 @@ export class Hero {
     if (!this.prevP) this.prevP = op.clone();
     const wv = _v3.subVectors(op, this.prevP).divideScalar(Math.max(dt, 1e-3)); if (wv.lengthSq() > 900) wv.set(0, 0, 0); this.prevP.copy(op);
     const ac = _v4.subVectors(wv, this.prevV).divideScalar(Math.max(dt, 1e-3)); this.prevV.copy(wv);
+    this.lv = s.localVel || null; this.water = s.inWater || 0;
     if (this.atlasRig) stepRigged(this, dt, ac);
     const aF = clamp(ac.x * fX + ac.z * fZ, -60, 60), aS = clamp(ac.x * fZ - ac.z * fX, -60, 60), aY = grounded ? clamp(ac.y, -80, 80) : 0;
     // inércia: o tronco atrasa nas arrancadas/freadas e tomba para fora nas curvas; a cabeça e os braços balançam depois

@@ -18,7 +18,7 @@ function build() {
   <div class="sg2-c"><div class="sg2-logo"><small>BEM-VINDO À</small><h1>CYBER <b>ARENA</b></h1></div>
     <div class="sg2-panel hidden" id="sgPanel"></div>
     <div class="sg2-tap hidden" id="sgTap"><i></i><strong>TOQUE PARA COMEÇAR</strong><i></i></div></div>
-  <div class="sg2-foot">v152</div>`;
+  <div class="sg2-foot">V1.0</div>`;
   panel = $('sgPanel'); return true;
 }
 function show(st, pct, sub, opts = {}) {
@@ -90,7 +90,7 @@ function choose() {
   loading = false; window.cyberBootReady = false; window.cyberLoadingActive = true; window.cyberInGame = false;
   gate.classList.remove('ready'); gate.classList.add('loading', 'choice'); $('sgTap') && $('sgTap').classList.add('hidden'); panel.classList.remove('hidden');
   panel.innerHTML = `<div class="sg2-st">SEM CONEXÃO</div><div class="sg2-sub sg2-warn">Não foi possível conectar ao servidor. Escolha como jogar.</div>
-    <div class="sg2-ch"><button type="button" id="sgOn" class="sg2-b on">MODO ONLINE<small>Tentar conectar de novo</small></button><button type="button" id="sgOff" class="sg2-b off">MODO OFFLINE<small>Só contra bots · sem progresso</small></button></div>`;
+    <div class="sg2-ch"><button type="button" id="sgOn" class="sg2-b on">MODO ONLINE<small>Tentar conectar de novo</small></button><button type="button" id="sgOff" class="sg2-b off">MODO OFFLINE<small>Jogo normal · sem progresso</small></button></div>`;
   $('sgOn').onclick = () => startLoading(); $('sgOff').onclick = () => { window.cyberLoadingActive = false; enterOffline(); };
 }
 /* volta para a tela de carregamento (usado pelo "Tentar de novo" e pelo aviso de conexão restabelecida) */
@@ -199,21 +199,3 @@ window.cyberBoot = function () {
   (PACKS_ON ? status().catch(() => []) : Promise.resolve([])).then(l => { window.cyberResReady = !PACKS_ON || !l.some(p => !p.installed); });
   setTimeout(ready, 400); return true;
 };
-
-/* v152: mostra no rodapé se o jogo já está guardado para abrir SEM internet (service worker) */
-(function () {
-  const foot = () => document.querySelector('.sg2-foot'); let st = '';
-  const put = t => { st = t; const f = foot(); if (f) f.textContent = 'v152 · ' + t; };
-  const paint = () => { const f = foot(); if (f && st) f.textContent = 'v152 · ' + st; };
-  setInterval(paint, 800);
-  if (!('serviceWorker' in navigator)) { put('offline: indisponível neste app'); return; }
-  navigator.serviceWorker.addEventListener('message', e => { const d = e.data || {}; if (d.sw === 'progress') put(`preparando offline ${Math.round(100 * d.n / d.total)}%`); else if (d.sw === 'ready') put('offline: pronto ✓'); else if (d.sw === 'partial') put(`offline: incompleto (${d.n}/${d.total})`); });
-  (async () => {
-    try {
-      const reg = await navigator.serviceWorker.getRegistration();
-      if (!reg) { put(window.__swErr ? 'offline: erro ' + window.__swErr.slice(0, 50) : 'offline: instalando… (abra com internet)'); return; }
-      const ready = await caches.match(new URL('__sw_ready', reg.scope).href);
-      put(ready ? 'offline: pronto ✓' : 'offline: preparando… (mantenha aberto)');
-    } catch (e) { put('offline: erro ' + (e.message || e).toString().slice(0, 40)); }
-  })();
-})();

@@ -68,7 +68,7 @@ button:active{transform:scale(.96)}
 #bSup.ready{box-shadow:0 0 24px #ff5cf0;animation:pulse .7s infinite alternate}
 /* botões redesenhados: cada personagem com o nome, ícone e cor dos próprios poderes */
 .ab{box-shadow:inset 0 -6px 14px rgba(0,0,0,.45),inset 0 4px 10px rgba(255,255,255,.18),0 4px 14px rgba(0,0,0,.45);transition:transform .08s,box-shadow .2s}
-.ab:active{transform:scale(.92)}
+.ab:active{transform:scale(.92)}#bCrouch.on{background:radial-gradient(circle at 50% 35%,#2fe0ff,#0a6fb5)!important;box-shadow:0 0 0 3px #7ff6ff,0 0 18px #2fe0ff!important}#bCrouch span{font-size:9px;font-weight:900}
 .ab::after{content:"";position:absolute;inset:4px;border-radius:50%;border:1.5px solid rgba(255,255,255,.22);pointer-events:none}
 .ab span{font-size:9px;letter-spacing:.04em;white-space:nowrap}
 .ab .cdn{position:absolute;inset:0;display:grid;place-items:center;font-size:22px;font-weight:900;color:#fff;text-shadow:0 0 8px #000;pointer-events:none}
@@ -102,7 +102,7 @@ body.ch-nexus #bSup.ready,body.ch-cyber #bSup.ready{animation:supR 1.2s ease-in-
 .charges{position:absolute;bottom:7px;left:50%;transform:translateX(-50%);display:flex;gap:3px}
 .charges i{width:7px;height:7px;border-radius:50%;background:#fff;box-shadow:0 0 6px var(--cy)}
 .charges i.off{background:rgba(255,255,255,.22);box-shadow:none}
-#emotes{position:fixed;right:calc(18px + var(--sa-r));bottom:calc(150px + var(--sa-b));display:flex;flex-direction:column;gap:8px}
+#emotes button.em{font-weight:800;letter-spacing:.04em;padding:8px 12px;border-radius:12px;border:1px solid rgba(255,255,255,.28);background:rgba(10,16,30,.66);color:#fff;font-size:12px;text-align:left;backdrop-filter:blur(6px)}#emotes button.em:active{transform:scale(.95)}#emotes{max-height:60vh;overflow:auto;position:fixed;right:calc(18px + var(--sa-r));bottom:calc(150px + var(--sa-b));display:flex;flex-direction:column;gap:8px}
 #cross{position:fixed;left:50%;top:44%;width:26px;height:26px;margin:-13px;pointer-events:none;opacity:0;transition:opacity .1s}
 #cross.on{opacity:1}
 #cross:before,#cross:after{content:"";position:absolute;background:#fff;box-shadow:0 0 4px #000}
@@ -251,11 +251,11 @@ html.cy-web #btns{bottom:calc(84px + var(--sa-b))}html.cy-web #emotes{bottom:cal
     <button class="ab hidden" id="bSwap"><div class="cd"></div><div><div class="ic" id="bSwapI">⇄</div><span>TROCAR</span></div></button>
     <button class="ab hidden" id="bSolar"><div class="cd"></div><div><div class="ic"><svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="2.4"><circle cx="24" cy="24" r="8" fill="#fff0ad"/><path d="M24 2v9M24 37v9M2 24h9M37 24h9M8 8l6 6M34 34l6 6M40 8l-6 6M14 34l-6 6"/><circle cx="24" cy="24" r="17" stroke-dasharray="3 4"/></svg></div><span>SOLAR</span></div><div class="cdn" id="bSolarN"></div></button>
     <button class="ab" id="bKick"><div class="cd"></div><div><div class="ic">🦵</div><span>CHUTE</span></div></button>
-    <button class="ab" id="bCrouch"><div class="cd"></div><div><div class="ic">⤓</div><span>AGACHAR</span></div></button>
+    <button class="ab" id="bCrouch" title="Agachar (C) · correndo = deslizar"><div class="cd"></div><div><div class="ic"><svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"><circle cx="13" cy="4.6" r="2.1"/><path d="M12.4 7.6 10 12.2 5.8 13.4M10 12.2l5.2 1.2 1.2 5.6M10 12.2 8.6 18.6M12.4 7.6l3.8 2.4"/></svg></div><span>AGACHAR</span></div></button>
     <button class="ab" id="bDodge"><div class="cd"></div><div><div class="ic">↯</div><span>ESQUIVA</span></div></button>
     <button class="ab" id="bJmp"><div class="cd"></div><div><div class="ic" id="bJmpI">⤒</div><span>PULO</span></div></button>
   </div>
-  <div id="emotes" class="hidden"><button id="eWave">👋 ACENAR</button><button id="eDance">🕺 DANÇAR</button></div>
+  <div id="emotes" class="hidden"></div>
 </div>
 <div id="mmk" class="panel hidden"><div class="k">MATCHMAKING</div><b id="mmkT">Procurando jogadores…</b><div id="mmkS" style="opacity:.8;margin-top:3px"></div><div class="pl" id="mmkP"></div></div>
 <div id="count" class="hidden"></div>

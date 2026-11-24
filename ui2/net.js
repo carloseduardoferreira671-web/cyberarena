@@ -3,12 +3,13 @@
      que oferece MODO ONLINE (repete até conectar) ou MODO OFFLINE (só bots, sem progresso).
    • Saiu do jogo (app em segundo plano) durante uma partida online: ao voltar, é preciso reconectar. Partida de 16: o bot joga por você
      enquanto está fora; Mundo Aberto e Treino: você sai.
-   • No modo offline, quando a internet volta aparece o aviso "Conexão restabelecida" e o jogo reinicia para o modo online.
+   • No modo offline (jogo normal, sem progresso), quando a internet volta aparece o aviso "Conexão restabelecida" com duas escolhas:
+     MODO ONLINE (reconecta: recarrega o jogo) ou MODO OFFLINE (continua offline). Durante uma partida o aviso espera a volta ao lobby.
    Expõe window.cyberNet = { ok, check(force), forceLost(), clearForced() } e o evento 'cyber-net'. */
 const isApk = location.hostname === 'appassets.androidplatform.net';
 const SITE = 'https://whimsical-kataifi-2407ec.netlify.app/';
 const PING = (isApk ? SITE : location.origin + '/') + 'api/health';
-let ok = true, fails = 0, box = null, back = null, busy = false, timer = 0, forced = false, hiddenAt = 0, backT = 0, wasLost = false;
+let ok = true, fails = 0, box = null, back = null, busy = false, timer = 0, forced = false, hiddenAt = 0, backDismissed = false, wasLost = false;
 
 const guard = () => window.cyberInGame === true && !window.cyberOfflineMode && !window.cyberLoadingActive;
 function ui() {
@@ -21,23 +22,27 @@ function ui() {
 }
 function showLost() { ui().classList.remove('hidden'); document.body.classList.add('net-lost'); try { document.activeElement && document.activeElement.blur(); } catch (_) { } }
 function hideLost() { if (box) box.classList.add('hidden'); document.body.classList.remove('net-lost'); }
+const inMatch = () => document.body.classList.contains('world3d-open');
 function sync() {
   const lost = (!ok || forced) && guard();
   if (lost) showLost(); else hideLost();
   if (!ok && !window.cyberOfflineMode) wasLost = true;
-  // modo offline e a internet voltou: avisa e reinicia
-  if (ok && window.cyberOfflineMode) showBack(); else if (!ok || !window.cyberOfflineMode) hideBack();
+  // modo offline e a internet voltou: avisa (igual ao aviso de "sem conexão") e deixa escolher; não interrompe partida
+  if (window.cyberOfflineMode) { if (!ok) backDismissed = false; if (ok && !backDismissed && !inMatch()) showBack(); else hideBack(); } else hideBack();
 }
 function showBack() {
   if (back) return;
-  back = document.createElement('div'); back.id = 'netBack'; back.className = 'nl';
-  back.innerHTML = '<div class="nl-card"><h2>Conexão restabelecida</h2><p>A internet voltou. O jogo vai reiniciar para entrar no modo online.</p><button type="button" class="nl-b">Reiniciar agora (<span id="nbS">10</span>)</button></div>';
-  document.body.appendChild(back); let n = 10;
-  const go = () => { clearInterval(backT); try { window.cyberReboot(); } catch (_) { location.reload(); } };
-  back.querySelector('.nl-b').onclick = go;
-  backT = setInterval(() => { n--; const s = back && back.querySelector('#nbS'); if (s) s.textContent = n; if (n <= 0) go(); }, 1000);
+  back = document.createElement('div'); back.id = 'netBack'; back.className = 'sg2 loading choice nbk'; back.setAttribute('role', 'alertdialog');
+  back.innerHTML = `<img class="sg2-bg" src="assests/ui/lobby_bg.png" alt=""><div class="sg2-vig"></div>
+  <div class="sg2-c"><div class="sg2-logo"><small>BEM-VINDO À</small><h1>CYBER <b>ARENA</b></h1></div>
+    <div class="sg2-panel"><div class="sg2-st">CONEXÃO RESTABELECIDA</div><div class="sg2-sub">A internet voltou. Reconecte para jogar online com progresso ou continue no modo offline.</div>
+      <div class="sg2-ch"><button type="button" class="sg2-b on" data-a="on">MODO ONLINE<small>Reconectar agora</small></button><button type="button" class="sg2-b off" data-a="off">MODO OFFLINE<small>Continuar sem progresso</small></button></div></div></div>`;
+  back.querySelector('[data-a="on"]').onclick = () => { try { location.reload(); } catch (_) { } };   // recarrega: o progresso de antes do offline segue intacto
+  back.querySelector('[data-a="off"]').onclick = () => { backDismissed = true; hideBack(); };
+  ['touchstart', 'touchmove', 'wheel'].forEach(t => back.addEventListener(t, e => e.preventDefault(), { passive: false }));
+  document.body.appendChild(back);
 }
-function hideBack() { clearInterval(backT); if (back) { back.remove(); back = null; } }
+function hideBack() { if (back) { back.remove(); back = null; } }
 function set(v) {
   if (v === ok) return; ok = v; fails = 0; sync();
   try { window.dispatchEvent(new CustomEvent('cyber-net', { detail: { ok } })); } catch (_) { }
@@ -64,7 +69,7 @@ document.addEventListener('visibilitychange', () => {
   if (away > 2500 && guard() && document.body.classList.contains('world3d-open')) { forced = true; sync(); }
   else { fails = 9; check(); }
 });
-window.cyberNet = { get ok() { return ok; }, check, forceLost() { forced = true; sync(); }, clearForced() { forced = false; sync(); } };
+window.cyberNet = { get ok() { return ok; }, check, forceLost() { forced = true; sync(); }, clearForced() { forced = false; sync(); }, showBackNow() { backDismissed = false; sync(); } };
 setInterval(sync, 700);
 const init = () => { ui(); if (navigator.onLine === false) set(false); loop(); };
 document.body ? init() : document.addEventListener('DOMContentLoaded', init);

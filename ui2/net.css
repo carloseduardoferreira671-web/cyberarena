@@ -37,3 +37,13 @@ body.offline-mode #dlBar, body.offline-mode #dlSheet { display: none !important;
 .sg2 .sg2-foot { font-size: calc(13 * var(--u, 1px)) !important; opacity: .95 !important; }
 /* v151 · o aviso antigo "Sem conexão com o servidor (modo offline)" cobria o painel de modos de preto: a conexão agora é tratada pela tela de carregamento */
 #mcOnline, #mcOnline.off { display: none !important; }
+
+/* v153 · aviso "Conexão restabelecida" (mesma tela do "Sem conexão") e selo do modo offline */
+#netBack.sg2 { position: fixed; inset: 0; z-index: 2147483000; background: #03060b; overflow: hidden; display: flex; align-items: center; justify-content: center; cursor: default; }
+#netBack.sg2 .sg2-st { color: #7cffb2 !important; }
+#offBadge { position: fixed; z-index: 40; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 6px); transform: translateX(-50%); display: flex; align-items: center; gap: calc(7 * var(--u, 1px)); padding: calc(3 * var(--u, 1px)) calc(12 * var(--u, 1px)); border-radius: 999px; border: 1px solid rgba(255, 210, 124, .55); background: rgba(20, 14, 4, .72); color: #ffd27c; font: 800 calc(11 * var(--u, 1px)) Rajdhani, system-ui, sans-serif; letter-spacing: .14em; cursor: pointer; white-space: nowrap; }
+#offBadge i { width: calc(7 * var(--u, 1px)); height: calc(7 * var(--u, 1px)); border-radius: 50%; background: #ffb020; box-shadow: 0 0 8px #ffb020; }
+#offBadge small { font: 500 calc(9 * var(--u, 1px)) system-ui, sans-serif; letter-spacing: 0; color: #d8c18a; }
+body.world3d-open #offBadge { display: none; }
+#offToast { position: fixed; z-index: 2147483100; left: 50%; top: 14%; transform: translate(-50%, -8px); opacity: 0; pointer-events: none; max-width: 86vw; text-align: center; background: rgba(10, 16, 34, .95); border: 1px solid rgba(255, 210, 124, .6); color: #ffe3a8; padding: calc(10 * var(--u, 1px)) calc(18 * var(--u, 1px)); border-radius: 12px; font: 700 calc(14 * var(--u, 1px)) Rajdhani, system-ui, sans-serif; transition: opacity .2s, transform .2s; }
+#offToast.on { opacity: 1; transform: translate(-50%, 0); }

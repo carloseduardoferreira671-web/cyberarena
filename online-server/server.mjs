@@ -10,7 +10,6 @@ import zlib from 'node:zlib';
 import { createHash, randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { createSocial } from './social.mjs';
-import { handlePresale } from './presale.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, '..');
@@ -285,7 +284,6 @@ const gz = new Map();
 function serveStatic(req, res, pathname) {
   let rel; try { rel = decodeURIComponent(pathname); } catch { res.writeHead(400); return res.end(); }
   if (rel === '/') rel = '/index.html';
-  if (rel.endsWith('/')) rel += 'index.html';
   if (BLOCK.test(rel)) { res.writeHead(404); return res.end('404'); }
   const file = path.join(ROOT, rel);
   if (!file.startsWith(ROOT + path.sep)) { res.writeHead(403); return res.end(); }
@@ -321,8 +319,6 @@ const limited = req => { const ip = String(req.headers['x-forwarded-for'] || req
 
 http.createServer((req, res) => {
   const url = new URL(req.url, 'http://x');
-  if (url.pathname.startsWith('/api/presale')) return handlePresale(req, res, url);   // pré-venda (Mercado Pago)
-  if (url.pathname === '/pre-registro') { res.writeHead(301, { location: '/pre-registro/' }); return res.end(); }
   if ((url.pathname.startsWith('/api/') || url.pathname === '/api') && req.method !== 'OPTIONS' && limited(req)) return send(res, 429, { error: 'Muitas requisições' });
   if (url.pathname === '/sobre') return serveStatic(req, res, '/site/index.html');   // página de apresentação (opcional); o jogo É o site em "/"
   if (url.pathname === '/jogar') { res.writeHead(302, { location: '/' }); return res.end(); }

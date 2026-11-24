@@ -9,47 +9,47 @@
   {
    "id": "cyber",
    "nome": "Cyber",
-   "desc": "Cyber (encapuzado) · esqueleto de 52 ossos, 115 animações",
+   "desc": "Cyber (encapuzado) · esqueleto com dedos + 79 animações gravadas (parkour, espada, nado, parede)",
    "essencial": true,
    "tipo": "personagem",
    "files": [
     {
      "path": "models/cyber_rig.glb",
-     "bytes": 5419928,
-     "sha256": "b81485bd2fe4032b34437b18ce8398761e6d01412b02ebdfda3fb171e90493f5"
+     "bytes": 9545472,
+     "sha256": "ee96e804768f1064b453777ce2df9d5089d2d8c026ffc879678fe484711766a1"
     }
    ],
-   "bytes": 5419928
+   "bytes": 9545472
   },
   {
    "id": "atlas",
    "nome": "Atlas",
-   "desc": "Atlas (dreads e correntes) · 115 animações",
+   "desc": "Atlas (dreads e correntes) · esqueleto com dedos + 76 animações gravadas (arco, pistola, espada, plantar)",
    "essencial": false,
    "tipo": "personagem",
    "files": [
     {
      "path": "models/atlas_rig.glb",
-     "bytes": 5131940,
-     "sha256": "59b9a3f22917dcb8864ac199d012eb04fe380414ed0642e9391dd0ef9a543c37"
+     "bytes": 9215460,
+     "sha256": "d86ca7f166e48bc9bba7679ca01d55845ae025b8c6d5f1ac7dd8145ad21901dd"
     }
    ],
-   "bytes": 5131940
+   "bytes": 9215460
   },
   {
    "id": "nexus",
    "nome": "Nexus",
-   "desc": "Nexus (armadura azul e cachecol vermelho) · esqueleto de 52 ossos, 115 animações",
+   "desc": "Nexus (armadura azul e cachecol vermelho) · esqueleto com dedos + 72 animações gravadas (sentar, deslizar, mortal)",
    "essencial": false,
    "tipo": "personagem",
    "files": [
     {
      "path": "models/nexus_rig.glb",
-     "bytes": 5150488,
-     "sha256": "50391f07c513f21e4fe24e59e5313cd1d29f54e2a3726c3ae4ff83522923fcd7"
+     "bytes": 9064828,
+     "sha256": "978f401f825eb1cfb3b087fcc17668199cdd4e61332ff201cbd45a92e3ecb850"
     }
    ],
-   "bytes": 5150488
+   "bytes": 9064828
   },
   {
    "id": "mapa_1k",

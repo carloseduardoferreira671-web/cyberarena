@@ -1,0 +1,25 @@
+<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Preview · Caixas 3D</title>
+<style>
+html,body{margin:0;height:100%;background:#05070f;color:#cfe3ff;font:600 13px system-ui,sans-serif;overflow:hidden}
+#ov{position:fixed;inset:0;background:radial-gradient(circle at 50% 45%,rgba(40,30,90,.82),rgba(2,4,12,.97))}
+#anchor{position:absolute;left:50%;top:50%;width:46vh;height:62vh;transform:translate(-50%,-52%)}
+.c3d-wrap{position:absolute;inset:0;pointer-events:none}.c3d-canvas{width:100%;height:100%;display:block}
+.c3d-flash{position:absolute;inset:0;opacity:0;background:radial-gradient(circle at 50% 50%,#fff 0,#fff 35%,rgba(255,255,255,.7) 100%);mix-blend-mode:screen}
+#ui{position:fixed;left:8px;top:8px;z-index:9;display:flex;gap:6px;flex-wrap:wrap;max-width:96vw}
+#ui button,#ui select{background:#12203a;color:#cfe3ff;border:1px solid #2a4a7a;border-radius:6px;padding:6px 9px;font:inherit}
+</style></head><body>
+<div id="ov"><div id="anchor" onclick="go()"></div></div>
+<div id="ui">
+ <select id="t"><option>mini</option><option>cyber</option><option>mecha</option></select>
+ <select id="r"><option value="0">Comum</option><option value="1">Raro</option><option value="2">Épico</option><option value="3">Lendário</option></select>
+ <select id="s"><option value="">estilo padrão da caixa</option><option>hinge</option><option>levitate</option><option>launch</option></select>
+ <button onclick="show()">1) Mostrar caixa</button><button onclick="go()">2) Abrir (ou toque na caixa)</button>
+</div>
+<script type="module">
+import { ChestStage, CFG } from '../../mundo/js/chest3d.js';
+const st = window.stage = new ChestStage(); const $ = id => document.getElementById(id);
+window.show = async () => { await st.init(); st.attach($('ov'), $('anchor')); st.present($('t').value, { rarity: +$('r').value }); };
+window.go = () => { if (st.mode === 'idle') { const s = $('s').value; window.CHEST3D = s ? { styles: { [$('t').value]: s } } : {}; st.open({ rarity: +$('r').value, rewards: { coins: 1, tokens: 1, gems: +$('r').value >= 1 ? 1 : 0 }, onDone: () => { setTimeout(window.show, 600); } }); } else if (st.mode === 'open') st.skip(); };
+window.show();
+</script></body></html>

@@ -13,7 +13,8 @@ for d, ds, fs in os.walk(root):
     for f in fs:
         p = os.path.join(rel, f) if rel != '.' else f
         p = p.replace(os.sep, '/')
-        if p.endswith('.glb') or p == 'sw.js' or p.startswith('mundo/models/'): continue   # modelos pesados: ficam nos pacotes (Cache API)
+        if (p.endswith('.glb') or p.startswith('mundo/models/')) and not p.endswith('chest_boxes.glb'): continue
+        if p == 'sw.js': continue   # modelos pesados: ficam nos pacotes (Cache API)
         ext = os.path.splitext(f)[1].lower()
         if ext in SKIP_EXT and f not in KEEP_JSON and not (ext == '.json' and p.startswith(('mundo/', 'assests/', 'data/', 'cyber_viewer/'))): continue
         if f.endswith('.zip') or f.endswith('.mjs') and 'server' in p: continue

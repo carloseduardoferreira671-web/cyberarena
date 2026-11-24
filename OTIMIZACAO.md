@@ -25,3 +25,10 @@ Medido (renderização por software, só vale como comparação): modo treino 1,
 - **Menos lixo por quadro**: lista de empurrões da vegetação reordenada a cada 8 quadros; fila `pending` dos atores filtrada no lugar.
 - Diagnóstico: com `?debug=1`, `window.__ca.aq / LADDER / getIdx()`; com "Mostrar FPS" ligado aparece `FPS · QUALIDADE · resolução× · Nível · triângulos`.
 - **Material leve do Cyber à distância** (`classic.js`): a partir de ~28 m o Cyber troca o material físico (verniz + sheen + especular extra) por um `MeshStandardMaterial` com os mesmos mapas, cor, emissão, brilho de borda e flash de dano (inclui skins cósmicas). Histerese de 3 m (volta ao completo em < 25 m). Os dois materiais são pré-compilados no carregamento, então a troca não engasga.
+
+# v155 · orçamento por aparelho (`mundo/js/perf.js`)
+- **Causa do travamento no celular**: texturas 2K/4K e SSAO escolhidos só por `navigator.deviceMemory` (teto 8). Celular "8 GB" carregava até ~1,4 GB de texturas na GPU.
+- `detectDevice()` mede GPU (Adreno/Mali), RAM e núcleos → perfil `low | mid | high | desktop`; o pior sinal manda.
+- Celular: textura do mapa no máximo 1K, resolução limitada por megapixels, sombra ≤ 1024/2048, sem AA/SSAO no automático. PC: igual a antes.
+- Texturas sobem para a GPU na tela de carregamento (`warmTextures`), sem travada no primeiro quadro.
+- Teste: `?perf=low|mid|high|desktop` na URL.

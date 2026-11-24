@@ -2,6 +2,7 @@
    Evita arquivos pesados e mantém aparência realista e detalhada (sem cores chapadas). */
 import * as THREE from 'three';
 import { packURL } from '../packs.js';
+import { detectDevice, texMaxTier } from '../perf.js';   // v155: orçamento de textura por aparelho
 
 function rng(seed) { let a = seed | 0; return () => { a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
 function valueNoise(size, cells, r) {
@@ -45,7 +46,7 @@ const mix = (a, b, t) => a + (b - a) * t;
 
 export function makeTextures(quality) {
   /* SUPREMO em aparelho com bastante memória (≥6 GB): texturas do mapa em 1024 (o dobro de detalhe por lado) */
-  const S = quality === 'low' ? 256 : (quality === 'high' && (navigator.deviceMemory || 4) >= 6 ? 1024 : 512), T = {};
+  const S = quality === 'low' ? 256 : (quality === 'high' && !detectDevice().touch && (navigator.deviceMemory || 4) >= 6 ? 1024 : 512), T = {};   // v155: celular nunca passa de 512 nas texturas procedurais
   /* blocos de pedra (paredes da casona, pilares, plataforma) */
   {
     const n = fbmTex(S, 11, 5, 4), m = fbmTex(S, 12, 3, 16), r = rng(5), rows = 8, bw = S / 4, bh = S / rows, tint = [];
@@ -115,11 +116,10 @@ const MAT = {                       // chave do mundo → pasta do material (ord
 };
 /* níveis tentados do melhor para o pior, conforme a memória do aparelho */
 function tierOrder(quality) {
-  const mem = navigator.deviceMemory || 4;                    // o navegador limita este valor a 8
-  if (quality === 'low') return ['1k'];
-  if (mem >= 8) return ['4k', '2k', '1k'];
-  if (mem >= 6) return ['2k', '1k'];
-  return ['1k'];
+  /* v155: antes só olhava navigator.deviceMemory (o navegador limita a 8), então um celular com "8 GB" carregava 4K/2K e estourava
+     a memória de vídeo. Agora o teto vem do perfil do aparelho (perf.js): celular = no máximo 1K; PC = como antes. */
+  const max = texMaxTier(quality);
+  return max === '4k' ? ['4k', '2k', '1k'] : max === '2k' ? ['2k', '1k'] : ['1k'];
 }
 /* orçamento de memória de vídeo para 4K (cor + normal ≈ 180 MB por material): 8 GB+ → ~1,4 GB = até 7 materiais em 4K */
 const COST_4K = 180, budget4k = (q) => (q === 'high' ? 1400 : 900);          // 'high' = até 7 materiais em 4K; 'medium' (padrão do APK) = até 5

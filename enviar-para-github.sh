@@ -4,7 +4,6 @@
 # Uso:  cd ~/cyberarena && bash enviar-para-github.sh
 set -e
 cd "$(dirname "$0")"
-[ -f preparar-envio.sh ] && bash preparar-envio.sh
 
 command -v git >/dev/null 2>&1 || { echo "Instalando o git..."; pkg install -y git; }
 

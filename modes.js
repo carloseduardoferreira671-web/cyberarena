@@ -1,6 +1,6 @@
 /* CyberArena · tela de MODOS / MAPAS (estilo Brawl Stars / Free Fire).
    Para adicionar um mapa ou modo novo: acrescente UMA entrada em MODES (abaixo) e coloque a capa em assests/modes/.
-   - id     : o modo que o jogo entende (battle | open | space | train). Vários mapas podem usar o mesmo id no futuro.
+   - id     : o modo que o jogo entende (battle | open | space | train | soccer_gold | soccer_blue). Vários mapas podem usar o mesmo id no futuro.
    - cover  : foto do próprio mapa (16:9, de preferência 1280×720 .webp).                                           */
 export const MODES = [
   { id: 'battle', map: 'Vale da Casona', name: 'BATALHA', tag: 'ÚLTIMO DE PÉ', players: '16 JOGADORES', btn: 'ESCOLHER', cover: 'assests/modes/battle.webp', accent: '#ff3d5a',
@@ -12,6 +12,12 @@ export const MODES = [
   { id: 'space', map: 'Espaço de Treino', name: 'TREINO', tag: 'TESTE DE PODERES', players: 'ONLINE · TREINO', btn: 'ESCOLHER', cover: 'assests/modes/space.webp', accent: '#58a6ff',
     desc: 'Uma plataforma flutuante entre estrelas, cristais e ilhas no espaço. Um lugar tranquilo para treinar, sem pressa e sem pontuação.',
     chips: ['4 ALVOS', 'ENERGIA RÁPIDA', 'SEM RISCO'] },
+  { id: 'soccer_gold', map: 'Estádio Dourado', name: 'FUTEBOL', tag: 'PÔR DO SOL', players: 'TREINO · PÊNALTIS', btn: 'ESCOLHER', cover: 'assests/modes/soccer_gold.webp', accent: '#ffb020',
+    desc: 'Um estádio ao pôr do sol, com torcida, refletores e placar 3D. Bola com física de verdade: carregue o chute, dê efeito e bata pênaltis contra o goleiro.',
+    chips: ['FÍSICA DA BOLA', 'PÊNALTIS', 'OFFLINE'] },
+  { id: 'soccer_blue', map: 'Estádio Azul', name: 'FUTEBOL', tag: 'NOITE', players: 'TREINO · PÊNALTIS', btn: 'ESCOLHER', cover: 'assests/modes/soccer_blue.webp', accent: '#38b6ff',
+    desc: 'O mesmo campo numa noite fria sob luzes azuis. Chute, passe, cruze e bata pênaltis com o goleiro bot.',
+    chips: ['FÍSICA DA BOLA', 'PÊNALTIS', 'OFFLINE'] },
 ];
 
 const $ = id => document.getElementById(id);

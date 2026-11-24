@@ -70,6 +70,11 @@ export function clampPreset(Q, dev = detectDevice(), w = innerWidth, h = innerHe
   o.pr = Math.max(.6, Math.min(Q.pr, L.pr, byPixels));
   if (Q.shadows && Q.shadowMap) o.shadowMap = Math.min(Q.shadowMap, L.shadowMap);
   o.aa = Q.aa && L.aa;
+  /* v156: GPU fraca (ex.: Mali-G52 do Redmi 15C) — menos grama e folhas, e sombra menor */
+  if (dev.profile === 'low') {
+    o.grass = Math.min(Q.grass, 2500); o.grassR = Math.min(Q.grassR, 16); o.leaves = Math.min(Q.leaves, 80);
+    if (Q.shadows && Q.shadowMap) o.shadowMap = Math.min(o.shadowMap, 768);
+  }
   return o;
 }
 

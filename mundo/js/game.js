@@ -45,7 +45,7 @@ const PRESETS = {
   high: { pr: 2, shadows: true, shadowMap: 3072, grass: 15000, grassR: 34, leaves: 320, lights: true, terrainCell: .5, aa: true },
   medium: { pr: 1.5, shadows: true, shadowMap: 2048, grass: 9000, grassR: 28, leaves: 230, lights: true, terrainCell: .6, aa: true },
   low: { pr: 1, shadows: true, shadowMap: 1024, grass: 4500, grassR: 22, leaves: 150, lights: false, terrainCell: .6, aa: false },
-  ultra: { pr: .75, shadows: false, shadowMap: 0, grass: 0, grassR: 0, leaves: 60, lights: false, terrainCell: .8, aa: false },
+  ultra: { pr: 1, shadows: false, shadowMap: 0, grass: 0, grassR: 0, leaves: 60, lights: false, terrainCell: .8, aa: false },
 };
 const IS_APK = location.hostname === 'appassets.androidplatform.net';
 { const m = { auto: isTouch || IS_APK ? 'medium' : 'high', mid: 'medium', ultra4k: 'high', apk: 'medium' }; if (m[SET.quality]) SET.quality = m[SET.quality]; if (!PRESETS[SET.quality]) SET.quality = 'high'; }

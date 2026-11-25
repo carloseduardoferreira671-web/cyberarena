@@ -6,9 +6,13 @@ Hoje: **Treino** livre e **Pênaltis**, os dois offline, com goleiro bot. O hub 
 ## Arquivos
 - `mundo/js/ballphys.js` — física pura da bola (sem THREE). Gravidade, arrasto, efeito (Magnus), quique, atrito e rolagem com rotação real, traves/travessão/rede. Dá para testar no Node.
 - `mundo/js/stadium.js` — o estádio (campo com listras e linhas, arquibancadas, torcida, treliças, refletores com feixes, placas de LED, gols com rede, placar 3D, céu). Tem a mesma interface de colisão do Mundo/Realm, então os personagens andam nele normalmente. Fica em x = REALM_X.
+- `mundo/js/soccerrig.js` — animações de futebol feitas por código, em camada por cima do clipe que estiver tocando: chute, passe, lançamento, cruzamento, voleio, cabeceio, domínio, toque de condução, lateral; e do goleiro: posição de espera, mergulho (baixo, meio, alto), encaixe, soco, arremesso e levantar. O jogo escolhe a animação sozinho pela situação da bola.
 - `mundo/js/soccer.js` — jogo: chute/passe/cruzamento/cabeceio/drible, contato corpo×bola, regras (gol, lateral, escanteio, tiro de meta), goleiro bot, treino com alvos, pênaltis, HUD e sons (sintetizados, sem arquivos).
 - `game.js` — só os ganchos: `MODE === 'soccer'`, `Stadium` no lugar do `Realm`, `soccer.update(dt)` e `soccer.act(nome)`.
 - `modes.js` + `assests/modes/soccer_*.webp` — os dois cartões de modo (capas feitas das fotos de vista de cima).
+
+## Condução (bola quase no pé)
+Com a bola perto, ela acompanha o pé em toques curtos a cada passada (mais longe quando você corre, mais perto no drible), mas não gruda: em curva fechada ou com sprint ela se afasta um pouco. Bola vindo na sua direção é amortecida (domínio) e assenta no pé.
 
 ## Controles
 | Ação | Celular | Teclado |

@@ -107,8 +107,9 @@ export function stepRigged(h, dt, ac) {
   let cl = h.climbCycle || null;     // quem escala localmente tem a fase real (game.js); jogadores remotos usam um ciclo por tempo
   if (!cl && h.t < h.climbUntil) { r.cph = (r.cph || 0) + dt * .85; const s = r.wrap.scale.x; cl = { phase: r.cph, H: 1.15 / s, wall: .2, tilt: 0, over: 0 }; } else if (!h.climbUntil || h.t >= h.climbUntil) r.cph = 0;
   const yw = h.object.rotation.y; let dy = yw - (r.lastYaw ?? yw); dy = Math.atan2(Math.sin(dy), Math.cos(dy)); r.lastYaw = yw; r.yr = (r.yr || 0) + (dy / dt - (r.yr || 0)) * Math.min(1, dt * 10);
-  ctl.update(dt, { yr: r.yr, spd: h.spd || 0, air: h.air > .5, vy: h.vy || 0, crouch: !!h.crouch && !h.dead, neutral: !!h.neutral, dancing: !!h.dancing, climb: cl, lv: h.lv, water: h.water || 0 });
+  ctl.update(dt, { yr: r.yr, spd: r.forceSpd != null ? r.forceSpd : (h.spd || 0), air: h.air > .5, vy: h.vy || 0, crouch: !!h.crouch && !h.dead, neutral: !!h.neutral, dancing: !!h.dancing, climb: cl, lv: h.lv, water: h.water || 0 });
   r.props && r.props.update(dt, ctl);
+  if (r.layer) r.layer(dt, r);   // camada procedural por cima do clipe (futebol: chute, passe, goleiro…)
   r.wrap.updateMatrixWorld(true);
 }
 const clamp01 = (x, a, b) => Math.max(a, Math.min(b, x));

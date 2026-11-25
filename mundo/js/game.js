@@ -13,13 +13,12 @@ import { MOVES } from './moves.js';
 import { EMOTES } from './clipctl.js';
 import { SOFT as SOFTBODY } from './softbody.js';
 import { Realm, REALM_X } from './realm.js';
-import { Stadium } from './stadium.js';
-import { createSoccer } from './soccer.js';
 import { ensurePacks } from './packs_ui.js';
 import { FX } from './fx.js';
 import { Powers, makeBlackHole } from './powers.js';
 import { Audio } from './audio.js';
 import { NOPROG, Net, getIdentity, saveIdentity } from './net.js';
+import { detectDevice, clampPreset, capCine } from './perf.js';   // v155: orçamento de desempenho por aparelho
 
 const $ = id => document.getElementById(id);
 const PI = Math.PI, TAU = PI * 2, CW = CWm, WD = CW.W;
@@ -28,12 +27,10 @@ const angDiff = (a, b) => { let d = a - b; while (d > PI) d -= TAU; while (d < -
 const r2 = x => Math.round(x * 100) / 100;
 const embedded = window.parent && window.parent !== window;
 const params = new URLSearchParams(location.search);
-const MODE_RAW = params.get('mode') || '';
-const MODE = MODE_RAW.startsWith('soccer') ? 'soccer' : ['battle', 'open', 'train', 'space'].includes(MODE_RAW) ? MODE_RAW : 'battle';
-const VENUE = MODE_RAW === 'soccer_blue' ? 'blue' : 'gold';   // estádio do futebol: dourado (pôr do sol) ou azul (noite)
+const MODE = ['battle', 'open', 'train', 'space'].includes(params.get('mode')) ? params.get('mode') : 'battle';
 const CODE = (params.get('code') || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8) || null;
 const PARTY = /^[A-Z0-9]{8}$/.test(params.get('party') || '') ? params.get('party') : null;   // grupo do lobby: todos caem na mesma sala
-const FORCE_OFFLINE = params.get('offline') === '1' || NOPROG || MODE === 'soccer';   // Teste de Poderes (space) e treino (train) agora são online (caem para offline sozinhos se o servidor não responder)
+const FORCE_OFFLINE = params.get('offline') === '1' || NOPROG;   // Teste de Poderes (space) e treino (train) agora são online (caem para offline sozinhos se o servidor não responder)
 const TRAINLIKE = MODE === 'train' || MODE === 'space';
 const isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
 if (!isTouch) document.body.classList.add('desktop');
@@ -52,7 +49,7 @@ const PRESETS = {
 };
 const IS_APK = location.hostname === 'appassets.androidplatform.net';
 { const m = { auto: isTouch || IS_APK ? 'medium' : 'high', mid: 'medium', ultra4k: 'high', apk: 'medium' }; if (m[SET.quality]) SET.quality = m[SET.quality]; if (!PRESETS[SET.quality]) SET.quality = 'high'; }
-const qName = SET.quality, Q = PRESETS[qName], ULTRA = qName === 'ultra';
+const qName = SET.quality, DEV = detectDevice(), Q = clampPreset(PRESETS[qName], DEV), ULTRA = qName === 'ultra';   // v155: celular fraco/médio recebe resolução, sombra e AA limitados ao que a GPU aguenta
 const THEMES = ['classic', 'forest', 'fire']; SET.theme = THEMES.includes(SET.theme) ? SET.theme : 'classic';
 if (SET.showFps) $('fps').classList.remove('hidden');
 if (SET.pad) document.body.classList.add('showpad');
@@ -60,7 +57,7 @@ if (SET.pad) document.body.classList.add('showpad');
 /* ---------- renderizador ---------- */
 const canvas = $('c');
 let renderer;
-try { renderer = new THREE.WebGLRenderer({ canvas, antialias: Q.aa, powerPreference: 'high-performance', stencil: false, precision: ULTRA ? 'mediump' : 'highp' }); }
+try { renderer = new THREE.WebGLRenderer({ canvas, antialias: Q.aa, powerPreference: 'high-performance', stencil: false, precision: 'highp' }); }   // v156: 'mediump' no Ultra leve deixava shaders pretos/bugados em GPUs Mali (cálculos PBR/vento perdem precisão)
 catch (e) { $('loadTip').textContent = 'WebGL indisponível neste aparelho.'; throw e; }
 const basePR = Q.ss ? Math.min(3, Math.max(window.devicePixelRatio || 1, 3840 / Math.max(innerWidth, innerHeight))) : Math.min(window.devicePixelRatio || 1, Q.pr); let curPR = basePR;
 renderer.setPixelRatio(curPR); renderer.setSize(innerWidth, innerHeight, false);
@@ -70,7 +67,7 @@ try { useHeroEnv(renderer); } catch (e) { console.warn(e); }
 PBR_CFG.gore = SET.gore !== false; PBR_CFG.aniso = qName === 'low' ? 1 : Math.min(8, renderer.capabilities.getMaxAnisotropy()); globalThis.__ANISO = qName === 'ultra' ? 1 : qName === 'low' ? 2 : PBR_CFG.aniso;
 // pós-processamento cinematográfico: 0 off · 1 bloom+grading · 2 +SSAO · 3 +motion blur
 const CINE_AUTO = { ultra: 0, low: 1, medium: 2, high: 3 };
-const cineTier = SET.cine === 'auto' || SET.cine == null ? (CINE_AUTO[qName] ?? 1) : +SET.cine;
+const cineTier = SET.cine === 'auto' || SET.cine == null ? capCine(CINE_AUTO[qName] ?? 1, DEV) : +SET.cine;   // v155: no celular o automático não liga SSAO
 let post = null;
 const scene = new THREE.Scene(); scene.fog = new THREE.Fog(0xa8c6e2, 180, 980);
 const camera = new THREE.PerspectiveCamera(58, innerWidth / innerHeight, .2, 3200);
@@ -234,7 +231,7 @@ function readMove() {
 
 /* ===================================================== física ===================================================== */
 const GRAV = 26, JUMP_V = 9.6, RAD = .46, RUN = 7.2;
-let realm = null, soccer = null; const inRealm = a => !!realm && a.x > REALM_X - 600; const envOf = a => a.dim ? a.dim : inRealm(a) ? realm : world;
+let realm = null; const inRealm = a => !!realm && a.x > REALM_X - 600; const envOf = a => a.dim ? a.dim : inRealm(a) ? realm : world;
 function tryVault(a, hit) {
   const E = envOf(a);
   if (!hit || !hit.o.vault || !a.grounded || a.vault) return false;
@@ -341,7 +338,6 @@ function faceTo(a, b) { a.yaw = Math.atan2(b.x - a.x, b.z - a.z); a.aimT = .45; 
 function moveIntent(a) { if (a === me) { const m = readMove(); return m[2] > .1 ? [m[0] / m[2], m[1] / m[2]] : [Math.sin(camS.yaw), Math.cos(camS.yaw)]; } return null; }
 function act(name) {
   if (!me || !me.alive || me.drop > 0 || G.phase === 'loading') return;
-  if (soccer && soccer.act(name)) return;
   if (name === 'sit') { toggleSit(me); return; }
   if (name.startsWith('emote_')) { if (MODE === 'battle' && G.phase === 'live') return; if (!me.hero.isBusy() && !me.down) me.play(name); return; }
   if (name === 'wave' || name === 'dance') { const em = (me.hero.atlasRig ? me.hero.atlasRig.ctl.emotes() : []).filter(e => e.id !== 'sit'); const e = em[name === 'wave' ? 0 : 1] || em[0]; if (e) act('emote_' + e.id); return; }
@@ -1373,7 +1369,7 @@ try { const pv0 = PV(); if (pv0) { pv0.hear.add(renderVoice); addEventListener('
 setInterval(renderVoice, 1000);
 // configurações
 $('bSet').onclick = () => { $('sQ').value = SET.quality; $('sTheme').value = SET.theme; $('sF').value = String(SET.fps); $('sShow').checked = SET.showFps; $('sSens').value = SET.sens; $('sVol').value = audio.vol; $('sCam').value = camS.mode; $('sPad').checked = SET.pad; $('sCine').value = String(SET.cine); $('sGore').checked = SET.gore !== false; $('settings').classList.remove('hidden'); };
-$('bSetOk').onclick = () => { SET.quality = $('sQ').value; SET.theme = $('sTheme').value; SET.fps = +$('sF').value; SET.showFps = $('sShow').checked; SET.sens = +$('sSens').value; SET.pad = $('sPad').checked; SET.cine = $('sCine').value; SET.gore = $('sGore').checked; PBR_CFG.gore = SET.gore; phys.gore = SET.gore; if (post) post.setTier(SET.cine === 'auto' ? (CINE_AUTO[qName] ?? 1) : +SET.cine); post && (post.baseTier = post.tier); audio.setVolume(+$('sVol').value); if ($('sCam').value !== camS.mode) setCameraMode($('sCam').value, false); saveSet(); $('fps').classList.toggle('hidden', !SET.showFps); document.body.classList.toggle('showpad', SET.pad); $('settings').classList.add('hidden'); };
+$('bSetOk').onclick = () => { SET.quality = $('sQ').value; SET.theme = $('sTheme').value; SET.fps = +$('sF').value; SET.showFps = $('sShow').checked; SET.sens = +$('sSens').value; SET.pad = $('sPad').checked; SET.cine = $('sCine').value; SET.gore = $('sGore').checked; PBR_CFG.gore = SET.gore; phys.gore = SET.gore; if (post) post.setTier(SET.cine === 'auto' ? capCine(CINE_AUTO[qName] ?? 1, DEV) : +SET.cine); post && (post.baseTier = post.tier); audio.setVolume(+$('sVol').value); if ($('sCam').value !== camS.mode) setCameraMode($('sCam').value, false); saveSet(); $('fps').classList.toggle('hidden', !SET.showFps); document.body.classList.toggle('showpad', SET.pad); $('settings').classList.add('hidden'); };
 // sair
 $('bExit').onclick = () => { const live = MODE === 'battle' && G.phase === 'live' && me && me.alive; $('exT').textContent = live ? 'Sair da partida?' : MODE === 'open' ? 'Sair do mundo aberto?' : 'Voltar ao lobby?'; $('exP').textContent = live ? 'Você será eliminado e receberá o resultado atual.' : 'Você pode voltar quando quiser.'; $('ovExit').classList.remove('hidden'); };
 $('bExNo').onclick = () => $('ovExit').classList.add('hidden');
@@ -1817,7 +1813,6 @@ function tick(dt) {
   }
   // Contato corporal entre atores: cápsulas de tronco separam volumes, transferem impulso e pressionam a malha macia.
   resolveActorBodyContacts(dt);
-  if (soccer) soccer.update(dt);
   // empurrões na vegetação (personagens próximos da câmera)
   const push = U.uPush.value; let pi = 0;
   if (pushCtr++ % 8 === 0) pushList = [...actors.values()].sort((p, q) => Math.hypot(p.x - camS.tx, p.z - camS.tz) - Math.hypot(q.x - camS.tx, q.z - camS.tz)).slice(0, 8);
@@ -1838,8 +1833,7 @@ const ENV = { ins: 0, realmOn: false, hemiI: hemi.intensity, sunI: sun.intensity
 function setRealm(on) {
   ENV.realmOn = on; if (on) { realm.build(); applyCinematicToonScene(realm.group); } realm.group.visible = on;
   for (const o of worldObjs) { if (o.isLight || o === sun.target || o === realm.group) continue; if (on) { o.userData.wasVis = o.visible; o.visible = false; } else o.visible = o.userData.wasVis ?? true; }
-  if (on && realm.light) { const L = realm.light; hemi.color.set(L.hemiC); hemi.groundColor.set(L.hemiG); hemi.intensity = L.hemiI; sun.color.set(L.sunC); sun.intensity = L.sunI; scene.fog.color.set(L.fogC); scene.fog.near = L.fogN; scene.fog.far = L.fogF; renderer.toneMappingExposure = L.exp; }
-  else if (on) { hemi.color.set(0x9a8cff); hemi.groundColor.set(0x1a1030); hemi.intensity = 1.0; sun.color.set(0xb8c4ff); sun.intensity = 1.6; scene.fog.color.set(0x140b2c); scene.fog.near = 70; scene.fog.far = 330; renderer.toneMappingExposure = 1.15; }
+  if (on) { hemi.color.set(0x9a8cff); hemi.groundColor.set(0x1a1030); hemi.intensity = 1.0; sun.color.set(0xb8c4ff); sun.intensity = 1.6; scene.fog.color.set(0x140b2c); scene.fog.near = 70; scene.fog.far = 330; renderer.toneMappingExposure = 1.15; }
   else { hemi.color.copy(ENV.hemiC); hemi.groundColor.copy(ENV.hemiG); sun.color.copy(ENV.sunC); scene.fog.color.copy(ENV.fogC); scene.fog.near = ENV.fogN; scene.fog.far = ENV.fogF; }
 }
 function updateEnv(dt, f) {
@@ -1876,17 +1870,31 @@ function teleport() {
 }
 hold($('bPortal'), teleport);
 addEventListener('keydown', e => { if (e.key.toLowerCase() === 'f' && document.activeElement !== $('chatIn')) teleport(); });
-function makeKeeper() {   // goleiro bot do futebol: um ator comum controlado pelo soccer.js
-  const a = addActor('gk-' + Math.random().toString(36).slice(2, 6), 'GOLEIRO', 'cyber', 'bot', 'cyber'); a.simulated = true; a.lvl = 5; a.maxHp = CS.hpAt(a.char, a.lvl); a.hp = a.maxHp; a.team = 1;
-  a.brain = { mx: 0, mz: 0, jump: false, passive: true, home: [0, 0], update() { } }; a.grounded = true; return a;
-}
-function canFightBots() { return TRAINLIKE || MODE === 'soccer' || (MODE === 'battle' && G.phase !== 'waiting'); }
+function canFightBots() { return TRAINLIKE || (MODE === 'battle' && G.phase !== 'waiting'); }
 
 /* ===================================================== início ===================================================== */
 const HINTS = ['Dica: toque no minimapa para abrir o mapa completo.', 'Dica: corra até uma janela ou cerca e aperte PULO para saltar por cima.', 'Dica: a habilidade mira sozinha no inimigo mais próximo à sua frente.', 'Dica: cause dano para carregar o SUPER.', 'Dica: sem zona segura: use o mapa para caçar os últimos jogadores.', 'Dica: kits médicos verdes curam 45 de vida.'];
 $('loadHint').textContent = HINTS[(Math.random() * HINTS.length) | 0];
+/* v155: sobe as texturas para a GPU durante a tela de carregamento. Antes subiam no primeiro quadro visível (travada de 1–3 s no celular). */
+async function warmTextures(setP) {
+  if (!renderer.initTexture) return;
+  const list = [], seen = new Set();
+  scene.traverse(o => { for (const m of (o.material ? [].concat(o.material) : [])) for (const k in m) { const t = m[k]; if (t && t.isTexture && t.image && !seen.has(t) && !t.isRenderTargetTexture && !t.isDepthTexture && !t.isCubeTexture && !t.isData3DTexture && !t.isDataArrayTexture) { seen.add(t); list.push(t); } } });
+  for (let i = 0; i < list.length; i++) {
+    try { renderer.initTexture(list[i]); } catch (e) { }
+    if (i % 4 === 3) { setP(.96, 'Preparando texturas…'); await new Promise(r => setTimeout(r, 0)); }
+  }
+  /* v156: o mundo liga/desliga blocos de árvores por distância (LOD). Cada bloco só subia para a GPU na PRIMEIRA vez que aparecia,
+     então andar para uma área nova dava um pico de travada. Aqui desenhamos tudo uma vez (sem culling) na tela de carregamento. */
+  setP(.97, 'Preparando o mapa…'); await new Promise(r => setTimeout(r, 30));
+  const saved = [];
+  try {
+    scene.traverse(o => { if (o.isMesh || o.isPoints || o.isLine) { saved.push([o, o.visible, o.frustumCulled]); o.visible = true; o.frustumCulled = false; } });
+    renderer.render(scene, camera);
+  } finally { for (const [o, v, f] of saved) { o.visible = v; o.frustumCulled = f; } }
+}
 async function start() {
-  const setP = (p, t) => { $('loadFill').style.width = Math.round(p * 100) + '%'; if (t) $('loadTip').textContent = t; };
+  const setP =(p, t) => { $('loadFill').style.width = Math.round(p * 100) + '%'; if (t) $('loadTip').textContent = t; };
   const preWorld = new Set(scene.children);
   try { await world.build(setP); Object.assign(ENV, { hemiI: hemi.intensity, sunI: sun.intensity, fogC: scene.fog.color.clone(), fogN: scene.fog.near, fogF: scene.fog.far, hemiC: hemi.color.clone(), hemiG: hemi.groundColor.clone(), sunC: sun.color.clone() }); applyCinematicToonScene(scene); } catch (e) { console.error(e); $('loadTip').textContent = 'Erro ao montar o mundo: ' + e.message; return; }
   try { if (!(await ensurePacks([...new Set(['cyber', ident.char].filter(Boolean))]))) { exitToLobby(); return; } } catch (e) { console.warn('pacotes', e); }
@@ -1897,11 +1905,12 @@ async function start() {
     try { if (classicReady()) { const w = makeCharacter('cyber', 'cyber'); w.attach(scene); w.object.position.copy(camera.position); for (const l of [0, 2]) { w.setLOD(l); renderer.compile(scene, camera); } w.detach(); window.__warmHero = w; } } catch (e) { console.warn('pré-compilação do Cyber', e); }
     renderer.compile(scene, camera); warm.forEach(o => { o.removeFromParent(); o.geometry.dispose(); o.material.dispose(); });
   } catch (e) { console.warn('pré-compilação', e); }
-  worldObjs = scene.children.filter(o => !preWorld.has(o)); realm = MODE === 'soccer' ? new Stadium(scene, Q, VENUE, { qname: qName }) : new Realm(scene, Q);
+  try { await warmTextures(setP); } catch (e) { console.warn('pré-carga de texturas', e); }
+  worldObjs =scene.children.filter(o => !preWorld.has(o)); realm = new Realm(scene, Q);
   /* zona removida */
   setP(.97, MODE === 'battle' ? 'Procurando partida…' : MODE === 'open' ? 'Entrando no mundo aberto…' : 'Preparando treino…');
   let room;
-  const QM = MODE === 'open' ? 'open' : MODE === 'space' ? 'space' : (MODE === 'train' || MODE === 'soccer') ? 'train' : 'battle';
+  const QM = MODE === 'open' ? 'open' : MODE === 'space' ? 'space' : MODE === 'train' ? 'train' : 'battle';
   try { room = await net.queue({ mode: QM, code: CODE, party: PARTY }); }
   catch (e) { net.online = false; room = await net.queue({ mode: QM }); }
   // servidor antigo que não conhece o treino online devolve uma sala de partida: sai dela e treina offline
@@ -1914,13 +1923,6 @@ async function start() {
     realm.build(); applyCinematicToonScene(realm.group); me.x = realm.spawn[0]; me.z = realm.spawn[1]; me.y = realm.groundAt(me.x, me.z) + .1; me.yaw = PI; camS.yaw = PI; me.energy = 100;
     const C = realm.islands[0]; for (let i = 0; i < 4; i++) { const b = makeBot(i, null, .3, true), ang = PI * .5 + (i - 1.5) * .45, d = 12 + (i % 2) * 4; b.x = C.x + Math.cos(ang) * d * -1; b.z = C.z - Math.sin(ang) * d; b.y = realm.groundAt(b.x, b.z) + .1; b.drop = 0; b.grounded = true; b.yaw = Math.atan2(me.x - b.x, me.z - b.z); b.brain.home = [b.x, b.z]; b.maxHp = 400 * CS.NORM; b.hp = b.maxHp; }
     $('tTimeL').textContent = 'MODO'; $('tTime').textContent = 'TESTE'; chatLine('', net.offline ? 'Teste de Poderes: 4 bots que não atacam. Energia do super recarrega rápido.' : 'Teste de Poderes ONLINE: treine com amigos! Você tem 4 bots só seus e pode atacar os outros jogadores.', true); banner('TESTE DE PODERES · MUNDO ESPACIAL', 3000); }
-  else if (MODE === 'soccer') { G.phase = 'train'; G.started = true; for (const id of ['top', 'mmWrap', 'vitals', 'enBar']) { const e = $(id); e && e.classList.add('hidden'); }
-    $('btns').querySelectorAll('#bKick,#bSolar,#bSwap').forEach(b => b.classList.add('hidden'));
-    realm.build(); me.x = realm.spawn[0]; me.z = realm.spawn[1] + 16; me.y = .1; me.yaw = 0; camS.yaw = 0; me.energy = 100; camS.dist = camS.mode === 'tps' ? 7.4 : 26; if (camS.mode === 'tps') camS.pitch = .32;
-    skillButtons(); for (const [id, ic, tx] of [['bAtk', '⚽', 'CHUTE'], ['bLas', '➜', 'PASSE'], ['bSup', '⤴', 'CRUZAR'], ['bVel', '⚡', 'DRIBLE']]) { const I = $(id + 'I'), T = $(id + 'T'); if (I) { I.innerHTML = ic; I.style.fontSize = '30px'; I.style.fontWeight = 900; } if (T) T.textContent = tx; else { const sp = $(id).querySelector('span'); if (sp) sp.textContent = tx; } }
-    const kp = makeKeeper(), sapi = { scene, stadium: realm, audio, banner, fx, actors, touch: isTouch, keysDown: input.keys, me: () => me, setCamYaw: y => { camS.yaw = y; }, doDodge, readMove, shake: k => { G.shake = Math.max(G.shake || 0, k); }, focusCam: () => { if (camS.mode === 'tps') camS.pitch = .32; } };
-    soccer = createSoccer(sapi); sapi.setKeeper(kp); soccer.start('train'); window.__soccer = soccer;
-    chatLine('', 'Futebol · ' + realm.V.name + ': treine chutes, passes, cruzamentos e pênaltis (offline).', true); banner(realm.V.name.toUpperCase() + ' · TREINO', 2200); }
   else if (MODE === 'train') { G.phase = 'train'; G.started = true; $('pAlive').classList.add('hidden'); for (let i = 0; i < 4; i++) { const b = makeBot(i, null, .3, true); placeAt(b, world.randomSpot(mulberry32(i * 7 + 3), { cx: sp[0] + (i - 1.5) * 6, cz: sp[1] + 10, r: 5 })); b.brain.home = [b.x, b.z]; b.maxHp = 150 * CS.NORM; b.hp = b.maxHp; } chatLine('', 'Treino: bonecos de treino nascem de novo após 3 s.', true); }
   else { G.phase = 'waiting'; $('mmk').classList.remove('hidden'); $('emotes').classList.remove('hidden'); if (net.offline) { G.startAt = now() + 4000; chatLine('', 'Sem conexão: partida offline contra 15 bots.', true); } }
   if (!net.offline) net.start({ getState: () => packState(me), getBots: () => MODE === 'battle' && G.started ? [...actors.values()].filter(a => a.kind === 'bot' && a.simulated).map(a => ({ id: a.id, name: a.name, skin: a.skin, s: packState(a) })) : null, onSync, onOffline: () => { chatLine('', 'Conexão instável… tentando reconectar.', true); } });

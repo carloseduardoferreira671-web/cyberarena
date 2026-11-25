@@ -191,7 +191,7 @@ export class ClipCtl {
   }
   emoteDur(id) { const e = EMOTE_CLIPS[id]; const n = e && this.pick(e[0]); return n ? this.dur(n) / (e[1] || 1) : 0; }
   /* sentar: Nexus tem as poses de cadeira (cicla entre elas); Atlas senta no chão; Cyber (sem clipe de sentar) agacha */
-  canSit() { return !!this.pick(['Sitting Idle', 'Ground Sit Enter', 'Crouch Idle']); }
+  canSit() { return this.has('Sitting Idle') || (this.has('Ground Sit Enter') && this.has('Ground Sit Exit')); } // cadeira (Nexus) ou chão (Atlas); sem animação própria = não senta (nada de ajoelhar)
   seatMode() { return this.has('Sitting Idle') ? 'chair' : this.has('Ground Sit Enter') ? 'ground' : 'kneel'; }
   sit(on) {
     if (on) {

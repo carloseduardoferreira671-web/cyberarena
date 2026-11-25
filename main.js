@@ -190,12 +190,17 @@ function installUIFeedback(){
 function openSettings(){const el=$('settingsOverlay');if(!el)return;syncSettingsUI();el.classList.remove('hidden');playUISound('settings');vibrateUI('settings');}
 function closeSettings(){const el=$('settingsOverlay');if(el)el.classList.add('hidden');}
 function syncSettingsUI(){
+ syncGraphicsUI();
  const mv=getAudioSetting('cyberArenaMusicVolume'),ev=getAudioSetting('cyberArenaEffectsVolume');
  if($('musicVolume'))$('musicVolume').value=mv;if($('effectsVolume'))$('effectsVolume').value=ev;
  if($('musicVolumeValue'))$('musicVolumeValue').textContent=mv;if($('effectsVolumeValue'))$('effectsVolumeValue').textContent=ev;
  if($('tactileToggle'))$('tactileToggle').checked=localStorage.getItem('cyberArenaTactileEnabled')!=='0';
  if($('vibrationToggle'))$('vibrationToggle').checked=localStorage.getItem('cyberArenaVibrationEnabled')!=='0';if($('gameControlScale'))$('gameControlScale').value=Number(localStorage.getItem('cyberArenaGameControlScale')||100);if($('gameControlScaleValue'))$('gameControlScaleValue').textContent=Number(localStorage.getItem('cyberArenaGameControlScale')||100);
 }
+/* Gráficos: mesma chave usada dentro da partida (mundo/js/game.js) — vale na próxima partida */
+function readGfxSettings(){try{return JSON.parse(localStorage.getItem('cyberarena.settings')||'{}')||{};}catch(_){return {};}}
+function setGraphicsQuality(v){if(!['high','medium','low','ultra'].includes(v))return;const s=readGfxSettings();s.quality=v;try{localStorage.setItem('cyberarena.settings',JSON.stringify(s));}catch(_){}}
+function syncGraphicsUI(){const el=$('gfxQuality');if(!el)return;let q=readGfxSettings().quality;const auto=(window.matchMedia&&matchMedia('(pointer:coarse)').matches)?'medium':'high';const map={auto:auto,mid:'medium',ultra4k:'high',apk:'medium'};if(map[q])q=map[q];if(!['high','medium','low','ultra'].includes(q))q=auto;el.value=q;}
 function setMusicVolume(v){v=Math.max(0,Math.min(200,Number(v)||0));localStorage.setItem('cyberArenaMusicVolume',v);if($('musicVolumeValue'))$('musicVolumeValue').textContent=v;[lobbyMusicA,lobbyMusicB].forEach(m=>{if(m){setAudioGain(m,getMusicGain());m.volume=lobbyMusicActive===m?1:0;}});}
 function setEffectsVolume(v){v=Math.max(0,Math.min(200,Number(v)||0));localStorage.setItem('cyberArenaEffectsVolume',v);if($('effectsVolumeValue'))$('effectsVolumeValue').textContent=v;initUISounds();Object.values(gameAudio).forEach(a=>setAudioGain(a,getEffectsGain()));}
 function setTactile(v){localStorage.setItem('cyberArenaTactileEnabled',v?'1':'0');}

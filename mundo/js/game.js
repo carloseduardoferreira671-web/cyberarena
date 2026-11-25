@@ -206,15 +206,15 @@ const camS = { yaw: PI, pitch: .2, dist: 5.6, mode: SET.cam, x: 0, y: 8, z: 0, t
 }
 const hold = (el, fn) => { el.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); audio.unlock(); fn(); }); };
 hold($('bAtk'), () => act('punch')); hold($('bLas'), () => act('laser')); hold($('bSup'), () => act('super')); hold($('bSolar'), () => act('solar')); hold($('bJmp'), () => { input.jump = true; }); hold($('bVel'), () => act('extra')); hold($('bSwap'), () => swapAbyss(me));
-hold($('bKick'), () => act('kick')); hold($('bCrouch'), () => act('crouch')); hold($('bDodge'), () => act('dodge'));
+hold($('bKick'), () => act('kick')); hold($('bDodge'), () => act('dodge'));
 
 addEventListener('keydown', e => {
   if (document.activeElement === $('chatIn')) { if (e.key === 'Enter') sendChat(); if (e.key === 'Escape') closeChat(); return; }
   audio.unlock(); const k = e.key.toLowerCase(); input.keys.add(k);
   if (k === ' ') { input.jump = true; e.preventDefault(); }
-  if (k === 'g') act('sit'); if (k === 'h') act('kick'); if (k === 'c') act('crouch'); if (k === 'x') act('dodge');
+  if (k === 'g') act('sit'); if (k === 'h') act('kick'); if (k === 'x') act('dodge');
   if (k === 'j') act('punch'); if (k === 'k') act('laser'); if (k === 'l' || k === 'q') act('super');
-  if (k === 'e') act(MODE === 'open' ? 'wave' : 'laser'); if (k === 'r') act(MODE === 'open' ? 'dance' : 'extra'); if (k === 'b') act('solar'); if (k === 'f' && me && me.abyss) swapAbyss(me);
+  if (k === 'e' && MODE !== 'open') act('laser'); if (k === 'r' && MODE !== 'open') act('extra'); if (k === 'b') act('solar'); if (k === 'f' && me && me.abyss) swapAbyss(me);
   if (k === 'v') toggleView(); if (k === 'm') toggleMap(); if (k === 'enter') openChat(); if (k === 'escape') { if (!$('bigmap').classList.contains('hidden')) toggleMap(); }
 });
 addEventListener('keyup', e => input.keys.delete(e.key.toLowerCase()));
@@ -339,8 +339,8 @@ function moveIntent(a) { if (a === me) { const m = readMove(); return m[2] > .1 
 function act(name) {
   if (!me || !me.alive || me.drop > 0 || G.phase === 'loading') return;
   if (name === 'sit') { toggleSit(me); return; }
-  if (name.startsWith('emote_')) { if (MODE === 'battle' && G.phase === 'live') return; if (!me.hero.isBusy() && !me.down) me.play(name); return; }
-  if (name === 'wave' || name === 'dance') { const em = (me.hero.atlasRig ? me.hero.atlasRig.ctl.emotes() : []).filter(e => e.id !== 'sit'); const e = em[name === 'wave' ? 0 : 1] || em[0]; if (e) act('emote_' + e.id); return; }
+  if (name.startsWith('emote_')) { if (MODE === 'battle' && G.phase === 'live') return; if (name === 'emote_sit' && MODE !== 'open') return; if (MODE === 'open' && !OPEN_EMOTES.includes(name.slice(6))) return; if (!me.hero.isBusy() && !me.down) me.play(name); return; }
+  if (name === 'wave' || name === 'dance') return; // emotes genéricos removidos
   if (name === 'crouch') { if (me.sitting) { toggleSit(me); return; } if (!me.crouch && me.grounded && me.spd > 4.6 && !me.climb && !me.down) { doSlide(me); return; } setCrouch(me, !me.crouch); return; }
   if (name === 'dodge') { doDodge(me); return; }
   if (!canFight()) { if (name === 'punch' || name === 'kick' || name === 'laser' || name === 'super' || name === 'extra' || name === 'solar') banner(MODE === 'open' ? 'Mundo aberto: sem combate' : 'Aguarde o início da partida', 1200); return; }
@@ -366,14 +366,15 @@ function doSlide(a) {
   if (a === me) sfx('dodge', a);
   setTimeout(() => { if (a.alive && !a.down && canFight()) { a.hero.atlasRig && a.hero.atlasRig.ctl.plan('sweep'); meleeHit(a, 'Sweep', null); } }, 260);
 }
+const OPEN_EMOTES = ['sit', 'flip']; // mundo aberto: só SENTAR (cadeira) e MORTAL
 function buildEmotes() {
   const box = $('emotes'), ctl = me.hero.atlasRig.ctl; buildEmotes.char = me.char; if (!box) return; box.innerHTML = '';
-  for (const e of ctl.emotes()) { const b = document.createElement('button'); b.className = 'em'; b.textContent = e.icon + ' ' + e.label; b.title = e.label; hold(b, () => act(e.id === 'sit' ? 'sit' : 'emote_' + e.id)); box.appendChild(b); }
+  for (const e of ctl.emotes().filter(e => MODE === 'open' ? OPEN_EMOTES.includes(e.id) : e.id !== 'sit')) { const b = document.createElement('button'); b.className = 'em'; b.textContent = e.icon + ' ' + e.label; b.title = e.label; hold(b, () => act(e.id === 'sit' ? 'sit' : 'emote_' + e.id)); box.appendChild(b); }
 }
 function toggleSit(a) {
   const ctl = a.hero.atlasRig && a.hero.atlasRig.ctl; if (!ctl) return;
   if (a.sitting) { a.sitting = false; ctl.sit(false); a.hero.sitting = false; banner('Em pé', 700); return; }
-  if (a.down || a.climb || !a.grounded || a.spd > 1.2 || !ctl.canSit()) return; if (a.crouch) setCrouch(a, false);
+  if (MODE !== 'open' || a.down || a.climb || !a.grounded || a.spd > 1.2 || !ctl.canSit()) return; // sentar: só no mundo aberto if (a.crouch) setCrouch(a, false);
   a.sitting = true; a.hero.sitting = true; a.play('emote_sit'); banner(ctl.seatMode() === 'chair' ? 'Sentado · mova-se para levantar' : 'Sentou · mova-se para levantar', 1100);
 }
 function doPunch(a, target, kind) {

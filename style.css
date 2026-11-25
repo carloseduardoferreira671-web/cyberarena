@@ -1208,3 +1208,6 @@ body.game-control-editing .game-control-done{display:block}body.game-control-edi
 /* Mundo 3D (iframe em tela cheia) */
 .world3d-frame{position:fixed;inset:0;width:100vw;height:100vh;height:100dvh;border:0;z-index:9000;background:#070b16}
 .world3d-frame.hidden{display:none}
+
+.gfx-select{min-width:130px;padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.22);background:#101a28;color:#fff;font-weight:800;font-size:12px}
+@media(max-width:600px){.gfx-select{width:100%}}

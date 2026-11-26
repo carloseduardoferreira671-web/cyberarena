@@ -124,7 +124,7 @@ export function createSoccer(api) {
   const fmt = s => { s = Math.floor(s); return String(Math.floor(s / 60)).padStart(2, '0') + ':' + String(s % 60).padStart(2, '0'); };
 
   /* ============================== animações (camada procedural por cima do clipe) ============================== */
-  const layers = new Map(), tmpP = new THREE.Vector3(), RUNV = 7.2;
+  const layers = new Map(), tmpP = new THREE.Vector3(), tmpF = new THREE.Vector3(), RUNV = 7.2;
   function L(a) { if (!a || !a.hero) return null; let l = layers.get(a); if (!l && a.hero.atlasRig) { l = new SoccerLayer(a.hero.atlasRig); l.onEvent = (e, an) => animEvent(a, e, an); layers.set(a, l); } return l; }
   function animEvent(a, e, an) {
     if (a === me()) { if (e === 'impact' && S.pk && an.name === S.pk.anim) { const k = S.pk; S.pk = null; doKick(k.kind, k.p, k.spin, k.lift, k.foot); } else if (e === 'release' && S.thr) throwRelease(); }
@@ -228,9 +228,9 @@ export function createSoccer(api) {
      Cada toque calcula a força para a bola ficar à frente do jeito certo (perto no passo curto, mais longe na corrida). */
   function feet(dt, m) {
     const l = L(m), sp = Math.hypot(m.vx, m.vz), dx = ball.x - m.x, dz = ball.z - m.z, d = Math.hypot(dx, dz);
-    const ok = S.noCtl <= 0 && S.kickT <= 0 && !S.thr && m.grounded && m.alive && !m.down && S.state === 'play' && S.mode !== 'pen' && !S.pk;
+    const ok = S.noCtl <= 0 && S.kickT <= 0 && !S.thr && m.grounded && m.alive && !m.down && S.state === 'play' && S.mode !== 'pen' && !S.pk && S.sp !== 'lateral';
     S.tcd = Math.max(0, (S.tcd || 0) - dt);
-    if (!ok) { S.ctl = 0; S.tr = null; return; }
+    if (!ok) { S.ctl = 0; S.car = false; S.hd = 0; S.tr = null; return; }
     const tr = S.tr; if (tr) { tr.t += dt; if (!tr.held && tr.rel == null) tr.rel = tr.t; if ((!tr.held && tr.t > tr.rel + .3) || tr.t > 6 || (tr.done && !tr.held)) S.tr = null; }
     const mv = api.readMove(), mag = mv[2] || 0, want = mag > .1, fx = sp > .7 ? m.vx / sp : Math.sin(m.yaw), fz = sp > .7 ? m.vz / sp : Math.cos(m.yaw);
     const hx = want ? mv[0] / mag : fx, hz = want ? mv[1] / mag : fz;                       // direção em que o jogador quer ir
@@ -251,25 +251,43 @@ export function createSoccer(api) {
     }
     // --- controle fechado parado: segurando o botão com a bola no pé, ela não foge (pisa na bola) ---
     if (tr && tr.held && inZone && rs < 3 && d < 1.2 && sp < .8) { const k = Math.exp(-9 * dt); ball.vx = m.vx + rvx * k; ball.vz = m.vz + rvz * k; ball.wx = ball.vz / R; ball.wz = -ball.vx / R; S.last = m; S.lastTeam = 0; return; }
-    if ((S.tcd > 0 && !(cut && S.tcd < .15)) || !inZone) return;
+    if (S.car) { /* já conduzindo */ } else if (S.tcd > 0 || !inZone) return;
     // --- bola chegando forte sem domínio: bate no pé e desvia (recepção ruim) ---
     if (toward > 2.5 && rs > 4 && d < 1.25) {
       const a = (Math.random() - .5) * 1.0, c = Math.cos(a), sn = Math.sin(a);
       ball.vx = m.vx + (rvx * c - rvz * sn) * .42; ball.vz = m.vz + (rvx * sn + rvz * c) * .42; if (ball.vy > 0) ball.vy *= .5;
       S.tcd = .35; touchBall(m); S.last = m; S.lastTeam = 0; if (l && !l.busy()) l.play('touch', { foot: pickF(), scale: 1 }); return;
     }
-    // --- toque de condução: a cada passada, se a bola está ao alcance e o jogador está em movimento ---
-    if ((sp > .8 || want) && rs < (S.last === m ? 9.5 : 5.5)) {
-      const tight = !!(tr && tr.held), ms = clamp(Math.max(sp, want ? mag * RUNV * .9 : 0) / RUNV, 0, 1.25), A = dx * hx + dz * hz, P = dx * hz - dz * hx;
-      const vrx = m.vx + (want ? (hx * mag * RUNV * .95 - m.vx) : 0), vrz = m.vz + (want ? (hz * mag * RUNV * .95 - m.vz) : 0);   // conta com a aceleração do jogador   // A: bola à frente da direção desejada · P: ao lado (+ direita)
-      const tgt = S.ch ? .85 : tight ? .72 + ms * .3 : .85 + ms * .4;                  // distância ideal à frente (carregando chute: bola no ponto certo; controle fechado: curta)
-      let vx, vz;
-      if (A > -.3) { const rel = clamp((tgt - A) * 3.4, -1.5, 4.2), latv = clamp(-P * 4, -3.6, 3.6); vx = hx * rel + hz * latv; vz = hz * rel - hx * latv; }
-      else { const side = P >= 0 ? 1 : -1; vx = hz * side * 1.9 + hx * .7; vz = -hx * side * 1.9 + hz * .7; }   // bola atrás da nova direção: corta por fora do corpo
-      ball.vx = vrx + vx; ball.vz = vrz + vz; if (ball.y < .3) { ball.vy = 0; ball.wx = ball.vz / R; ball.wz = -ball.vx / R; } else ball.vy *= .3;   // rola de verdade (sem deslizar)
-      S.tcd = tight ? .2 : clamp(.5 - Math.max(sp, ms * RUNV) * .035, .17, .5); touchBall(m); S.last = m; S.lastTeam = 0;
-      if (l && !l.busy()) l.play('touch', { foot: pickF(), scale: 1 / (1 + sp * .05) });
+    // --- condução: a bola nos pés fica sob domínio total, acompanhando o corpo (sem empurrar, sem atrair de trás) ---
+    const moving = sp > .5 || want, bx = Math.sin(m.yaw), bz = Math.cos(m.yaw), al = dx * bx + dz * bz, la = dx * bz - dz * bx;   // referencial do corpo (frente = para onde olha)
+    if (S.car && !moving && !(S.hd > 0)) {       // parou com a bola: pisa nela com o pé dominante (direito) e a deixa parada no ponto certo para chutar
+      S.hd = .5; S.hdF = 'R'; if (l) { l.play('trap', { foot: 'R' }); } touchBall(m);
     }
+    if (S.hd > 0) {
+      if (moving) S.hd = 0;
+      else {
+        S.hd -= dt; const k2 = 1 - Math.exp(-16 * dt), tx = m.x + bx * .8 + bz * .13, tz = m.z + bz * .8 - bx * .13;
+        ball.x += (tx - ball.x) * k2; ball.z += (tz - ball.z) * k2; ball.y = R; ball.vx = ball.vz = ball.vy = 0; ball.wx = ball.wy = ball.wz = 0; S.last = m; S.lastTeam = 0;
+        if (S.hd <= 0) { S.car = false; S.hd = 0; }
+        return;
+      }
+    }
+    if (!moving) { S.car = false; return; }
+    if (!S.car) { if (ball.y < .4 && al > -.25 && d < 1.25 && rs < 6 && !S.cin) { S.car = true; S.cph = 1; S.cn = 0; S.cs = 'R'; S.fp = { R: { v: 0, dv: 0 }, L: { v: 0, dv: 0 } }; } else return; }
+    if (ball.y > .45 || d > 1.7 || al < -.45 || S.noCtl > 0) { S.car = false; return; }
+    // toque automático: a cada passada o pé dá um toque curto na bola; ela vai um pouco à frente (mais se corre forte) e o corpo a alcança no passo seguinte
+    // toque preso à perna de verdade: quando o pé em balanço chega ao ponto mais à frente, ele toca a bola (um toque por passada)
+    let ev = null;
+    if (l && l.footPos) for (const sd of ['R', 'L']) { l.footPos(sd, tmpF); const f = (tmpF.x - m.x) * bx + (tmpF.z - m.z) * bz, q = S.fp[sd], dv = f - q.v; if (q.dv > 0 && dv <= 0 && f > .1 && S.cph > .3) ev = sd; q.dv = dv; q.v = f; }
+    S.cph = Math.min(2, S.cph + dt * (2.6 + sp * .12));
+    if (!ev && S.cph >= 1.5) ev = S.cs === 'R' ? 'L' : 'R';                                              // sem leitura do pé (ou parado no ar): mantém o ritmo
+    if (ev) { S.cph = 0; S.cn++; S.cs = ev; S.fl = ev === 'R'; touchBall(m); }
+    const side = S.cs === 'R' ? 1 : -1, frac = Math.min(1, S.cph);
+    const ms = clamp(sp / RUNV, 0, 1.2), ahead = (tr && tr.held ? .68 : .72) + ms * .42 * (tr && tr.held ? .4 : 1) * (1 - frac), tx = m.x + bx * ahead + bz * .1 * side, tz = m.z + bz * ahead - bx * .1 * side, k = 1 - Math.exp(-22 * dt);
+    let nx = ball.x + (tx - ball.x) * k, nz = ball.z + (tz - ball.z) * k; const ex = nx - m.x, ez = nz - m.z, ed = Math.hypot(ex, ez);
+    if (ed < .68) { nx = m.x + ex / (ed || 1) * .68; nz = m.z + ez / (ed || 1) * .68; }                  // nunca dentro do corpo
+    ball.x = nx; ball.z = nz; ball.y = R; ball.vx = m.vx; ball.vz = m.vz; ball.vy = 0; ball.wx = ball.vz / R; ball.wz = -ball.vx / R;
+    S.last = m; S.lastTeam = 0;
   }
 
   /* ============================== contato corpo × bola ============================== */
@@ -385,7 +403,7 @@ export function createSoccer(api) {
   function doRestart() {
     const m = me(), k = S.restartKind; S.state = 'play'; S.free = 0; ball.frozen = false; S.hitPost = false; S.sp = null; S.thr = null; S.pk = null;
     if (k === 'center') { resetBall(false); return; }
-    if (k === 'lateral') { S.sp = 'lateral'; const sx = S.restartX; ball.place(cx + sx * (HW - .35), R, S.restartZ); place(m, cx + sx * (HW + 1.0), S.restartZ, -sx * PI / 2); }
+    if (k === 'lateral') { S.sp = 'lateral'; const sx = S.restartX; ball.place(cx + sx * (HW - .35), R, S.restartZ); S.spX = ball.x; S.spZ = ball.z; place(m, cx + sx * (HW + 1.0), S.restartZ, -sx * PI / 2); }
     else if (k === 'corner') { const sx = S.restartX; ball.place(cx + sx * (HW - .35), R, -HL + .35); place(m, cx + sx * (HW + .9), -HL - .7, Math.atan2(-sx * 1.2, 1)); }
     else if (k === 'goalkick') { ball.place(cx + (Math.random() - .5) * 4, R, HL - 5.5); place(m, cx, 6, PI); placeKeeper(); const g = S.gk; if (g && S.keeperOn) { g.x = ball.x; g.z = ball.z + 1.15; S.gkState.kicking = true; setTimeout(() => { if (S.state !== 'play' || S.mode !== 'train') return; const l = L(g); if (l) l.play('shot'); else gkKickImpact(); }, 900); } }
   }
@@ -393,6 +411,7 @@ export function createSoccer(api) {
   /* ============================== por quadro ============================== */
   function update(dt) {
     dt = Math.min(dt, .05); S.t += dt; S.clock += dt; const m = me(); if (!m) return;
+    if (S.sp === 'lateral' && !S.thr && !S.ch && (Math.hypot(ball.x - S.spX, ball.z - S.spZ) > 1.2 || Math.abs(m.x - cx) < HW - .8)) S.sp = null;   // a mão só vale na cobrança do lateral: saiu do ponto, acabou
     S.lock = Math.max(0, S.lock - dt); S.drib = Math.max(0, S.drib - dt); S.free += dt; S.kickT = Math.max(0, S.kickT - dt); S.noCtl = Math.max(0, S.noCtl - dt); L(m); S.gk && L(S.gk);
     // carga do chute
     if (S.ch) { const c = S.ch, K = KICK[c.kind]; c.t += dt; const K2 = api.keysDown, kx = (K2.has('o') ? 1 : 0) - (K2.has('u') ? 1 : 0), ky = (K2.has('i') ? 1 : 0) - (K2.has('n') ? 1 : 0); if (kx || ky) { c.spin = clamp(c.spin + kx * dt * 2.5, -1, 1); c.lift = clamp(c.lift + ky * dt * 2.5, -1, 1); }

@@ -20,6 +20,7 @@ import { FX } from './fx.js';
 import { Powers, makeBlackHole } from './powers.js';
 import { Audio } from './audio.js';
 import { NOPROG, Net, getIdentity, saveIdentity } from './net.js';
+import { initCtl } from './ctledit.js';
 import { detectDevice, clampPreset, capCine } from './perf.js';   // v158: orçamento de desempenho por aparelho
 
 const $ = id => document.getElementById(id);
@@ -190,13 +191,19 @@ function registerFlashShot(a, origin, direction) {
   }
 }
 const camS = { yaw: PI, pitch: .2, dist: 5.6, mode: SET.cam, x: 0, y: 8, z: 0, tx: 0, ty: 0, tz: 0, init: false };
-{ // joystick dinâmico
-  const joy = $('joy'), base = $('joyB'), knob = $('joyK'); let id = null, cx = 0, cy = 0; const R = 56;
+{ // joystick (flutuante por padrão; fixo se o jogador escolher no editor de controles)
+  const joy = $('joy'), base = $('joyB'), knob = $('joyK'); let id = null, cx = 0, cy = 0, R = 56;
   const home = () => { base.style.left = ''; base.style.top = ''; knob.style.transform = ''; };
-  joy.addEventListener('pointerdown', e => { audio.unlock(); id = e.pointerId; joy.setPointerCapture(id); const r = joy.getBoundingClientRect(); cx = e.clientX; cy = e.clientY; base.style.left = (cx - r.left) + 'px'; base.style.top = (cy - r.top) + 'px'; input.joy = { x: 0, y: 0 }; e.preventDefault(); });
-  joy.addEventListener('pointermove', e => { if (e.pointerId !== id) return; let dx = e.clientX - cx, dy = e.clientY - cy; const l = Math.hypot(dx, dy); if (l > R) { dx *= R / l; dy *= R / l; } knob.style.transform = `translate(${dx}px,${dy}px)`; input.joy = { x: dx / R, y: -dy / R }; });
+  const drive = e => { let dx = e.clientX - cx, dy = e.clientY - cy; const l = Math.hypot(dx, dy); if (l > R) { dx *= R / l; dy *= R / l; } knob.style.transform = `translate(${dx}px,${dy}px)`; input.joy = { x: dx / R, y: -dy / R }; };
+  joy.addEventListener('pointerdown', e => { audio.unlock(); id = e.pointerId; joy.setPointerCapture(id); R = 56 * (parseFloat(getComputedStyle(joy).getPropertyValue('--js')) || 1);
+    if (joy.dataset.fixed === '1') { const b = base.getBoundingClientRect(); cx = b.left + b.width / 2; cy = b.top + b.height / 2; input.joy = { x: 0, y: 0 }; drive(e); }
+    else { const r = joy.getBoundingClientRect(); cx = e.clientX; cy = e.clientY; base.style.left = (cx - r.left) + 'px'; base.style.top = (cy - r.top) + 'px'; input.joy = { x: 0, y: 0 }; }
+    e.preventDefault(); });
+  joy.addEventListener('pointermove', e => { if (e.pointerId !== id) return; drive(e); });
   const up = e => { if (e.pointerId !== id) return; id = null; input.joy = null; home(); }; joy.addEventListener('pointerup', up); joy.addEventListener('pointercancel', up);
+  window.__ctlInputReset = () => { id = null; input.joy = null; home(); };
 }
+const ctlEd = initCtl({ trainlike: TRAINLIKE, autoEdit: params.get('ctl') === '1', banner: (t, ms) => banner(t, ms) });   // editor de controles (treino)
 { // arrastar para girar a câmera (toque à direita / mouse)
   let id = null, lx = 0, ly = 0, moved = 0, t0 = 0, pinch = null; const touches = new Map();
   canvas.addEventListener('pointerdown', e => { audio.unlock(); canvas.focus(); touches.set(e.pointerId, [e.clientX, e.clientY]); if (touches.size === 2) { const p = [...touches.values()]; pinch = { d: Math.hypot(p[0][0] - p[1][0], p[0][1] - p[1][1]), dist: camS.dist }; } if (id === null) { id = e.pointerId; lx = e.clientX; ly = e.clientY; moved = 0; t0 = performance.now(); canvas.setPointerCapture(e.pointerId); } });
@@ -1937,14 +1944,14 @@ async function start() {
     $('btns').querySelectorAll('#bKick,#bSolar,#bSwap').forEach(b => b.classList.add('hidden'));
     realm.build(); me.x = realm.spawn[0]; me.z = realm.spawn[1] + 16; me.y = .1; me.yaw = 0; camS.yaw = 0; me.energy = 100; camS.dist = camS.mode === 'tps' ? 7.4 : 26; if (camS.mode === 'tps') camS.pitch = .32;
     skillButtons(); for (const [id, ic, tx] of [['bAtk', '⚽', 'CHUTE'], ['bLas', '➜', 'PASSE'], ['bSup', '⤴', 'CRUZAR'], ['bVel', '⚡', 'DRIBLE']]) { const I = $(id + 'I'), T = $(id + 'T'); if (I) { I.innerHTML = ic; I.style.fontSize = '30px'; I.style.fontWeight = 900; } if (T) T.textContent = tx; else { const sp = $(id).querySelector('span'); if (sp) sp.textContent = tx; } }
-    const kp = makeKeeper(), sapi = { scene, stadium: realm, audio, banner, fx, actors, touch: isTouch, keysDown: input.keys, me: () => me, setCamYaw: y => { camS.yaw = y; }, doDodge, readMove, shake: k => { G.shake = Math.max(G.shake || 0, k); }, focusCam: () => { if (camS.mode === 'tps') camS.pitch = .32; } };
+    const kp = makeKeeper(), sapi = { scene, stadium: realm, audio, banner, fx, actors, touch: isTouch, camera, keysDown: input.keys, me: () => me, setCamYaw: y => { camS.yaw = y; }, doDodge, readMove, shake: k => { G.shake = Math.max(G.shake || 0, k); }, focusCam: () => { if (camS.mode === 'tps') camS.pitch = .32; } };
     soccer = createSoccer(sapi); sapi.setKeeper(kp); soccer.start('train'); window.__soccer = soccer;
     chatLine('', 'Futebol · ' + realm.V.name + ': treine chutes, passes, cruzamentos e pênaltis (offline).', true); banner(realm.V.name.toUpperCase() + ' · TREINO', 2200); }
   else if (MODE === 'train') { G.phase = 'train'; G.started = true; $('pAlive').classList.add('hidden'); for (let i = 0; i < 4; i++) { const b = makeBot(i, null, .3, true); placeAt(b, world.randomSpot(mulberry32(i * 7 + 3), { cx: sp[0] + (i - 1.5) * 6, cz: sp[1] + 10, r: 5 })); b.brain.home = [b.x, b.z]; b.maxHp = 150 * CS.NORM; b.hp = b.maxHp; } chatLine('', 'Treino: bonecos de treino nascem de novo após 3 s.', true); }
   else { G.phase = 'waiting'; $('mmk').classList.remove('hidden'); $('emotes').classList.remove('hidden'); if (net.offline) { G.startAt = now() + 4000; chatLine('', 'Sem conexão: partida offline contra 15 bots.', true); } }
   if (!net.offline) net.start({ getState: () => packState(me), getBots: () => MODE === 'battle' && G.started ? [...actors.values()].filter(a => a.kind === 'bot' && a.simulated).map(a => ({ id: a.id, name: a.name, skin: a.skin, s: packState(a) })) : null, onSync, onOffline: () => { chatLine('', 'Conexão instável… tentando reconectar.', true); } });
   else net.h = { onSync };
-  $('load').classList.add('hidden'); $('hud').classList.remove('hidden'); G.phase === 'loading' && (G.phase = 'open');
+  $('load').classList.add('hidden'); $('hud').classList.remove('hidden'); G.phase === 'loading' && (G.phase = 'open'); ctlEd.ready();
   if (!isTouch) banner('WASD mover · Espaço pular · clique soco · botão direito habilidade · Q super · V visão · M mapa', 4500);
   document.body.classList.add('mode-' + MODE);   // a HUD (hud.css) muda de posição conforme o modo
   if (MODE === 'train' && !net.offline) { $('players').classList.remove('hidden'); chatLine('', 'Treino online: outros jogadores podem entrar nesta sala.', true); }

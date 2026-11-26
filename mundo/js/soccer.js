@@ -5,6 +5,7 @@ import * as THREE from '../lib/three.module.min.js';
 import { BallPhys, BALL } from './ballphys.js';
 import { FIELD } from './stadium.js';
 import { SoccerLayer } from './soccerrig.js';
+import { solveAim, launchVec, accuracy, errCone, pickFoot } from './aim.js';   // v161: mira e precisão do chute
 
 const { HL, HW, GW, GH, CX } = FIELD, R = BALL.R, PI = Math.PI, TAU = PI * 2;
 const clamp = (x, a, b) => x < a ? a : x > b ? b : x, lerp = (a, b, t) => a + (b - a) * t, d2r = d => d * PI / 180;
@@ -75,13 +76,16 @@ export function createSoccer(api) {
 #chg .lb{display:flex;justify-content:space-between;color:#fff;font:800 11px system-ui;margin-top:4px;text-shadow:0 1px 3px #000}#chg .pad{position:relative;height:36px;margin-top:5px;border-radius:10px;background:rgba(0,0,0,.4);border:1px solid rgba(255,255,255,.2)}#chg .pad u{position:absolute;width:12px;height:12px;border-radius:50%;background:#ffd24a;left:50%;top:50%;transform:translate(-50%,-50%);box-shadow:0 0 8px #ffd24a}
 #spt{position:fixed;left:50%;top:calc(56px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:30;display:flex;flex-direction:row;gap:6px;pointer-events:none}
 #spt button{pointer-events:auto;padding:6px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.25);background:rgba(8,12,20,.7);color:#fff;font:800 11px system-ui;letter-spacing:.05em;white-space:nowrap}#spt button.on{background:rgba(255,210,74,.85);color:#111}
-#spi{position:fixed;left:calc(10px + env(safe-area-inset-left,0px));bottom:calc(10px + env(safe-area-inset-bottom,0px));z-index:30;color:#fff;font:700 11px/1.5 system-ui;text-shadow:0 1px 3px #000;pointer-events:none;opacity:.85}`;
+#spi{position:fixed;left:calc(10px + env(safe-area-inset-left,0px));bottom:calc(10px + env(safe-area-inset-bottom,0px));z-index:30;color:#fff;font:700 11px/1.5 system-ui;text-shadow:0 1px 3px #000;pointer-events:none;opacity:.85}
+#scAim{position:fixed;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;background:#fff;box-shadow:0 0 0 1.5px rgba(0,0,0,.7),0 0 6px rgba(0,0,0,.5);z-index:29;pointer-events:none}
+#scRing{position:fixed;left:50%;top:50%;width:0;height:0;transform:translate(-50%,-50%);box-sizing:border-box;border-radius:50%;border:2px solid #ffd24a;z-index:29;pointer-events:none;opacity:0;transition:width .12s,height .12s,opacity .15s,border-color .15s}`;
   document.head.appendChild(css);
   const mk = (tag, id, html, parent = document.body) => { const e = document.createElement(tag); e.id = id; e.innerHTML = html; parent.appendChild(e); return e; };
   const $sc = mk('div', 'sc', '<small id="scL">TREINO</small><b id="scA">0</b><small>GOLS</small><span id="scX"></span>');
   const $chg = mk('div', 'chg', '<div class="bar"><i id="chgF"></i></div><div class="lb"><span id="chgK">CHUTE</span><span id="chgV"></span></div><div class="pad"><u id="chgU"></u></div><div class="lb"><span>◄ efeito ►</span><span>▲ altura ▼</span></div>');
   const $spt = mk('div', 'spt', '<button id="spTrain" class="on">TREINO</button><button id="spPen">PÊNALTIS</button><button id="spGk">GOLEIRO: SIM</button><button id="spRst">REPOR BOLA</button>');
-  const $spi = mk('div', 'spi', api.touch ? 'CHUTE: segure e solte · arraste o dedo no botão: efeito e altura' : 'J/H chute · K passe · L cruzar · R drible · segure para carregar · U/O efeito · I/N altura');
+  const $spi = mk('div', 'spi', api.touch ? 'CHUTE: segure e solte · arraste o dedo no botão: efeito e altura · ponto no centro = mira' : 'J/H chute · K passe · L cruzar · R drible · segure para carregar · U/O efeito · I/N altura · ponto no centro = mira');
+  const $xh = mk('div', 'scAim', ''), $xr = mk('div', 'scRing', '');   // v161: ponto de mira no centro da tela + anel que mostra a precisão
   const el = id => document.getElementById(id);
   el('spTrain').onclick = () => setMode('train'); el('spPen').onclick = () => setMode('pen'); el('spRst').onclick = () => resetBall(true);
   el('spGk').onclick = () => { S.keeperOn = !S.keeperOn; el('spGk').textContent = 'GOLEIRO: ' + (S.keeperOn ? 'SIM' : 'NÃO'); if (S.gk) { S.gk.hero.object.visible = S.keeperOn; } placeKeeper(); };
@@ -133,21 +137,39 @@ export function createSoccer(api) {
     if (S.mode === 'pen' && S.pen && (S.pen.kicked || S.pen.phase !== 'ready')) return true;
     if (S.ch || S.thr) return true; S.ch = { kind, t: 0, spin: 0, lift: 0, x0: null, y0: null }; $chg.classList.add('on'); el('chgK').textContent = S.sp === 'lateral' ? 'LATERAL' : KICK[kind].label; return true;
   }
-  /* escolhe sozinho a animação certa para a situação (bola no chão, alta, no ar; passe curto ou longo; pé mais perto) */
-  function chooseAnim(kind, p, lift) {
+  /* ============================== mira (v161) ==============================
+     O ponto no centro da tela diz onde a bola deve chegar: no gol (altura incluída) ou num ponto do chão. Independe de para onde o corpo olha. */
+  const vO = new THREE.Vector3(), vD = new THREE.Vector3();
+  function aimTarget() {
+    const cam = api.camera; if (!cam) return null;
+    cam.updateMatrixWorld(); cam.getWorldPosition(vO); cam.getWorldDirection(vD);
+    const out = { camYaw: Math.atan2(vD.x, vD.z), t: null }; let best = null;
+    if (vD.y < -.01) { const t = (R - vO.y) / vD.y; if (t > 0 && t < 160) best = { t, k: 'ground', x: vO.x + vD.x * t, y: R, z: vO.z + vD.z * t }; }
+    for (const sd of [1, -1]) {   // boca do gol (a bola vale gol ao passar da linha)
+      if (vD.z * sd <= .01) continue; const zp = sd * (HL + R), t = (zp - vO.z) / vD.z; if (t <= 0 || t > 220 || (best && t >= best.t)) continue;
+      const x = vO.x + vD.x * t, y = vO.y + vD.y * t;
+      if (Math.abs(x - cx) < GW - .15 && y > .1 && y < GH - .1) best = { t, k: 'goal', x, y: clamp(y, R + .12, GH - .3), z: zp, sd };
+    }
+    if (best && Math.hypot(best.x - ball.x, best.z - ball.z) > 2.2) out.t = best;
+    return out;
+  }
+  const aimYaw = tg => tg.t ? Math.atan2(tg.t.x - ball.x, tg.t.z - ball.z) : tg.camYaw;
+  /* escolhe sozinho a animação certa para a situação (bola no chão, alta, no ar; passe curto ou longo) e o pé:
+     mais com a direita; a esquerda só quando o efeito pede (parte de dentro do pé) ou a bola está bem do lado esquerdo */
+  function chooseAnim(kind, p, lift, spin = 0) {
     const m = me(), air = !m.grounded, by = ball.y - m.y; let anim, k = kind;
     if ((air && by > .7) || by > 1.45) { if (by > 1.3) { anim = 'header'; k = 'head'; } else { anim = 'volley'; k = 'shot'; } }
     else if (kind === 'shot') anim = by > .6 ? 'volley' : 'shot';
     else if (kind === 'pass') { if (lift > .45 || p > .8) { anim = 'chip'; k = 'chip'; } else anim = 'pass'; }
     else anim = 'cross';
-    const rx = (ball.x - m.x) * Math.cos(m.yaw) - (ball.z - m.z) * Math.sin(m.yaw);
-    return { anim, kind: k, foot: rx > -.08 ? 'R' : 'L' };
+    const tg = aimTarget(), ay = tg ? aimYaw(tg) : m.yaw, rx = (ball.x - m.x) * Math.cos(ay) - (ball.z - m.z) * Math.sin(ay);
+    return { anim, kind: k, foot: pickFoot(rx, spin) };
   }
   function release() {
     const c = S.ch; if (!c) return; S.ch = null; $chg.classList.remove('on'); const m = me(); if (!m || !m.alive) return;
     const K = KICK[c.kind], p = clamp(Math.max(.24, c.t / K.full), 0, 1);
     if (S.sp === 'lateral') return startThrow(p);
-    const ch = chooseAnim(c.kind, p, c.lift), l = L(m);
+    const ch = chooseAnim(c.kind, p, c.lift, c.spin), l = L(m);
     if (l) { const an = l.play(ch.anim, { foot: ch.foot, scale: lerp(1.08, .9, p) }); S.pk = { kind: ch.kind, p, spin: c.spin, lift: c.lift, foot: ch.foot, anim: ch.anim }; S.lock = an.dur * .75; S.kickT = an.dur * .8; m.aimT = Math.max(m.aimT || 0, an.dur * .6); S.noCtl = an.dur * 1.1 + .15; S.ctl = 0; m.busyMove = Math.max(m.busyMove, an.dur * .5); }
     else { const r = m.play('kick'); S.lock = .4; S.noCtl = .6; S.ctl = 0; m.pending.push({ t: r && r.impact ? Math.min(r.impact, .3) : .2, fn: () => doKick(ch.kind, p, c.spin, c.lift, ch.foot) }); }
   }
@@ -158,15 +180,23 @@ export function createSoccer(api) {
   function doKick(kind, p, spinIn, liftIn, foot) {
     const m = me(); if (!m) return; S.sp = null;
     const f0 = Math.sin(m.yaw), f1 = Math.cos(m.yaw), dx = ball.x - m.x, dz = ball.z - m.z, d = Math.hypot(dx, dz), air = !m.grounded;
-    const reach = air ? 1.5 : 1.6, okH = ball.y < m.y + (air ? 2.5 : 1.45), front = d < .6 || (dx * f0 + dz * f1) / d > .05;
-    if (!(d < reach && okH && front)) { snd.whoosh(); return; }
-    const K = KICK[kind] || KICK.shot, q = clamp(1 - Math.abs(d - .85) / 1.5, .65, 1);
-    let yaw = (kind === 'shot' || kind === 'head') ? aimAssist(m.yaw) : m.yaw; yaw += (1 - q) * .22 * (Math.random() - .5) * 2;
-    const v = lerp(K.v0, K.v1, p) * (.9 + .1 * q), lift = liftIn;
-    const el = d2r(lift >= 0 ? lerp(K.el, K.elUp, lift) : lerp(K.el, K.elDn, -lift)) + (ball.y > R + .4 ? -.02 : 0);
-    const hv = v * Math.cos(el), vy = v * Math.sin(el), dx2 = Math.sin(yaw), dz2 = Math.cos(yaw);
-    const wy = spinIn * K.spin * (.45 + .55 * p), bs = lift * (kind === 'cross' || kind === 'chip' ? 16 : 12) * (.5 + p * .5);
-    ball.launch(dx2 * hv, vy, dz2 * hv, -bs * dz2, wy, bs * dx2); touchBall(m); S.ctl = 0; S.noCtl = .45;
+    const reach = air ? 1.5 : 1.6, okH = ball.y < m.y + (air ? 2.5 : 1.45), fr = d < .6 ? 1 : (dx * f0 + dz * f1) / d;
+    if (!(d < reach && okH && fr > -.4)) { snd.whoosh(); return; }   // v161: bola ao lado ou levemente atrás também vale (antes só à frente)
+    const K = KICK[kind] || KICK.shot, q = clamp(1 - Math.abs(d - .85) / 1.5, .65, 1), tg = aimTarget(), lift = liftIn;
+    let yaw = tg ? aimYaw(tg) : (kind === 'shot' || kind === 'head') ? aimAssist(m.yaw) : m.yaw;   // direção = ponto da mira (sem mira: como antes)
+    const v = lerp(K.v0, K.v1, p) * (.9 + .1 * q);
+    let el = d2r(lift >= 0 ? lerp(K.el, K.elUp, lift) : lerp(K.el, K.elDn, -lift)) + (ball.y > R + .4 ? -.02 : 0);
+    // chute no gol ou lançamento: simula a física e acha direção e altura para a bola CHEGAR no ponto da mira, com o efeito escolhido (gol olímpico)
+    const T = tg && tg.t;
+    if (T && kind !== 'pass') {
+      const goal = T.k === 'goal', land = !goal && (kind === 'cross' || kind === 'chip' || lift > .3);
+      if (goal || land) { const r = solveAim({ kind, K, p, spin: spinIn, lift, v, el0: el, T: { x: T.x, y: T.y, z: T.z, sd: T.sd }, land }, ball); if (r.err < 1.2) { yaw = r.yaw; el = r.el; } }
+    }
+    // precisão: parado, bola no ponto certo do pé e força moderada = exato; correndo, no ar, força máxima ou desalinhado = a bola foge da mira
+    const acc = accuracy({ d, p, sp: Math.hypot(m.vx, m.vz), runV: RUNV, grounded: !air, fr, mis: Math.abs(angDiff(yaw, m.yaw)), weak: foot === 'L' }), e = errCone(acc);
+    yaw += (Math.random() + Math.random() - 1) * e; el += (Math.random() + Math.random() - 1) * e * .5;
+    const [vx, vy, vz, wx, wy, wz] = launchVec({ kind, K, p, spin: spinIn, lift, v }, yaw, el);
+    ball.launch(vx, vy, vz, wx, wy, wz); touchBall(m); S.ctl = 0; S.noCtl = .45;
     snd.kick(p); S.maxV = Math.max(S.maxV, v);
     if (kind === 'shot' || kind === 'head') { S.shots++; }
     if (S.pen) S.pen.kicked = true;
@@ -340,6 +370,10 @@ export function createSoccer(api) {
     // carga do chute
     if (S.ch) { const c = S.ch, K = KICK[c.kind]; c.t += dt; const K2 = api.keysDown, kx = (K2.has('o') ? 1 : 0) - (K2.has('u') ? 1 : 0), ky = (K2.has('i') ? 1 : 0) - (K2.has('n') ? 1 : 0); if (kx || ky) { c.spin = clamp(c.spin + kx * dt * 2.5, -1, 1); c.lift = clamp(c.lift + ky * dt * 2.5, -1, 1); }
       const p = clamp(c.t / K.full, 0, 1); el('chgF').style.width = p * 100 + '%'; el('chgV').textContent = Math.round(lerp(K.v0, K.v1, Math.max(.24, p)) * 3.6) + ' km/h'; el('chgU').style.left = 50 + c.spin * 42 + '%'; el('chgU').style.top = 50 - c.lift * 38 + '%'; }
+    // mira: ponto fixo no centro; o anel mostra a precisão do chute AGORA (verde = exato, vermelho = vai fugir da mira)
+    { const tg = aimTarget(), ay = tg ? aimYaw(tg) : m.yaw, bx = ball.x - m.x, bz = ball.z - m.z, db = Math.hypot(bx, bz), near = db < 2.4 && ball.y < m.y + 1.6;
+      const acc = near ? accuracy({ d: db, p: S.ch ? clamp(S.ch.t / KICK[S.ch.kind].full, 0, 1) : .55, sp: Math.hypot(m.vx, m.vz), runV: RUNV, grounded: m.grounded, fr: db < .6 ? 1 : (bx * Math.sin(m.yaw) + bz * Math.cos(m.yaw)) / db, mis: Math.abs(angDiff(ay, m.yaw)), weak: false }) : 0;
+      const sz = near ? Math.round(10 + Math.pow(1 - acc, 1.2) * 60) + 'px' : '0px'; $xr.style.width = sz; $xr.style.height = sz; $xr.style.opacity = near ? '.9' : '0'; $xr.style.borderColor = acc > .86 ? '#43e08a' : acc > .55 ? '#ffd24a' : '#ff5a4a'; }
     // física da bola + contatos + condução
     if (!ball.frozen) {
       ball.step(dt);
@@ -379,6 +413,6 @@ export function createSoccer(api) {
   // clique do mouse no campo = chute leve
   api.setKeeper = g => { S.gk = g; placeKeeper(); };
   function start(mode) { setMode(mode || 'train'); }
-  function dispose() { for (const e of [$sc, $chg, $spt, $spi, css]) e.remove(); scene.remove(mesh, blob, ringM); for (const t of targets) scene.remove(t.m); }
+  function dispose() { for (const e of [$sc, $chg, $spt, $spi, $xh, $xr, css]) e.remove(); scene.remove(mesh, blob, ringM); for (const t of targets) scene.remove(t.m); }
   return { update, act, start, setMode, ball, S, dispose, resetBall, onRelease, L, me, preview(name, t, foot) { const l = L(me()); if (!l) return; l.preview = name ? { name, t, foot } : null; if (!name) l.stop(); } };
 }

@@ -161,3 +161,41 @@ body #btns #bKick{--sz:62px;--rc:#ffb84c;right:208px;bottom:84px;background:radi
 body #btns #bCrouch{--sz:56px;--rc:#7cf4ff;right:8px;bottom:196px;background:radial-gradient(circle at 40% 35%,#d8f6ff,#2a9ad8 55%,#0a2a4a)}
 body #btns #bDodge{--sz:54px;--rc:#c9a8ff;right:274px;bottom:20px;background:radial-gradient(circle at 40% 35%,#efe1ff,#8a4cf0 55%,#241048)}
 body #btns #bCrouch.on{box-shadow:0 0 0 3px #fff,0 0 18px #7cf4ff!important;filter:brightness(1.25)}
+
+/* ------------------------------------------------ controles personalizados (js/ctledit.js) */
+body #joyB{left:var(--jx,calc(110px + var(--sa-l)));top:var(--jy,calc(100% - 120px - var(--sa-b)));width:calc(138px*var(--js,1));height:calc(138px*var(--js,1));margin:calc(-69px*var(--js,1)) 0 0 calc(-69px*var(--js,1))}
+body #joyK{width:calc(60px*var(--js,1));height:calc(60px*var(--js,1));margin:calc(-30px*var(--js,1)) 0 0 calc(-30px*var(--js,1))}
+body.ctl-on #btns{left:0!important;top:0!important;right:0!important;bottom:0!important;width:auto!important;height:auto!important;transform:none!important;pointer-events:none!important}
+body.ctl-on #btns .ab{pointer-events:auto;opacity:var(--ctl-op,1)}
+body.ctl-on #joyB{opacity:calc(var(--ctl-op,1)*.9)}
+body.ctl-on.desktop:not(.showpad):not(.ctl-edit) #btns .ab{pointer-events:none}
+#bCtl{display:none}
+body #tools #bCtl{display:inline-flex;width:auto;padding:0 10px;border-radius:17px;gap:5px;font:900 9px/1 system-ui;letter-spacing:.05em}
+body #tools #bCtl.hidden{display:none}
+body #tools #bCtl svg{width:16px;height:16px}
+/* modo de edição */
+body.ctl-edit #joy,body.ctl-edit #btns{opacity:1!important}
+body.ctl-edit #joy{pointer-events:none!important}
+body.ctl-edit #joyB{pointer-events:auto!important;opacity:1!important;touch-action:none;cursor:grab}
+body.ctl-edit #btns{pointer-events:none!important}
+body.ctl-edit #btns .ab{pointer-events:auto!important;touch-action:none;cursor:grab}
+body.ctl-edit #btns .ab.hidden{display:grid!important}
+body.ctl-edit #btns .ab.sel,body.ctl-edit #joyB.sel{outline:3px dashed #ffd34d;outline-offset:6px}
+body.ctl-edit #me,body.ctl-edit #top,body.ctl-edit #mmWrap,body.ctl-edit #feed,body.ctl-edit #tools,body.ctl-edit #emotes,body.ctl-edit #chatLog,body.ctl-edit #players,body.ctl-edit #vTeam,body.ctl-edit #enBar,body.ctl-edit #pAlive,body.ctl-edit #pKills{visibility:hidden}
+#ctlEd{position:fixed;inset:0;z-index:60;pointer-events:none;background:rgba(0,0,0,.28)}
+#ctlEd.hidden{display:none}
+#ctlEd .ce-bar{pointer-events:auto;position:absolute;left:50%;top:calc(6px + var(--sa-t));transform:translateX(-50%);width:min(96vw,780px);box-sizing:border-box;padding:7px 10px;border-radius:14px;background:rgba(8,14,28,.94);border:1.5px solid rgba(255,255,255,.22);box-shadow:0 6px 20px rgba(0,0,0,.55);color:#fff;font-family:system-ui,sans-serif}
+#ctlEd .ce-row{display:flex;align-items:center;flex-wrap:wrap;gap:6px 12px}
+#ctlEd .ce-row+.ce-row{margin-top:6px}
+#ctlEd b{font-size:12px;letter-spacing:.06em;color:#ffd34d}
+#ctlEd .ce-hint{font-size:10px;opacity:.7;flex:1;min-width:120px}
+#ctlEd .ce-acts{display:flex;gap:6px;margin-left:auto}
+#ctlEd button{min-height:32px;padding:0 12px;border-radius:9px;border:1.5px solid rgba(255,255,255,.4);background:rgba(255,255,255,.08);color:#fff;font:800 11px system-ui;letter-spacing:.04em}
+#ctlEd button.prim{background:linear-gradient(#35e0a1,#119a6a);border-color:#8ff5d2;color:#04231a}
+#ctlEd .ce-sl{display:flex;align-items:center;gap:6px;font-size:10px}
+#ctlEd .ce-sl em{font-style:normal;font-weight:800;min-width:74px;opacity:.9}
+#ctlEd .ce-sl input[type=range]{width:min(26vw,150px);accent-color:#ffd34d}
+#ctlEd .ce-sl output{min-width:34px;font-weight:800;font-size:10px}
+#ctlEd .ce-t{display:flex;align-items:center;gap:5px;font:800 10px system-ui;letter-spacing:.04em;margin:0}
+#ctlEd .ce-t input{width:18px;height:18px;accent-color:#35e0a1;margin:0}
+#ctlEd .ce-t i{display:none}

@@ -1189,8 +1189,10 @@ function caApplyControlLayout(){
 }
 window.setGameControlScale=function(v){localStorage.setItem('cyberArenaGameControlScale',String(caClamp(Number(v)||100,70,140)));caApplyControlLayout();if($('gameControlScaleValue'))$('gameControlScaleValue').textContent=Math.round(caControlScale()*100);};
 window.beginGameControlEdit=function(){
+ /* leva ao mapa de treino já com o editor de controles aberto (arrastar, tamanho, canhoto...) */
  closeSettings?.();
- CA_GAME.editControls=true;document.body.classList.add('game-control-editing');caShowStatus('ARRASTE OS CONTROLES · TOQUE EM PRONTO',1600);caBindControlEditor();
+ if(window.openWorldRaw)window.openWorldRaw('space','&offline=1&noprog=1&ctl=1');
+ else window.openWorld3D?.('solo');
 };
 window.finishGameControlEdit=function(){CA_GAME.editControls=false;document.body.classList.remove('game-control-editing');caShowStatus('CONTROLES SALVOS',700);};
 function caBindControlEditor(){

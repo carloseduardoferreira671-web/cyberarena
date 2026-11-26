@@ -11,7 +11,7 @@ const clamp = (x, a, b) => x < a ? a : x > b ? b : x;
 /* vetor de lançamento: velocidade (3) + rotação (3). Mesma conta do chute, usada na simulação e no chute de verdade */
 export function launchVec(C, yaw, el) {
   const hv = C.v * Math.cos(el), vy = C.v * Math.sin(el), dx = Math.sin(yaw), dz = Math.cos(yaw);
-  const wy = C.spin * C.K.spin * (.45 + .55 * C.p), bs = C.lift * (C.kind === 'cross' || C.kind === 'chip' ? 16 : 12) * (.5 + C.p * .5);
+  const wy = -C.spin * C.K.spin * (.45 + .55 * C.p), bs = C.lift * (C.kind === 'cross' || C.kind === 'chip' ? 16 : 12) * (.5 + C.p * .5);
   return [dx * hv, vy, dz * hv, -bs * dz, wy, bs * dx];
 }
 

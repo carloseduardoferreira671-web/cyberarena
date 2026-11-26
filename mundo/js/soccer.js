@@ -162,7 +162,7 @@ export function createSoccer(api) {
     else if (kind === 'shot') anim = by > .6 ? 'volley' : 'shot';
     else if (kind === 'pass') { if (lift > .45 || p > .8) { anim = 'chip'; k = 'chip'; } else anim = 'pass'; }
     else anim = 'cross';
-    const tg = aimTarget(), ay = tg ? aimYaw(tg) : m.yaw, rx = (ball.x - m.x) * Math.cos(ay) - (ball.z - m.z) * Math.sin(ay);
+    const tg = aimTarget(), ay = tg ? aimYaw(tg) : m.yaw, rx = -((ball.x - m.x) * Math.cos(ay) - (ball.z - m.z) * Math.sin(ay));   // + = bola do lado DIREITO do corpo
     return { anim, kind: k, foot: pickFoot(rx, spin) };
   }
   function release() {
@@ -211,8 +211,9 @@ export function createSoccer(api) {
     const m = me(); if (!m || !m.alive || S.lock > 0 || m.down || m.stunT > 0) return true;
     if (S.tr) { S.tr.held = true; S.tr.rel = null; return true; }
     const bx = ball.x - m.x, bz = ball.z - m.z, bd = Math.hypot(bx, bz), inc = bd < 16 && ball.speed > 3 && (bx * (ball.vx - m.vx) + bz * (ball.vz - m.vz)) < 0;   // bola vindo na minha direção
-    if (!inc && (bd > 3.6 || ball.y > 3)) { api.doDodge(m); snd.whoosh(); return true; }
-    S.tr = { t: 0, held: true, rel: null, done: false, dx: null, dz: null }; return true;
+    const roll = ball.speed > 1.2 && bd < 9 && ball.y < 3, carrying = S.car && bd < 1.7;
+    if (!inc && !roll && !carrying && (bd > 3.6 || ball.y > 3)) { api.doDodge(m); snd.whoosh(); return true; }
+    S.tr = { t: 0, held: true, rel: null, done: false, dx: null, dz: null, h: [], lunged: false }; return true;
   }
   function trapRelease() { if (S.tr) S.tr.held = false; return true; }
   /* lateral com as duas mãos */
@@ -227,67 +228,139 @@ export function createSoccer(api) {
      Entre um toque e outro ela rola livre pela física (atrito, quique). Toque longo demais = a bola escapa, como na vida real.
      Cada toque calcula a força para a bola ficar à frente do jeito certo (perto no passo curto, mais longe na corrida). */
   function feet(dt, m) {
-    const l = L(m), sp = Math.hypot(m.vx, m.vz), dx = ball.x - m.x, dz = ball.z - m.z, d = Math.hypot(dx, dz);
+    const pvx = S.pp && dt > 1e-4 ? (m.x - S.pp.x) / dt : m.vx, pvz = S.pp && dt > 1e-4 ? (m.z - S.pp.z) / dt : m.vz; S.pp = { x: m.x, z: m.z };
+    const vxm = m.dash ? pvx : m.vx, vzm = m.dash ? pvz : m.vz;   // durante o drible (movimento programado) a velocidade vem do deslocamento real
+    const l = L(m), sp = Math.hypot(vxm, vzm), dx = ball.x - m.x, dz = ball.z - m.z, d = Math.hypot(dx, dz);
     const ok = S.noCtl <= 0 && S.kickT <= 0 && !S.thr && m.grounded && m.alive && !m.down && S.state === 'play' && S.mode !== 'pen' && !S.pk && S.sp !== 'lateral';
     S.tcd = Math.max(0, (S.tcd || 0) - dt);
-    if (!ok) { S.ctl = 0; S.car = false; S.hd = 0; S.tr = null; return; }
-    const tr = S.tr; if (tr) { tr.t += dt; if (!tr.held && tr.rel == null) tr.rel = tr.t; if ((!tr.held && tr.t > tr.rel + .3) || tr.t > 6 || (tr.done && !tr.held)) S.tr = null; }
-    const mv = api.readMove(), mag = mv[2] || 0, want = mag > .1, fx = sp > .7 ? m.vx / sp : Math.sin(m.yaw), fz = sp > .7 ? m.vz / sp : Math.cos(m.yaw);
+    if (!ok) { S.ctl = 0; S.car = false; S.hd = 0; S.tr = null; S.mv = null; S.rdash = false; return; }
+    const tr = S.tr; if (tr) { tr.t += dt; if (!tr.held && tr.rel == null) tr.rel = tr.t; if ((!tr.held && tr.t > tr.rel + .3) || tr.t > 6 || (tr.done && !tr.held)) { S.tr = null; if (S.rdash && m.dash && !S.mv) m.dash = null; S.rdash = false; } }
+    const mv = api.readMove(), mag = mv[2] || 0, want = mag > .1, fx = sp > .7 ? vxm / sp : Math.sin(m.yaw), fz = sp > .7 ? vzm / sp : Math.cos(m.yaw);
     const hx = want ? mv[0] / mag : fx, hz = want ? mv[1] / mag : fz;                       // direção em que o jogador quer ir
-    const along = dx * fx + dz * fz, lat = dx * fz - dz * fx;                                 // bola no referencial do corpo: à frente e ao lado (+ = direita)
-    const cut = want && Math.abs((ball.vx - m.vx) * hz - (ball.vz - m.vz) * hx) > 2.2;           // jogador mudou de direção e a bola ficou para o lado: corta já
+    const along = dx * fx + dz * fz, lat = dx * fz - dz * fx;                                 // bola no referencial do corpo: à frente e ao lado (+ = esquerda)
+    const cut = want && Math.abs((ball.vx - vxm) * hz - (ball.vz - vzm) * hx) > 2.2;           // jogador mudou de direção e a bola ficou para o lado: corta já
     const inZone = ball.y < .5 && along > -.75 && Math.hypot(Math.max(along, .3) - .85, lat) < (cut ? 2.3 : 1.75);       // alcance do pé (inclui o lado, para giros e cortes)
     S.ctl = d < 1.5 && ball.y < .55 ? 1 : 0;
-    const rvx = ball.vx - m.vx, rvz = ball.vz - m.vz, rs = Math.hypot(rvx, rvz), toward = d > .05 ? -(dx * rvx + dz * rvz) / d : 0;
+    const rvx = ball.vx - vxm, rvz = ball.vz - vzm, rs = Math.hypot(rvx, rvz), toward = d > .05 ? -(dx * rvx + dz * rvz) / d : 0;
     S.cin = toward > .6 && rs > 1.5 && d > .62;   // bola indo de encontro ao corpo: o corpo bloqueia (não atravessa)
-    const pickF = () => lat > .06 ? 'R' : lat < -.06 ? 'L' : ((S.fl = !S.fl) ? 'R' : 'L');
+    const pickF = () => lat > .06 ? 'L' : lat < -.06 ? 'R' : ((S.fl = !S.fl) ? 'R' : 'L');   // lat > 0 = bola do lado ESQUERDO
+    S.mvCd = Math.max(0, (S.mvCd || 0) - dt);
+    if (S.mv) { S.mv.t += dt; if (S.mv.t >= S.mv.dur) { S.mv = null; S.mvCd = .35; S.cph = 1; if (S.car && ball.y < .4) { const rv = want ? mag * RUNV * .95 : 0; ball.vx = hx * rv; ball.vz = hz * rv; ball.wx = ball.vz / R; ball.wz = -ball.vx / R; } } }
+    if (tr && S.car && tr.held && !S.mv && !m.dash && !tr.frz && sp > 2.5) { tr.frz = true; S.rdash = true; const ux = vxm / sp, uz = vzm / sp; m.dash = { segs: [{ x0: m.x, z0: m.z, x1: m.x + ux * sp, z1: m.z + uz * sp, du: 1, hold: 0 }], i: 0, t: 0, h: 0 }; }
+    if (tr && !tr.done) {
+      if (l && !tr.lunged && !S.car && ball.speed > 1.5 && d > 1.4) { tr.lunged = true; lunge(m); }
+      const cam = api.camera; let cy = 0; if (cam) { cam.getWorldDirection(vD); cy = Math.atan2(vD.x, vD.z); }
+      const sc = Math.sin(cy), cc = Math.cos(cy); tr.h.push([S.clock, want ? -mv[0] * cc + mv[1] * sc : 0, want ? mv[0] * sc + mv[1] * cc : 0]); while (tr.h.length && S.clock - tr.h[0][0] > 1.2) tr.h.shift();
+      const g = S.car && !S.mv && S.mvCd <= 0 ? gesture(tr.h) : null; if (g) { tr.done = true; tr.h.length = 0; startMove(g, m, cy, vxm, vzm); }
+    }
     // --- domínio pedido no botão: amortece a bola que chega (chão, coxa ou peito) e a deixa onde o jogador quer ---
-    if (tr && !tr.done && d < 1.6 && ball.y < 1.95 && S.tcd <= 0 && ((toward > .8 && rs > 2) || (rs < 2.2 && ball.y > .35))) {
+    if (tr && !tr.done && d < Math.min(2.3, 1.15 + rs * dt * 1.3) && ball.y < 1.95 && S.tcd <= 0 && (!S.car || ball.y > .5) && !S.mv && ((toward > .8 && rs > 2) || (rs < 2.2 && ball.y > .35) || (tr.lunged && (d < 1.3 || !m.dash) && d < 2.3) || (rs > .6 && d < 1.4 && ball.y < .6))) {
       const tdx = tr.dx != null ? tr.dx : want ? hx : 0, tdz = tr.dz != null ? tr.dz : want ? hz : 0, push = (tdx || tdz) ? .5 + (tr.dx != null ? .8 : mag) * .9 : .15;
-      ball.vx = m.vx + rvx * .06 + tdx * push; ball.vz = m.vz + rvz * .06 + tdz * push;
+      const dsh = !!m.dash && !S.mv, bvx = dsh ? 0 : vxm, bvz = dsh ? 0 : vzm, qx = dsh ? ball.vx : rvx, qz = dsh ? ball.vz : rvz; if (dsh) { m.dash = null; S.rdash = false; }   // chegou na bola: a corrida programada acaba
+      ball.vx = bvx + qx * .06 + tdx * push; ball.vz = bvz + qz * .06 + tdz * push;
       ball.vy = ball.y > .5 ? Math.min(ball.vy, 0) * .12 - .2 : 0; if (ball.y < .3) { ball.wx = ball.vz / R; ball.wz = -ball.vx / R; }
       tr.done = true; S.tcd = .22; touchBall(m); S.last = m; S.lastTeam = 0; if (l && !l.busy('trap')) l.play('trap', { foot: pickF() });
       return;
     }
     // --- controle fechado parado: segurando o botão com a bola no pé, ela não foge (pisa na bola) ---
-    if (tr && tr.held && inZone && rs < 3 && d < 1.2 && sp < .8) { const k = Math.exp(-9 * dt); ball.vx = m.vx + rvx * k; ball.vz = m.vz + rvz * k; ball.wx = ball.vz / R; ball.wz = -ball.vx / R; S.last = m; S.lastTeam = 0; return; }
+    if (tr && tr.held && !tr.done && inZone && rs < 3 && d < 1.2 && sp < .8 && !S.car) { const k = Math.exp(-9 * dt); ball.vx = vxm + rvx * k; ball.vz = vzm + rvz * k; ball.wx = ball.vz / R; ball.wz = -ball.vx / R; S.last = m; S.lastTeam = 0; return; }
     if (S.car) { /* já conduzindo */ } else if (S.tcd > 0 || !inZone) return;
     // --- bola chegando forte sem domínio: bate no pé e desvia (recepção ruim) ---
     if (toward > 2.5 && rs > 4 && d < 1.25) {
       const a = (Math.random() - .5) * 1.0, c = Math.cos(a), sn = Math.sin(a);
-      ball.vx = m.vx + (rvx * c - rvz * sn) * .42; ball.vz = m.vz + (rvx * sn + rvz * c) * .42; if (ball.vy > 0) ball.vy *= .5;
+      ball.vx = vxm + (rvx * c - rvz * sn) * .42; ball.vz = vzm + (rvx * sn + rvz * c) * .42; if (ball.vy > 0) ball.vy *= .5;
       S.tcd = .35; touchBall(m); S.last = m; S.lastTeam = 0; if (l && !l.busy()) l.play('touch', { foot: pickF(), scale: 1 }); return;
     }
-    // --- condução: a bola nos pés fica sob domínio total, acompanhando o corpo (sem empurrar, sem atrair de trás) ---
-    const moving = sp > .5 || want, bx = Math.sin(m.yaw), bz = Math.cos(m.yaw), al = dx * bx + dz * bz, la = dx * bz - dz * bx;   // referencial do corpo (frente = para onde olha)
+    // --- condução física: a bola rola livre pela física; só o PÉ a toca, uma vez por passada (quando o pé em balanço chega ao ponto mais à frente) ---
+    const moving = sp > .5 || want || !!S.mv, bx = Math.sin(m.yaw), bz = Math.cos(m.yaw), al = dx * bx + dz * bz, la = dx * bz - dz * bx;   // referencial do corpo: al = à frente · la = + esquerda
     if (S.car && !moving && !(S.hd > 0)) {       // parou com a bola: pisa nela com o pé dominante (direito) e a deixa parada no ponto certo para chutar
-      S.hd = .5; S.hdF = 'R'; if (l) { l.play('trap', { foot: 'R' }); } touchBall(m);
+      S.hd = .5; if (l) l.play('trap', { foot: 'R' }); touchBall(m);
     }
     if (S.hd > 0) {
       if (moving) S.hd = 0;
       else {
-        S.hd -= dt; const k2 = 1 - Math.exp(-16 * dt), tx = m.x + bx * .8 + bz * .13, tz = m.z + bz * .8 - bx * .13;
+        S.hd -= dt; const k2 = 1 - Math.exp(-16 * dt), tx = m.x + bx * .8 - bz * .13, tz = m.z + bz * .8 + bx * .13;   // à frente, um pouco do lado direito
         ball.x += (tx - ball.x) * k2; ball.z += (tz - ball.z) * k2; ball.y = R; ball.vx = ball.vz = ball.vy = 0; ball.wx = ball.wy = ball.wz = 0; S.last = m; S.lastTeam = 0;
         if (S.hd <= 0) { S.car = false; S.hd = 0; }
         return;
       }
     }
     if (!moving) { S.car = false; return; }
-    if (!S.car) { if (ball.y < .4 && al > -.25 && d < 1.25 && rs < 6 && !S.cin) { S.car = true; S.cph = 1; S.cn = 0; S.cs = 'R'; S.fp = { R: { v: 0, dv: 0 }, L: { v: 0, dv: 0 } }; } else return; }
-    if (ball.y > .45 || d > 1.7 || al < -.45 || S.noCtl > 0) { S.car = false; return; }
-    // toque automático: a cada passada o pé dá um toque curto na bola; ela vai um pouco à frente (mais se corre forte) e o corpo a alcança no passo seguinte
-    // toque preso à perna de verdade: quando o pé em balanço chega ao ponto mais à frente, ele toca a bola (um toque por passada)
+    if (!S.car) { if (ball.y < .4 && al > -.25 && d < 1.25 && rs < 9 && (!S.cin || ball.speed < 1.5) && !(S.cobT > 0)) { S.car = true; S.cph = 1; S.cn = 0; S.cs = 'R'; S.tint = .4; S.tlast = S.clock; S.fp = { R: { v: 0, dv: 0 }, L: { v: 0, dv: 0 } }; } else return; }
+    S.cobT = Math.max(0, (S.cobT || 0) - dt);
+    if (ball.y > .45 || (d > 1.9 && !S.ch) || al < -.95 || S.noCtl > 0) { S.car = false; return; }
+    S.last = m; S.lastTeam = 0;
+    if (S.mv || S.ch) {                           // movimento de drible ou carregando chute/passe: a bola fica protegida junto do corpo: a bola acompanha o corpo (protegida) enquanto o corpo faz o movimento
+      const k = 1 - Math.exp(-22 * dt), tx = m.x + bx * .76 - bz * .1 * ((S.mv && S.mv.side) || 0), tz = m.z + bz * .76 + bx * .1 * ((S.mv && S.mv.side) || 0);
+      let nx = ball.x + (tx - ball.x) * k, nz = ball.z + (tz - ball.z) * k; const ex = nx - m.x, ez = nz - m.z, ed = Math.hypot(ex, ez);
+      if (ed < .68) { nx = m.x + ex / (ed || 1) * .68; nz = m.z + ez / (ed || 1) * .68; }
+      ball.x = nx; ball.z = nz; ball.y = R; ball.vx = vxm; ball.vz = vzm; ball.vy = 0; ball.wx = ball.vz / R; ball.wz = -ball.vx / R; return;
+    }
+    // toque preso à perna de verdade: lê o pé direito e o esquerdo; quando um chega ao ponto mais à frente da passada, ele toca a bola
     let ev = null;
     if (l && l.footPos) for (const sd of ['R', 'L']) { l.footPos(sd, tmpF); const f = (tmpF.x - m.x) * bx + (tmpF.z - m.z) * bz, q = S.fp[sd], dv = f - q.v; if (q.dv > 0 && dv <= 0 && f > .1 && S.cph > .3) ev = sd; q.dv = dv; q.v = f; }
     S.cph = Math.min(2, S.cph + dt * (2.6 + sp * .12));
-    if (!ev && S.cph >= 1.5) ev = S.cs === 'R' ? 'L' : 'R';                                              // sem leitura do pé (ou parado no ar): mantém o ritmo
-    if (ev) { S.cph = 0; S.cn++; S.cs = ev; S.fl = ev === 'R'; touchBall(m); }
-    const side = S.cs === 'R' ? 1 : -1, frac = Math.min(1, S.cph);
-    const ms = clamp(sp / RUNV, 0, 1.2), ahead = (tr && tr.held ? .68 : .72) + ms * .42 * (tr && tr.held ? .4 : 1) * (1 - frac), tx = m.x + bx * ahead + bz * .1 * side, tz = m.z + bz * ahead - bx * .1 * side, k = 1 - Math.exp(-22 * dt);
-    let nx = ball.x + (tx - ball.x) * k, nz = ball.z + (tz - ball.z) * k; const ex = nx - m.x, ez = nz - m.z, ed = Math.hypot(ex, ez);
-    if (ed < .68) { nx = m.x + ex / (ed || 1) * .68; nz = m.z + ez / (ed || 1) * .68; }                  // nunca dentro do corpo
-    ball.x = nx; ball.z = nz; ball.y = R; ball.vx = m.vx; ball.vz = m.vz; ball.vy = 0; ball.wx = ball.vz / R; ball.wz = -ball.vx / R;
-    S.last = m; S.lastTeam = 0;
+    if (!ev && S.cph >= 1.5) ev = S.cs === 'R' ? 'L' : 'R';                                              // sem leitura do pé: mantém o ritmo
+    const ms = clamp(sp / RUNV, 0, 1.2), swerve = want && Math.abs((ball.vx - vxm) * hz - (ball.vz - vzm) * hx) > 1.8 && S.cph > .12;
+    if (!ev && swerve) ev = la > 0 ? 'L' : 'R';                                                         // virou e a bola ficou de lado: o pé mais perto corta na hora
+    if (ev && ball.y < .4 && al > (swerve ? -.95 : -.3) && al < 2.2 && Math.abs(la) < (swerve ? 1.7 : 1.2)) {
+      // o toque: dá à bola a velocidade que a deixa à frente do jeito certo no PRÓXIMO toque (descontando o atrito de rolagem)
+      const T = clamp(S.tint, .25, .6), tgtA = (tr && tr.held ? .72 : .82) + ms * (tr && tr.held ? .15 : .42), tgtL = -.1 * (ev === 'R' ? 1 : -1);
+      const rf = clamp((tgtA - al) / T + .8 * T, -1.2, 4.5), rl = clamp((tgtL - la) / T, -4, 4);
+      ball.vx = vxm + bx * rf + bz * rl; ball.vz = vzm + bz * rf - bx * rl; ball.vy = 0; ball.wx = ball.vz / R; ball.wz = -ball.vx / R;
+      S.tint = clamp(S.tint * .6 + (S.clock - S.tlast) * .4, .25, .6); S.tlast = S.clock; S.cph = 0; S.cn++; S.cs = ev; S.fl = ev === 'R'; touchBall(m);
+    } else if (ev) { S.cph = 0; S.cs = ev; }
+    // o corpo nunca atravessa a bola: se ela ficar dentro do corpo, é empurrada para fora na velocidade do jogador
+    if (d < .64 && al > -.2) { const nd = d || 1e-6; ball.x = m.x + dx / nd * .68; ball.z = m.z + dz / nd * .68; ball.vx = vxm; ball.vz = vzm; ball.wx = ball.vz / R; ball.wz = -ball.vx / R; }
+  }
+
+  /* ---- interceptar (raio sem a bola): corre até onde a bola vai estar e domina ---- */
+  function lunge(m) {
+    const V = 8.6; let tgt = null;
+    for (let t = .15; t <= 1.4; t += .05) { const f = Math.max(0, 1 - .12 * t), px = ball.x + ball.vx * t * f, pz = ball.z + ball.vz * t * f, dd = Math.hypot(px - m.x, pz - m.z); if (dd <= V * t + .3) { tgt = { x: px, z: pz, t, dd }; break; } }
+    if (!tgt || tgt.dd < .8) return;
+    const ux = (tgt.x - m.x) / tgt.dd, uz = (tgt.z - m.z) / tgt.dd, stop = Math.max(0, tgt.dd - .1);
+    m.dash = { segs: [{ x0: m.x, z0: m.z, x1: m.x + ux * stop, z1: m.z + uz * stop, du: Math.max(.12, stop / V), hold: 0 }], i: 0, t: 0 };
+  }
+
+  /* ---- dribles por gesto do analógico (raio apertado + movimento) ---- */
+  function gesture(h) {
+    if (h.length < 4) return null;
+    let ang = 0, pa = null; const seq = [];
+    for (const [t, ix, iy] of h) {
+      const mg = Math.hypot(ix, iy); if (mg < .5) continue;
+      const a = Math.atan2(ix, iy); if (pa != null) { let d = a - pa; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; ang += d; } pa = a;
+      const dir = Math.abs(iy) >= Math.abs(ix) ? (iy > 0 ? 'U' : 'D') : (ix > 0 ? 'R' : 'L'), q = seq[seq.length - 1];
+      if (q && q.d === dir) q.t1 = t; else seq.push({ d: dir, t0: t, t1: t });
+    }
+    if (Math.abs(ang) > 4.0) return { k: 'giro', sg: ang > 0 ? 1 : -1 };
+    const f = seq.filter((q, i) => q.t1 - q.t0 > .035 || i === 0 || i === seq.length - 1); if (f.length < 2) return null;
+    const a = f[f.length - 2], b = f[f.length - 1], now = S.clock, settled = now - b.t0 > .09;
+    if (a.d === 'D' && b.d === 'U' && settled) return { k: 'cober' };
+    if (a.d === 'L' && b.d === 'R' && settled) return { k: 'corte', sg: 1 };
+    if (a.d === 'R' && b.d === 'L' && settled) return { k: 'corte', sg: -1 };
+    if (a.d === 'U' && b.d === 'D' && now - b.t0 > .32) return { k: 'puxada' };
+    return null;
+  }
+  function startMove(g, m, cy, vxm, vzm) {
+    const bx = Math.sin(m.yaw), bz = Math.cos(m.yaw), lx = Math.cos(cy), lz = -Math.sin(cy);     // frente do corpo e ESQUERDA da tela (mundo)
+    const P = { x: m.x, z: m.z }, l = L(m), lim = (x, z) => ({ x: clamp(x, cx - HW - 1.5, cx + HW + 1.5), z: clamp(z, -HL - 1.5, HL + 1.5) });
+    const segs = []; let cur = P; const add = (x, z, du) => { const q = lim(x, z); segs.push({ x0: cur.x, z0: cur.z, x1: q.x, z1: q.z, du, hold: 0 }); cur = q; };
+    if (g.k === 'cober') {                       // cobertinha: o pé passa por baixo e levanta a bola, que sobe e cai à frente; o corpo segue
+      if (ball.y < .4 && Math.hypot(ball.x - m.x, ball.z - m.z) < 1.5) {
+        const dir = Math.hypot(vxm, vzm) > .5 ? [vxm / Math.hypot(vxm, vzm), vzm / Math.hypot(vxm, vzm)] : [bx, bz];
+        ball.vx = vxm + dir[0] * .6; ball.vz = vzm + dir[1] * .6; ball.vy = 4.7; ball.wx = ball.wz = 0; S.cobT = .35; S.car = false; touchBall(m); if (l) l.play('touch', { foot: 'R', scale: .8 });
+        S.mv = { k: 'cober', t: 0, dur: .2, side: 0 }; S.mvCd = .6;
+      } return;
+    }
+    if (g.k === 'corte') {                       // corta para o lado e volta para a linha de onde saiu
+      const sg = g.sg; add(P.x + bx * .65 + lx * .95 * sg, P.z + bz * .65 + lz * .95 * sg, .17); add(P.x + bx * 1.5, P.z + bz * 1.5, .17); S.mv = { k: 'corte', t: 0, dur: .36, side: sg };
+    } else {                                     // giro (roleta, 360°) e puxada (meia-volta, 180°)
+      const half = g.k === 'puxada', sg = g.sg || 1, r = .62, n = half ? 4 : 8, du = half ? .09 : .075, th = half ? Math.PI : 2 * Math.PI, rx = -bz * sg, rz = bx * sg;   // lado do giro: sg>0 = direita
+      for (let i = 1; i <= n; i++) { const a = th * i / n; add(P.x + bx * r * Math.sin(a) + rx * r * (1 - Math.cos(a)) * -1 * -1, P.z + bz * r * Math.sin(a) + rz * r * (1 - Math.cos(a)), du); }
+      const hx = half ? -bx : bx, hz = half ? -bz : bz; add(cur.x + hx * (half ? .9 : 1.1), cur.z + hz * (half ? .9 : 1.1), .15); S.mv = { k: g.k, t: 0, dur: n * du + .15, side: 0 };
+    }
+    m.dash = { segs, i: 0, t: 0, h: 0 }; S.rdash = false; S.car = true; if (l) l.play('touch', { foot: g.sg > 0 || g.k === 'giro' ? 'R' : 'L', scale: .8 });
   }
 
   /* ============================== contato corpo × bola ============================== */

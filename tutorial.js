@@ -13,12 +13,23 @@ let st = load(), running = false, layer = null, cur = null;
 
 /* ---------- utilidades ---------- */
 const vis = el => { if (!el) return false; const r = el.getBoundingClientRect(); if (!r.width || !r.height) return false; for (let e = el; e && e !== document.body; e = e.parentElement) { if (e.classList && e.classList.contains('hidden')) return false; const cs = getComputedStyle(e); if (cs.display === 'none' || cs.visibility === 'hidden') return false; } return true; };
-const OV = ['chestOpening', 'rewardModal', 'modal', 'offerReward', 'accountGate', 'evoUp', 'passTotalsModal'];
-const overlayOpen = () => OV.some(id => { const e = $(id); if (!e) return false; if (id === 'evoUp') return e.classList.contains('on') && vis(e); return !e.classList.contains('hidden') && vis(e); });
+const OV = ['chestOpening', 'chestAcquired', 'rewardSequence', 'rewardModal', 'modal', 'offerReward', 'accountGate', 'evoUp', 'passTotalsModal'];   // rewardSequence = tela de prêmios com PRÓXIMA / RESGATAR / PRONTO; chestAcquired = "você recebeu uma caixa"
+const overlayOpen = () => OV.some(id => { const e = $(id); if (!e) return false; if (id === 'evoUp') return e.classList.contains('on') && vis(e); return !e.classList.contains('hidden') && vis(e); }) || !!find('.modal:not(.hidden), .chest-overlay:not(.hidden), .reward-sequence:not(.hidden)');   // + qualquer tela de prêmio/aviso que o jogo abrir
 async function waitFor(fn, ms = 9000) { const t0 = Date.now(); for (;;) { let v = null; try { v = fn(); } catch (_) { } if (v) return v; if (Date.now() - t0 > ms) return null; await sleep(100); } }
 const find = sel => { try { const l = document.querySelectorAll(sel); for (const e of l) if (vis(e)) return e; } catch (_) { } return null; };
 const navBtn = (screen, label) => [...document.querySelectorAll(`#${screen} .ca-nav button`)].find(b => (b.textContent || '').trim().toUpperCase().includes(label));
-const waitClear = async () => { await sleep(450); await waitFor(() => !overlayOpen(), 60000); await sleep(350); };
+/* espera TODA a sequência de prêmios acabar (PRÓXIMA → RESGATAR → PRONTO → caixas em fila → nível/evolução).
+   Entre uma tela e a seguinte há pequenos vãos (~0,2 s), então só considera "terminou" quando nada aparece por 1,3 s seguidos. */
+const waitClear = async (appearMs = 2500) => {
+  await waitFor(() => overlayOpen(), appearMs);               // dá tempo de a primeira tela abrir (resposta do servidor, animação da caixa)
+  let freeSince = 0; const t0 = Date.now();
+  while (Date.now() - t0 < 300000) {
+    if (overlayOpen()) freeSince = 0; else if (!freeSince) freeSince = Date.now();
+    if (freeSince && Date.now() - freeSince >= 1300) break;
+    await sleep(100);
+  }
+  await sleep(250);
+};
 
 /* ---------- camada escura com foco ---------- */
 function build() {

@@ -44,9 +44,13 @@ export function initTutMatch(api) {
   const dist = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
   const flat = () => { const me = getMe(); return { x: me.x, z: me.z }; };
   function setup() {
-    const me = getMe(), bots = enemiesOf(me);
+    const me = getMe();
+    // A partida começa com todo mundo "caindo do céu" (drop) e enemiesOf() ignora quem está caindo: antes não achava NENHUM inimigo,
+    // então não havia instrutor, nem seta, e o passo "INIMIGO À VISTA" nunca terminava (golpes ficavam bloqueados).
+    // Por isso primeiro todos pousam no chão, e só depois escolhemos o instrutor.
+    for (const a of actors.values()) { placeAt(a, [a.x, a.z], false); a.grounded = true; a.drop = 0; a.vy = 0; }
+    const bots = enemiesOf(me);
     const yaw = getCam().yaw, fx = Math.sin(yaw), fz = Math.cos(yaw);
-    for (const a of actors.values()) { a.drop = 0; a.grounded = true; }
     bots.forEach((b, i) => {   // todos passivos: não atacam e não usam poderes; ficam longe e atrás para a tela ficar leve
       const ang = yaw + Math.PI + (i / bots.length - .5) * 2.4, r = 42 + (i % 4) * 10, p = [me.x + Math.sin(ang) * r, me.z + Math.cos(ang) * r];
       placeAt(b, p, false); b.brain.passive = true; b.brain.home = p.slice(); b.brain.mode = 'idle'; b.brain.target = null; b.energy = 0;
@@ -63,7 +67,7 @@ export function initTutMatch(api) {
 
   steps = [
     { id: 'move', focus: 'joy', allow: [], title: 'MOVIMENTO', text: 'Arraste o joystick para andar um pouco.', enter() { }, check() { return dist(flat(), startPos) > 9; } },
-    { id: 'find', focus: null, allow: [], title: 'INIMIGO À VISTA', text: 'Um inimigo vem até você. Siga a seta vermelha!', arrow: () => inst, enter() { releaseInstructor(); }, check() { return inst && dist(inst, getMe()) < 6; } },
+    { id: 'find', focus: null, allow: [], title: 'INIMIGO À VISTA', text: 'Um inimigo vem até você. Siga a seta vermelha!', arrow: () => inst, enter() { releaseInstructor(); }, check() { return !inst || dist(inst, getMe()) < 6; } },
     { id: 'punch', focus: 'bAtk', allow: ['punch'], title: 'SOCO', text: 'Toque em SOCO 3 vezes para atacar.', check() { return hits.punch >= 3; } },
     { id: 'kick', focus: 'bKick', allow: ['kick'], title: 'CHUTE', text: 'Agora toque em CHUTE 2 vezes.', check() { return hits.kick >= 2; } },
     { id: 'finish', focus: 'bAtk', allow: ['punch', 'kick'], title: 'DERROTE-O!', text: 'Continue com socos e chutes até derrotar o inimigo.', arrow: () => inst, check() { return !inst || !inst.alive; } },

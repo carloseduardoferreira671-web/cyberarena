@@ -204,7 +204,7 @@ export class ClipCtl {
     else this.sitting = null; return 1;
   }
   /* ---------- posições do corpo para faíscas/efeitos ---------- */
-  zoneWorld(zone, out) {
+  zoneWorld(zone, out = new THREE.Vector3()) {
     const bn = zone === 'head' ? 'Head' : zone === 'belly' ? 'Spine' : zone === 'shin' ? 'LeftLeg' : 'Spine2', b = this.bones[bn];
     if (!b) return out; b.getWorldPosition(out); this.root.getWorldQuaternion(this._q);
     const fwd = this._v.set(0, 0, 1).applyQuaternion(this._q); fwd.y = 0; fwd.normalize();

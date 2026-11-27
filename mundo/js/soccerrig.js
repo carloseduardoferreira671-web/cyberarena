@@ -57,6 +57,13 @@ const LIB = {
     [.1, { RightUpLeg: [-34, 0, -8], RightLeg: [42, 0, 0], RightFoot: [-10, 0, 0], LeftLeg: [18, 0, 0], Spine: [8, 0, 0], LeftArm: [0, 0, 30], RightArm: [0, 0, -30] }],
     [.2, { RightUpLeg: [-18, 0, -6], RightLeg: [56, 0, 0], LeftLeg: [22, 0, 0], Spine: [10, 0, 0], LeftArm: [0, 0, 24], RightArm: [0, 0, -24] }],
     [.42, {}]] },
+  sole: { dur: .95, ev: { press: .2, lift: .66 }, keys: [   // parada: a sola do pé pisa em cima da bola, segura e levanta
+    [0, {}],
+    [.1, { RightUpLeg: [-46, 0, -4], RightLeg: [64, 0, 0], RightFoot: [-6, 0, 0], LeftLeg: [14, 0, 0], Spine: [7, 0, 0], RightArm: [0, 0, -26], LeftArm: [0, 0, 26] }],
+    [.2, { RightUpLeg: [-62, 0, -4], RightLeg: [30, 0, 0], RightFoot: [-26, 0, 0], LeftLeg: [24, 0, 0], Spine: [13, 0, 0], RightArm: [0, 0, -28], LeftArm: [0, 0, 28] }],
+    [.62, { RightUpLeg: [-60, 0, -4], RightLeg: [34, 0, 0], RightFoot: [-24, 0, 0], LeftLeg: [26, 0, 0], Spine: [14, 0, 0], RightArm: [0, 0, -28], LeftArm: [0, 0, 28] }],
+    [.78, { RightUpLeg: [-30, 0, -4], RightLeg: [52, 0, 0], RightFoot: [-8, 0, 0], LeftLeg: [16, 0, 0], Spine: [6, 0, 0] }],
+    [.95, {}]] },
   touch: { dur: .26, ev: { impact: .08 }, keys: [   // toque de condução (corrida com a bola)
     [0, {}],
     [.08, { RightUpLeg: [-34, 0, -2], RightLeg: [20, 0, 0], RightFoot: [-16, 0, 0], Spine: [6, 4, 0] }],

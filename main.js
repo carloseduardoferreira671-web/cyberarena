@@ -376,18 +376,23 @@ function fadeLoopTick(){
 function updateLobbyMusic(){
   initLobbyMusic();
   if(!lobbyMusicA || !lobbyMusicB)return;
-  // A trilha do Lobby é fixa em toda a interface; só para durante a partida.
-  const inMatch=!$('game')?.classList.contains('hidden');
+  // A trilha do Lobby é fixa em toda a interface; só para durante a partida (jogo antigo ou Mundo 3D).
+  const inMatch=!$('game')?.classList.contains('hidden') || document.body.classList.contains('world3d-open');
   if(!inMatch){
+    if(lobbyMusicPageHidden)return;
     if(!lobbyMusicActive)lobbyMusicActive=lobbyMusicA;
-    if(lobbyMusicActive.currentTime<LOBBY_MUSIC_START && lobbyMusicActive.readyState>=1)lobbyMusicActive.currentTime=LOBBY_MUSIC_START;
-    setAudioGain(lobbyMusicActive,getMusicGain()); lobbyMusicActive.volume=LOBBY_MUSIC_VOLUME;
-    const play=lobbyMusicActive.play();
-    if(play&&play.catch)play.catch(()=>{});
-    if(!lobbyMusicActive._fadeBound){
-      lobbyMusicActive.addEventListener('timeupdate',fadeLoopTick);
-      lobbyMusicActive._fadeBound=true;
+    const m=lobbyMusicActive;
+    if(!m._fadeBound){ m.addEventListener('timeupdate',fadeLoopTick); m._fadeBound=true; }
+    // CORREÇÃO: se a música já está tocando, não mexe em nada. Antes, cada toque chamava play()/volume de novo e a faixa reiniciava.
+    if(!m.paused){
+      if(!lobbyMusicFading && m.volume<LOBBY_MUSIC_VOLUME){ setAudioGain(m,getMusicGain()); m.volume=LOBBY_MUSIC_VOLUME; }
+      return;
     }
+    if(lobbyMusicFading)return;
+    if(m.readyState>=1 && m.currentTime<LOBBY_MUSIC_START)m.currentTime=LOBBY_MUSIC_START;
+    setAudioGain(m,getMusicGain()); m.volume=LOBBY_MUSIC_VOLUME;
+    const play=m.play();
+    if(play&&play.catch)play.catch(()=>{});
   }else{
     [lobbyMusicA,lobbyMusicB].forEach(m=>{m.pause();m.currentTime=LOBBY_MUSIC_START;m.volume=0;});
     lobbyMusicActive=null; lobbyMusicFading=false;
@@ -873,7 +878,7 @@ function pauseLobbyMusicForBackground(){
 function resumeLobbyMusicFromBackground(){
   if(!lobbyMusicPageHidden)return;
   lobbyMusicPageHidden=false;
-  if(lobbyMusicUserStarted && !$('game')?.classList.contains('hidden')){
+  if(lobbyMusicUserStarted && $('game')?.classList.contains('hidden') && !document.body.classList.contains('world3d-open')){
     initLobbyMusic();
     const active=lobbyMusicActive||lobbyMusicA;
     if(active){

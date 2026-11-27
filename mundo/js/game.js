@@ -1265,6 +1265,11 @@ function sendFx(a, kind, data) { if (a === me || (a.kind === 'bot' && a.simulate
 let awayBrain = null;
 function awayStart() { if (awayBrain || !me || MODE !== 'battle' || NOPROG || G.phase !== 'live') return; try { awayBrain = new Brain(me, .55, false); } catch (e) { console.warn('away', e); } }
 document.addEventListener('visibilitychange', () => { if (document.hidden) awayStart(); });
+// Para o som do jogo ao sair (minimizar, trocar de app/aba, fechar a partida) e retoma ao voltar.
+const _audPause = () => { try { if (audio.ctx && audio.ctx.state === 'running') audio.ctx.suspend(); } catch (_) { } };
+const _audResume = () => { try { if (audio.ctx && audio.ctx.state === 'suspended' && !document.hidden) audio.ctx.resume(); } catch (_) { } };
+document.addEventListener('visibilitychange', () => { if (document.hidden) _audPause(); else _audResume(); });
+addEventListener('pagehide', _audPause); addEventListener('pageshow', _audResume);
 window.__away = { mode: MODE, noprog: NOPROG, start: awayStart, end() { awayBrain = null; }, ongoing: () => MODE === 'battle' && !NOPROG && !G.ended && G.phase !== 'over' && !G.result && !!me, get active() { return !!awayBrain; }, get brain() { return awayBrain; } };
 
 /* ===================================================== bots ===================================================== */

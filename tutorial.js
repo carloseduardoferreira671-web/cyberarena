@@ -9,6 +9,10 @@ const $ = id => document.getElementById(id);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 const load = () => { try { return JSON.parse(localStorage.getItem(keyOf()) || 'null') || {}; } catch (_) { return {}; } };
 const save = s => { try { localStorage.setItem(keyOf(), JSON.stringify(s)); } catch (_) { } };
+/* "já fez" vale para o aparelho inteiro: qualquer chave do tutorial concluída, ou marca global, ou conta que já jogou uma partida */
+const DKEY = 'cyberarena.tut.doneAny';
+const anyDone = () => { try { if (localStorage.getItem(DKEY) === '1') return true; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k && k.indexOf(KEY0) === 0) { const v = JSON.parse(localStorage.getItem(k) || 'null'); if (v && v.done) return true; } } } catch (_) { } return false; };
+const markAny = () => { try { localStorage.setItem(DKEY, '1'); } catch (_) { } };
 let st = load(), running = false, layer = null, cur = null;
 
 /* ---------- utilidades ---------- */
@@ -119,9 +123,9 @@ async function point(sel, title, text, label = 'ENTENDI', opt = {}) {
 }
 
 /* ---------- o tutorial concluído fica salvo na CONTA (servidor, ou neste aparelho se for conta local/convidado) ---------- */
-const accDone = () => { try { return !!(window.tutorialIsDone && window.tutorialIsDone()); } catch (_) { return false; } };
+const accDone = () => { try { return !!(window.tutorialIsDone && window.tutorialIsDone()) || anyDone() || !!(typeof player !== 'undefined' && player && player.missions && player.missions.first_match); } catch (_) { return false; } };
 async function finish() {
-  st.stage = 'done'; st.done = true; st.redo = false; save(st);   // reserva neste aparelho caso o servidor não responda agora
+  st.stage = 'done'; st.done = true; st.redo = false; save(st); markAny();   // reserva neste aparelho caso o servidor não responda agora
   try { await window.markTutorialDone(); } catch (e) { console.warn('tutorial: não salvou na conta', e); }
 }
 
@@ -130,7 +134,7 @@ async function part1() {
   // espera o lobby (depois do login/avisos) sem desistir cedo: conta antiga também faz o tutorial completo
   if (!await waitFor(() => vis($('lobby')) && !overlayOpen(), 1800000)) return; await sleep(800);
   // a conta já concluiu (em qualquer aparelho)? então não repete, a menos que tenha tocado em REFAZER
-  if (!st.redo && (accDone() || st.done)) { if (!accDone()) { try { window.markTutorialDone(); } catch (_) { } } st.stage = 'done'; st.done = true; save(st); return; }
+  if (!st.redo && (accDone() || st.done)) { if (!accDone()) { try { window.markTutorialDone(); } catch (_) { } } st.stage = 'done'; st.done = true; save(st); markAny(); return; }
   st.done = false; st.stage = 'new'; save(st);
   const w = await say('BEM-VINDO À CYBERARENA!', 'Vou te mostrar o básico em poucos passos e você já joga sua primeira partida. Vamos?', ['COMEÇAR', 'PULAR TUTORIAL'], { step: 'TUTORIAL' });
   if (w === 1) { await finish(); return; }
@@ -227,6 +231,7 @@ async function run() {
 function boot() {
   build();
   if (new URLSearchParams(location.search).get('tutorial') === '1') { st = { stage: 'new', redo: true }; save(st); }
+  if (!st.redo && st.stage !== 'inmatch' && anyDone()) return;
   if (st.done && !st.redo) return;
   if (st.stage === 'inmatch') { run(); return; }
   st.stage = 'new'; run();   // quem decide se repete é a conta (part1)

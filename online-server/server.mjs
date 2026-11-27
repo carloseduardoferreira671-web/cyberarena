@@ -98,7 +98,10 @@ function auth(body) {
   if (!isId(id) || typeof secret !== 'string' || secret.length < 16 || secret.length > 128) throw new HttpError(400, 'Identidade inválida');
   const name = cleanName(body.name), skin = cleanSkin(body.skin), char = cleanChar(body.char), h = sha(secret);
   let p = players.get(id);
-  if (!p) { p = { id, secret_hash: h, name: name || 'Cyber' + Math.floor(1000 + Math.random() * 9000), skin: skin || 'cyber', char: char || 'nexus', trophies: 0, xp: 0, wins: 0, kills: 0, matches: 0, best_placement: null, last_chat_at: 0 }; players.set(id, p); dirty = true; }
+  if (!p) { p = { id, secret_hash: h, name: name || 'Cyber' + Math.floor(1000 + Math.random() * 9000), skin: skin || 'cyber', char: char || 'nexus', trophies: 0, xp: 0, wins: 0, kills: 0, matches: 0, best_placement: null, last_chat_at: 0 };
+    const b = body.backup;   // perfil perdido no servidor (reinício sem disco): restaura da cópia do aparelho, com limites
+    if (b && typeof b === 'object') { const n = (v, mx) => Math.max(0, Math.min(mx, Math.floor(+v) || 0)); p.trophies = n(b.trophies, 6000); p.xp = n(b.xp, 2000000); p.wins = n(b.wins, 100000); p.kills = n(b.kills, 1000000); p.matches = n(b.matches, 100000); p.best_placement = b.best >= 1 && b.best <= 16 ? Math.floor(b.best) : null; }
+    players.set(id, p); dirty = true; }
   else if (p.secret_hash !== h) throw new HttpError(403, 'Identidade não confere');
   else { if (name && name !== p.name) { p.name = name; dirty = true; } if (skin && skin !== p.skin) { p.skin = skin; dirty = true; } if (char && char !== p.char) { p.char = char; dirty = true; } }
   return p;

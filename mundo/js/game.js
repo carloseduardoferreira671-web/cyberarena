@@ -1489,7 +1489,10 @@ const ICONS = {
 };
 const SKILL_UI = { nexus: { s: ['sing', 'SINGULARIDADE'], u: ['abyss', 'ABISMO ESTELAR'], x: ['blitz', 'VELOCIDADE'] }, cyber: { s: ['flash', 'FLASH Ω'], u: ['nova', 'SUPERNOVA'], x: ['omega', 'LÂMINA Ω'] }, atlas: { s: ['sing', 'RESSONÂNCIA'], u: ['abyss', 'ABISMO ETERNO'], x: ['blitz', 'FENDA SÍSMICA'] } };
 let uiChar = null;
-function skillButtons() { if (!me || uiChar === me.char) return; uiChar = me.char; const u = SKILL_UI[me.char] || SKILL_UI.nexus;
+/* futebol: rótulos CHUTE/PASSE/CRUZAR/DRIBLE. skillButtons() repõe os botões de combate sempre que o personagem muda (ex.: online, depois do perfil chegar) — por isso reaplica o futebol por cima. */
+function soccerButtons() { $('btns').querySelectorAll('#bKick,#bSolar,#bSwap').forEach(b => b.classList.add('hidden')); for (const [id, ic, tx] of [['bAtk', '⚽', 'CHUTE'], ['bLas', '➜', 'PASSE'], ['bSup', '⤴', 'CRUZAR'], ['bVel', '⚡', 'DRIBLE']]) { const I = $(id + 'I'), T = $(id + 'T'); if (I) { I.innerHTML = ic; I.style.fontSize = '30px'; I.style.fontWeight = 900; } if (T) T.textContent = tx; else { const sp = $(id).querySelector('span'); if (sp) sp.textContent = tx; } } }
+function skillButtons() { const ch = uiChar; skillButtons0(); if (MODE === 'soccer' && uiChar !== ch) soccerButtons(); }
+function skillButtons0() { if (!me || uiChar === me.char) return; uiChar = me.char; const u = SKILL_UI[me.char] || SKILL_UI.nexus;
   document.body.classList.remove('ch-nexus', 'ch-cyber', 'ch-atlas'); document.body.classList.add('ch-' + me.char);
   $('bLasI').innerHTML = ICONS[u.s[0]]; $('bLasT').textContent = u.s[1]; $('bSupI').innerHTML = ICONS[u.u[0]]; $('bSupT').textContent = u.u[1]; $('bAtkI').innerHTML = ICONS.punch; $('bJmpI').innerHTML = ICONS.jump; $('bVelI').innerHTML = ICONS[u.x[0]]; $('bVelT').textContent = u.x[1]; $('bSwapI').innerHTML = ICONS.swap; $('bSolar').classList.toggle('hidden', me.char !== 'cyber'); }
 function updateHud(dt) {

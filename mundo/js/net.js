@@ -28,6 +28,10 @@ export function levelOf(xp) { let lvl = 1, need = 250, left = xp; while (left >=
 const TROPHY = [0, 32, 24, 18, 13, 8, 8, 4, 4, 0, 0, -4, -4, -7, -7, -10, -10];
 export function localResult(placement, kills) { return { placement, kills, trophiesDelta: TROPHY[placement] + 2 * kills, xpGain: 40 + 15 * kills + 6 * (17 - placement) }; }
 
+/* Cópia do perfil guardada no aparelho: se o servidor (Render grátis) perder os dados num reinício, ele restaura daqui e o ranking não zera. */
+const BKEY = 'cyberarena.profileBackup';
+function readBackup() { try { return JSON.parse(localStorage.getItem(BKEY) || 'null'); } catch (_) { return null; } }
+function writeBackup(p) { try { if (!p || !(p.matches >= 0)) return; const o = readBackup(); if (o && (o.matches || 0) > (p.matches || 0) && (o.trophies || 0) > (p.trophies || 0) + 50) return; localStorage.setItem(BKEY, JSON.stringify({ trophies: p.trophies | 0, xp: p.xp | 0, wins: p.wins | 0, kills: p.kills | 0, matches: p.matches | 0, best: p.best_placement ?? p.bestPlacement ?? null })); } catch (_) { } }
 function localProfile(id) {
   let p = null; try { p = JSON.parse(localStorage.getItem(LKEY) || 'null'); } catch (_) { }
   p = Object.assign({ trophies: 0, xp: 0, wins: 0, kills: 0, matches: 0, bestPlacement: null }, p || {}, { id: id.playerId, name: id.name, skin: id.skin });
@@ -46,7 +50,7 @@ export class Net {
     const ctl = new AbortController(), to = setTimeout(() => ctl.abort(), 8000);
     try {
       const t0 = Date.now();
-      const r = await fetch(API + path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(Object.assign({ playerId: this.id.playerId, secret: this.id.secret, name: this.id.name, skin: this.id.skin, char: this.id.char, platform: PLATFORM }, body || {})), signal: ctl.signal });
+      const r = await fetch(API + path, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(Object.assign({ playerId: this.id.playerId, secret: this.id.secret, name: this.id.name, skin: this.id.skin, char: this.id.char, platform: PLATFORM, backup: readBackup() }, body || {})), signal: ctl.signal });
       const data = await r.json().catch(() => ({}));
       if (!r.ok) { const e = new Error(data.error || ('HTTP ' + r.status)); e.status = r.status; throw e; }
       if (data.serverNow) { const est = data.serverNow + (Date.now() - t0) / 2 - Date.now(); this.offset = this.hasOffset ? this.offset * .8 + est * .2 : est; this.hasOffset = true; }
@@ -56,7 +60,7 @@ export class Net {
   serverNow() { return Date.now() + this.offset; }
   async profile(update) {
     if (update) this.id = saveIdentity(update);
-    if (this.online) { try { const p = await this._post('profile', {}); p.offline = false; return p; } catch (e) { if (!e.status) this.online = false; } }
+    if (this.online) { try { const p = await this._post('profile', {}); p.offline = false; writeBackup(p); return p; } catch (e) { if (!e.status) this.online = false; } }
     return localProfile(this.id);
   }
   post(path, body) { return this._post(path, body); }   // chamadas avulsas (amigos/grupo do lobby)

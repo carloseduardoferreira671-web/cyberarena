@@ -199,8 +199,8 @@ function syncSettingsUI(){
 }
 /* Gráficos: mesma chave usada dentro da partida (mundo/js/game.js) — vale na próxima partida */
 function readGfxSettings(){try{return JSON.parse(localStorage.getItem('cyberarena.settings')||'{}')||{};}catch(_){return {};}}
-function setGraphicsQuality(v){if(!['high','medium','low','ultra'].includes(v))return;const s=readGfxSettings();s.quality=v;try{localStorage.setItem('cyberarena.settings',JSON.stringify(s));}catch(_){}}
-function syncGraphicsUI(){const el=$('gfxQuality');if(!el)return;let q=readGfxSettings().quality;const auto=(window.matchMedia&&matchMedia('(pointer:coarse)').matches)?'medium':'high';const map={auto:auto,mid:'medium',ultra4k:'high',apk:'medium'};if(map[q])q=map[q];if(!['high','medium','low','ultra'].includes(q))q=auto;el.value=q;}
+function setGraphicsQuality(v){if(!['max','high','medium','low','ultra'].includes(v))return;const s=readGfxSettings();s.quality=v;try{localStorage.setItem('cyberarena.settings',JSON.stringify(s));}catch(_){}}
+function syncGraphicsUI(){const el=$('gfxQuality');if(!el)return;let q=readGfxSettings().quality;const auto='low';const map={auto:auto,mid:'medium',ultra4k:'high',apk:'low'};if(map[q])q=map[q];if(!['max','high','medium','low','ultra'].includes(q))q=auto;if(!localStorage.getItem('cyberarena.defaults.v2')&&q!=='ultra')q='low';el.value=q;}
 function setMusicVolume(v){v=Math.max(0,Math.min(200,Number(v)||0));localStorage.setItem('cyberArenaMusicVolume',v);if($('musicVolumeValue'))$('musicVolumeValue').textContent=v;[lobbyMusicA,lobbyMusicB].forEach(m=>{if(m){setAudioGain(m,getMusicGain());m.volume=lobbyMusicActive===m?1:0;}});}
 function setEffectsVolume(v){v=Math.max(0,Math.min(200,Number(v)||0));localStorage.setItem('cyberArenaEffectsVolume',v);if($('effectsVolumeValue'))$('effectsVolumeValue').textContent=v;initUISounds();Object.values(gameAudio).forEach(a=>setAudioGain(a,getEffectsGain()));}
 function setTactile(v){localStorage.setItem('cyberArenaTactileEnabled',v?'1':'0');}

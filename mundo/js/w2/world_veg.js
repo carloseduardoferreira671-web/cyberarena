@@ -72,12 +72,12 @@ export async function buildVegetation(ctx) {
   }
 
   /* ---------- materiais com vento ---------- */
-  const foliage = (stiff, flutter, inter, key, base = {}) => patchWorldVertex(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0, ...base }), U, `
+  const foliage = (stiff, flutter, inter, key, base = {}, band = null) => patchWorldVertex(new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.82, metalness: 0, ...base }), U, `
       vWp = wpos.xyz; vLeaf = aLeaf;
       wpos.xyz += windDisp(base, hgt, ${stiff.toFixed(5)}, 0.) ;
       wpos.xyz += vec3(sin(uTime*5.7 + wpos.x*1.7 + wpos.y), cos(uTime*4.9 + wpos.z*1.9) * .5, sin(uTime*6.6 + wpos.y*2.1)) * ${flutter.toFixed(3)} * aLeaf * (.35 + uWind.z);
       ${inter ? 'wpos.xyz += interDisp(wpos.xyz, min(hgt, 1.6), ' + inter.toFixed(2) + ');' : ''}`,
-    { key: key + ((key === 'pine' || key === 'oak') && tex.bark && tex.leaf ? '-tri' : ''), vertexHead: 'attribute float aLeaf; varying vec3 vWp; varying float vLeaf;',
+    { band, key: key + ((key === 'pine' || key === 'oak') && tex.bark && tex.leaf ? '-tri' : ''), vertexHead: 'attribute float aLeaf; varying vec3 vWp; varying float vLeaf;',
       fragment: (sh) => { const TRI = (key === 'pine' || key === 'oak') && tex.bark && tex.leaf; if (TRI) { sh.uniforms.uBarkT = { value: tex.bark.map }; sh.uniforms.uLeafT = { value: tex.leaf.map }; }
         sh.uniforms.uPlayer = U.uPlayer; sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform vec3 uPlayer; varying vec3 vWp; varying float vLeaf;' + (TRI ? 'uniform sampler2D uBarkT, uLeafT;' : '') + NOISE_GLSL)
         .replace('#include <clipping_planes_fragment>', `#include <clipping_planes_fragment>
@@ -220,20 +220,25 @@ export async function buildVegetation(ctx) {
       return { trunk: mergeGeometries(parts), cards: accGeo(acc) };
     };
     const barkBase = { map: tex.bark.map, normalMap: tex.bark.normalMap, roughnessMap: tex.bark.roughnessMap, roughness: 1, normalScale: new THREE.Vector2(1.4, 1.4) };
-    const barkMat = foliage(0.0042, 0.0, 0, 'treeBark', barkBase);
-    const pineCardMat = foliage(0.0042, 0.035, 0.3, 'treeCard', { map: tex.conifer.map, alphaTest: 0.4, roughness: 0.85 });
-    const oakCardMat = foliage(0.0065, 0.06, 0.3, 'treeCard', { map: (tex.foliage && tex.foliage.map) || tex.bushes.map, alphaTest: tex.foliage ? 0.5 : 0.42, roughness: 0.85 });
     const sc = ULTRA ? 0.7 : 1, BANDS = { near: [0, 26 * sc], mid: [26 * sc, 68 * sc], far2: [68 * sc, 170 * sc], old: [170 * sc, 1e9] };
+    /* cada faixa de distância tem seu próprio material que recorta por ÁRVORE (não por bloco): nunca aparece a árvore nova e a antiga juntas */
+    const barkB = {}, pineCardB = {}, oakCardB = {};
+    for (const nm of ['near', 'mid', 'far2']) {
+      barkB[nm] = foliage(0.0042, 0.0, 0, 'treeBark', barkBase, BANDS[nm]);
+      pineCardB[nm] = foliage(0.0042, 0.035, 0.3, 'treeCard', { map: tex.conifer.map, alphaTest: 0.4, roughness: 0.85 }, BANDS[nm]);
+      oakCardB[nm] = foliage(0.0065, 0.06, 0.3, 'treeCard', { map: (tex.foliage && tex.foliage.map) || tex.bushes.map, alphaTest: tex.foliage ? 0.5 : 0.42, roughness: 0.85 }, BANDS[nm]);
+    }
+    const pineMatOld = foliage(0.0042, 0.025, 0, 'pine', {}, BANDS.old), oakMatOld = foliage(0.0065, 0.05, 0, 'oak', {}, BANDS.old);
     const NV = 2;
     for (let v = 0; v < NV; v++) {
       const pl = pines.filter((_, i) => i % NV === v), ol = oaks.filter((_, i) => i % NV === v), P = [realPine(v + 1), realPine(v + 1, 1), realPine(v + 1, 2)], O = [realOak(v + 1), realOak(v + 1, 1), realOak(v + 1, 2)];
       const sets = [['near', 36, true], ['mid', 36, false], ['far2', 90, false]];
       sets.forEach(([name, ch, sh], k) => {
         const o = { ch, band: BANDS[name], shadow: sh };
-        instanced(pl, P[k].trunk, null, barkMat, o); instanced(pl, P[k].cards, null, pineCardMat, { ...o, shadow: name === 'near' && Q >= 2 });
-        instanced(ol, O[k].trunk, null, barkMat, o); instanced(ol, O[k].cards, null, oakCardMat, { ...o, shadow: name === 'near' && Q >= 2 });
+        instanced(pl, P[k].trunk, null, barkB[name], o); instanced(pl, P[k].cards, null, pineCardB[name], { ...o, shadow: name === 'near' && Q >= 2 });
+        instanced(ol, O[k].trunk, null, barkB[name], o); instanced(ol, O[k].cards, null, oakCardB[name], { ...o, shadow: name === 'near' && Q >= 2 });
       });
-      instanced(pl, pineGeo(false), null, pineMat, { ch: 140, band: BANDS.old, shadow: false }); instanced(ol, oakGeo(false), null, oakMat, { ch: 140, band: BANDS.old, shadow: false });
+      instanced(pl, pineGeo(false), null, pineMatOld, { ch: 140, band: BANDS.old, shadow: false }); instanced(ol, oakGeo(false), null, oakMatOld, { ch: 140, band: BANDS.old, shadow: false });
     }
   } else {
     instanced(pines, pineGeo(true), pineGeo(false), pineMat, { lodDist: ULTRA ? 35 : 60 });

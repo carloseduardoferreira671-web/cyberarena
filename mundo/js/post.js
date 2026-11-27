@@ -5,7 +5,7 @@
  *   bloom por filtro duplo (pirâmide de 4–5 níveis) sobre o HDR
  *   motion blur de câmera por reprojeção de profundidade               (nível ≥ 3)
  *   composição: aberração cromática de impacto, AO, bloom, grading, vinheta, grão → tone mapping + sRGB do three.
- * Níveis: 0 desligado · 1 bloom+grading · 2 + SSAO · 3 + motion blur e bloom máximo.
+ * Níveis: 0 desligado · 1 bloom+grading · 2 + SSAO · 3 + motion blur e bloom máximo · 4 MÁXIMO (SSAO + bloom máximo + cores vivas + nitidez, SEM motion blur).
  */
 import * as THREE from '../lib/three.module.min.js';
 
@@ -110,6 +110,7 @@ const F_COMP = /* glsl */`
 uniform sampler2D tScene; uniform sampler2D tBloom; uniform sampler2D tAO; uniform sampler2D tDepth;
 uniform mat4 uInvVP; uniform mat4 uPrevVP;
 uniform float uBloom; uniform float uAO; uniform float uMB; uniform float uVig; uniform float uGrain; uniform float uAb; uniform float uTime;
+uniform float uVib; uniform float uSharp; uniform vec2 uTexel;
 uniform float uSat; uniform float uCon; uniform vec3 uTintS; uniform vec3 uTintH; uniform vec3 uGain;
 varying vec2 vUv;
 float ign(vec2 p){ return fract(52.9829189 * fract(dot(p, vec2(.06711056, .00583715)))); }
@@ -134,11 +135,13 @@ void main(){
   } else if (uAb > 1e-5) {
     c = vec3(scn(uv + dc * uAb).r, scn(uv).g, scn(uv - dc * uAb).b);
   } else c = scn(uv);
+  if (uSharp > 0.) { vec3 nb = (scn(uv + vec2(uTexel.x, 0.)) + scn(uv - vec2(uTexel.x, 0.)) + scn(uv + vec2(0., uTexel.y)) + scn(uv - vec2(0., uTexel.y))) * .25; c += clamp(c - nb, vec3(-.6), vec3(.6)) * uSharp; }
   float l0 = dot(c, vec3(.2126, .7152, .0722));
   if (uAO > 0.) { float ao = texture2D(tAO, uv).x; c *= mix(1., ao, uAO * (1. - smoothstep(1.2, 4., l0))); }
   c += texture2D(tBloom, uv).rgb * uBloom;
   float l = dot(c, vec3(.2126, .7152, .0722));
   c = mix(vec3(l), c, uSat);
+  if (uVib > 0.) { float mx = max(c.r, max(c.g, c.b)), mn = min(c.r, min(c.g, c.b)), st = (mx - mn) / (mx + 1e-4); c = mix(vec3(l), c, 1. + uVib * (1. - st)); }
   c = max((c - .18) * uCon + .18, 0.) * uGain;
   c = mix(c, c * uTintS, (1. - smoothstep(0., .4, l)) * .5);
   c = mix(c, c * uTintH, smoothstep(.5, 2., l) * .45);
@@ -163,7 +166,7 @@ export class PostFX {
     this.hdr = !!(ext.has('EXT_color_buffer_float') || ext.has('EXT_color_buffer_half_float'));
     this.msaaOk = !!ext.has('EXT_color_buffer_float');
     this.samples = this.msaaOk ? (opts.samples | 0) : 0;
-    this.baseTier = this.hdr ? (opts.tier ?? 1) : 0; this.tier = this.baseTier;
+    this.baseTier = this.hdr ? (opts.tier ?? 1) : 0; this.tier = this.baseTier; this.vivid = !!opts.vivid;
     this.w = 0; this.h = 0; this.rt = null; this.down = []; this.up = []; this.ao = null; this.ao2 = null;
     this.quad = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), null); this.quad.frustumCulled = false;
     this.qs = new THREE.Scene(); this.qs.add(this.quad); this.qc = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
@@ -178,7 +181,7 @@ export class PostFX {
       tScene: { value: null }, tBloom: { value: null }, tAO: { value: this.white }, tDepth: { value: null },
       uInvVP: { value: new THREE.Matrix4() }, uPrevVP: { value: new THREE.Matrix4() },
       uBloom: { value: .32 }, uAO: { value: 0 }, uMB: { value: 0 }, uVig: { value: .32 }, uGrain: { value: .014 }, uAb: { value: 0 }, uTime: { value: 0 },
-      uSat: { value: 1.1 }, uCon: { value: 1.1 }, uTintS: { value: new THREE.Vector3(.9, 1, 1.08) }, uTintH: { value: new THREE.Vector3(1.08, 1, .92) }, uGain: { value: new THREE.Vector3(1, 1, 1) },
+      uVib: { value: 0 }, uSharp: { value: 0 }, uTexel: { value: new THREE.Vector2() }, uSat: { value: 1.1 }, uCon: { value: 1.1 }, uTintS: { value: new THREE.Vector3(.9, 1, 1.08) }, uTintH: { value: new THREE.Vector3(1.08, 1, .92) }, uGain: { value: new THREE.Vector3(1, 1, 1) },
     }, { toneMapped: true });
     this.grade = Object.assign({}, GRADES.arena); this.gradeT = GRADES.arena;
     this.kickAb = 0; this.t = 0; this.vp = new THREE.Matrix4(); this.prevVP = new THREE.Matrix4(); this.hasPrev = false;
@@ -186,7 +189,7 @@ export class PostFX {
     renderer.info.autoReset = false;
     this.resize();
   }
-  setTier(n) { n = this.hdr ? Math.max(0, Math.min(3, n | 0)) : 0; if (n === this.tier) return; const needAO = n >= 2 && !this.ao; this.tier = n; if (needAO || (n < 2 && this.ao)) this._alloc(); }
+  setTier(n) { n = this.hdr ? Math.max(0, Math.min(4, n | 0)) : 0; if (n === this.tier) return; const needAO = n >= 2 && !this.ao; this.tier = n; if (needAO || (n < 2 && this.ao)) this._alloc(); }
   /** qualidade adaptativa: k = 0 (folgado) … 1 (no limite) */
   adapt(k) { const b = this.baseTier; this.setTier(k > .85 ? 0 : k > .6 ? Math.min(b, 1) : k > .35 ? Math.min(b, 2) : b); }
   setGrade(name) { this.gradeT = GRADES[name] || GRADES.arena; }
@@ -239,12 +242,13 @@ export class PostFX {
     // grading suave
     const g = this.grade, T = this.gradeT, k = 1 - Math.exp(-dt * 2.2);
     g.sat += (T.sat - g.sat) * k; g.con += (T.con - g.con) * k; g.vig += (T.vig - g.vig) * k;
-    C.uSat.value = g.sat; C.uCon.value = g.con; C.uVig.value = g.vig;
+    const vv = this.vivid;   // MÁXIMO: cores vivas, nitidez e vibrance, sem desfoque
+    C.uSat.value = g.sat * (vv ? 1.14 : 1); C.uCon.value = g.con * (vv ? 1.05 : 1); C.uVig.value = g.vig * (vv ? .7 : 1); C.uVib.value = vv ? .6 : 0; C.uSharp.value = vv ? .5 : 0; C.uTexel.value.set(1 / this.w, 1 / this.h);
     C.uTintS.value.set(...T.tintS); C.uTintH.value.set(...T.tintH); C.uGain.value.set(...T.gain);
     this.kickAb *= Math.exp(-dt * 9); if (this.kickAb < 1e-4) this.kickAb = 0;
-    C.uAb.value = this.kickAb; C.uTime.value = this.t; C.uAO.value = aoOn; C.uBloom.value = tier >= 3 ? .38 : .3;
+    C.uAb.value = this.kickAb; C.uTime.value = this.t; C.uAO.value = aoOn; C.uBloom.value = tier >= 4 ? .42 : tier >= 3 ? .38 : this.vivid ? .36 : .3;
     C.tScene.value = this.rt.texture; C.tBloom.value = this.up[0].texture; C.tDepth.value = this.rt.depthTexture;
-    if (tier >= 3 && this.hasPrev) { C.uMB.value = .55; C.uInvVP.value.copy(this.vp).invert(); C.uPrevVP.value.copy(this.prevVP); } else C.uMB.value = 0;
+    if (tier === 3 && this.hasPrev) { C.uMB.value = .55; C.uInvVP.value.copy(this.vp).invert(); C.uPrevVP.value.copy(this.prevVP); } else C.uMB.value = 0;
     this.prevVP.copy(this.vp); this.hasPrev = true;
     this._pass(this.mComp, null);
   }

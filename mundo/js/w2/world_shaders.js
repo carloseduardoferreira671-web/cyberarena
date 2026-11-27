@@ -25,11 +25,13 @@ vec3 interDisp(vec3 wp, float hgt, float amount){
 `;
 /* aplica deslocamento em espaço de mundo num MeshStandardMaterial (instanciado ou não).
    body: GLSL que modifica 'wpos' (vec4) usando 'base' (origem da instância em mundo) e 'hgt' (altura acima da base). */
+class Vector2Ctor { constructor(x, y) { this.x = x; this.y = y; this.isVector2 = true; } }
 export function patchWorldVertex(mat, U, body, extra = {}) {
   mat.onBeforeCompile = (sh) => {
     sh.uniforms.uTime = U.uTime; sh.uniforms.uWind = U.uWind; sh.uniforms.uInter = U.uInter;
     Object.assign(sh.uniforms, extra.uniforms || {});
-    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\n' + NOISE_GLSL + WIND_GLSL + (extra.vertexHead || ''))
+    if (extra.band) sh.uniforms.uBand = { value: new Vector2Ctor(extra.band[0], extra.band[1]) };
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\n' + NOISE_GLSL + WIND_GLSL + (extra.vertexHead || '') + (extra.band ? 'uniform vec2 uBand;' : ''))
       .replace('#include <project_vertex>', `
         vec4 wpos = vec4(transformed, 1.0);
         #ifdef USE_INSTANCING
@@ -39,9 +41,10 @@ export function patchWorldVertex(mat, U, body, extra = {}) {
         #endif
         wpos = modelMatrix * wpos; float hgt = max(0., wpos.y - base.y);
         ${body}
-        vec4 mvPosition = viewMatrix * wpos; gl_Position = projectionMatrix * mvPosition;`);
+        vec4 mvPosition = viewMatrix * wpos; gl_Position = projectionMatrix * mvPosition;
+        ${extra.band ? 'float dBand = distance(base.xz, cameraPosition.xz); if (dBand < uBand.x || dBand >= uBand.y) gl_Position = vec4(2., 2., 2., 1.);' : ''}`);
     if (extra.fragment) extra.fragment(sh);
   };
-  mat.customProgramCacheKey = () => body + (extra.key || '');
+  mat.customProgramCacheKey = () => body + (extra.key || '') + (extra.band ? '-band' : '');
   return mat;
 }

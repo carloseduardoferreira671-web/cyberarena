@@ -52,11 +52,14 @@ const PRESETS = {
   high: { pr: 2, shadows: true, shadowMap: 3072, grass: 15000, grassR: 34, leaves: 320, lights: true, terrainCell: .5, aa: true },
   medium: { pr: 1.5, shadows: true, shadowMap: 2048, grass: 9000, grassR: 28, leaves: 230, lights: true, terrainCell: .6, aa: true },
   low: { pr: 1, shadows: true, shadowMap: 1024, grass: 4500, grassR: 22, leaves: 150, lights: false, terrainCell: .6, aa: false },
+  max: { pr: 2.5, shadows: true, shadowMap: 4096, grass: 22000, grassR: 40, leaves: 420, lights: true, terrainCell: .45, aa: true },   // MÁXIMO: tudo do SUPREMO + mais grama/folhas/sombra + cores vivas (o orçamento do aparelho ainda limita o que a GPU aguenta)
   ultra: { pr: 1, shadows: false, shadowMap: 0, grass: 0, grassR: 0, leaves: 60, lights: false, terrainCell: .8, aa: false },
 };
 const IS_APK = location.hostname === 'appassets.androidplatform.net';
-{ const m = { auto: isTouch || IS_APK ? 'medium' : 'high', mid: 'medium', ultra4k: 'high', apk: 'medium' }; if (m[SET.quality]) SET.quality = m[SET.quality]; if (!PRESETS[SET.quality]) SET.quality = 'high'; }
-const qName = SET.quality, DEV = detectDevice(), Q = clampPreset(PRESETS[qName], DEV), ULTRA = qName === 'ultra';   // v158: celular fraco/médio recebe resolução, sombra e AA limitados ao que a GPU aguenta
+{ const m = { auto: 'low', mid: 'medium', ultra4k: 'high', apk: 'low' }; if (m[SET.quality]) SET.quality = m[SET.quality]; if (!PRESETS[SET.quality]) SET.quality = 'low';
+  /* padrões de TODOS (novos e já instalados), aplicados uma única vez: gráficos LEVE (quem escolheu Ultra leve continua) e efeitos cinematográficos no MÁXIMO; depois a escolha de cada um vale */
+  if (!localStorage.getItem('cyberarena.defaults.v2')) { if (SET.quality !== 'ultra') SET.quality = 'low'; SET.cine = 'auto'; try { localStorage.setItem('cyberarena.defaults.v2', '1'); saveSet(); } catch (_) { } } }
+const qName = SET.quality, qBase = qName === 'max' ? 'high' : qName, DEV = detectDevice(), Q = clampPreset(PRESETS[qName], DEV), ULTRA = qName === 'ultra';   // v158: celular fraco/médio recebe resolução, sombra e AA limitados ao que a GPU aguenta
 const THEMES = ['classic', 'forest', 'fire']; SET.theme = THEMES.includes(SET.theme) ? SET.theme : 'classic';
 if (SET.showFps) $('fps').classList.remove('hidden');
 if (SET.pad) document.body.classList.add('showpad');
@@ -73,8 +76,8 @@ renderer.shadowMap.enabled = Q.shadows; renderer.shadowMap.type = THREE.PCFShado
 try { useHeroEnv(renderer); } catch (e) { console.warn(e); }
 PBR_CFG.gore = SET.gore !== false; PBR_CFG.aniso = qName === 'low' ? 1 : Math.min(8, renderer.capabilities.getMaxAnisotropy()); globalThis.__ANISO = qName === 'ultra' ? 1 : qName === 'low' ? 2 : PBR_CFG.aniso;
 // pós-processamento cinematográfico: 0 off · 1 bloom+grading · 2 +SSAO · 3 +motion blur
-const CINE_AUTO = { ultra: 0, low: 1, medium: 2, high: 3 };
-const cineTier = SET.cine === 'auto' || SET.cine == null ? capCine(CINE_AUTO[qName] ?? 1, DEV) : +SET.cine;
+const CINE_AUTO = { ultra: 4, low: 4, medium: 4, high: 4, max: 4 };   // automático = MÁXIMO para todos; se o aparelho não aguentar, a qualidade adaptativa (post.adapt) desce sozinha
+const cineTier = SET.cine === 'auto' || SET.cine == null ? 4 : +SET.cine;
 let post = null;
 const scene = new THREE.Scene(); scene.fog = new THREE.Fog(0xa8c6e2, 180, 980);
 const camera = new THREE.PerspectiveCamera(58, innerWidth / innerHeight, .2, 3200);
@@ -82,14 +85,15 @@ const hemi = new THREE.HemisphereLight(0xc4dcff, 0x4d5b3a, 1.15); scene.add(hemi
 const sun = new THREE.DirectionalLight(0xfff0d6, 2.9); sun.castShadow = Q.shadows; scene.add(sun); scene.add(sun.target);
 if (Q.shadows) { sun.shadow.mapSize.set(Q.shadowMap, Q.shadowMap); Object.assign(sun.shadow.camera, { left: -42, right: 42, top: 42, bottom: -42, near: 1, far: 220 }); sun.shadow.bias = -.0005; sun.shadow.normalBias = .04; }
 const onResize = () => { renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth / innerHeight; camera.updateProjectionMatrix(); if (post) post.resize(); };
-try { post = new PostFX(renderer, { tier: cineTier, samples: Q.aa && !isTouch && !Q.ss && cineTier >= 2 ? 4 : 0 }); } catch (e) { console.warn('post', e); post = null; }
+try { post = new PostFX(renderer, { tier: cineTier, samples: Q.aa && !isTouch && !Q.ss && cineTier >= 2 ? 4 : 0, vivid: cineTier >= 4 }); } catch (e) { console.warn('post', e); post = null; }
 // GI aproximada: reflexos do céu (IBL fraco) + luz de rebatimento vinda do chão, na cor do solo
 try { const env = heroEnv(); if (env) { scene.environment = env; scene.environmentIntensity = .22; } } catch (e) { }
+if (cineTier >= 4) { renderer.toneMappingExposure = 1.14; hemi.intensity = 1.3; hemi.color.set(0xb8d8ff); hemi.groundColor.set(0x5f7a3c); sun.color.set(0xffe9c4); sun.intensity = 3.15; if (scene.environment) scene.environmentIntensity = .34; scene.fog.color.set(0x93c4f2); }   // MÁXIMO: luz mais viva e céu mais azul
 const bounce = new THREE.DirectionalLight(0x5d6b45, .5); scene.add(bounce); scene.add(bounce.target);
 const shake = new CamShake();
 addEventListener('resize', onResize);
 
-const world = new World(renderer, scene, Q, { quality: ULTRA ? 'low' : qName, ultra: ULTRA, theme: SET.theme, sun, hemi }); world.camFov = camera.fov * PI / 180;
+const world = new World(renderer, scene, Q, { quality: ULTRA ? 'low' : qBase, ultra: ULTRA, theme: SET.theme, sun, hemi }); world.camFov = camera.fov * PI / 180;
 if (params.get('debug')) window.__ca = { renderer, scene, camera, world, THREE };   // ferramenta de diagnóstico (só com ?debug=1)
 const fx = new FX(scene, camera), audio = new Audio(), powers = new Powers(scene, fx, camera);
 const phys = new PhysParticles(scene, (x, z, y) => { const f = me || G.spec; return f ? envOf(f).groundAt(x, z, y + 1.5) : y - 1.2; }); phys.gore = SET.gore !== false;
@@ -1387,7 +1391,7 @@ try { const pv0 = PV(); if (pv0) { pv0.hear.add(renderVoice); addEventListener('
 setInterval(renderVoice, 1000);
 // configurações
 $('bSet').onclick = () => { $('sQ').value = SET.quality; $('sTheme').value = SET.theme; $('sF').value = String(SET.fps); $('sShow').checked = SET.showFps; $('sSens').value = SET.sens; $('sVol').value = audio.vol; $('sCam').value = camS.mode; $('sPad').checked = SET.pad; $('sCine').value = String(SET.cine); $('sGore').checked = SET.gore !== false; $('settings').classList.remove('hidden'); };
-$('bSetOk').onclick = () => { SET.quality = $('sQ').value; SET.theme = $('sTheme').value; SET.fps = +$('sF').value; SET.showFps = $('sShow').checked; SET.sens = +$('sSens').value; SET.pad = $('sPad').checked; SET.cine = $('sCine').value; SET.gore = $('sGore').checked; PBR_CFG.gore = SET.gore; phys.gore = SET.gore; if (post) post.setTier(SET.cine === 'auto' ? capCine(CINE_AUTO[qName] ?? 1, DEV) : +SET.cine); post && (post.baseTier = post.tier); audio.setVolume(+$('sVol').value); if ($('sCam').value !== camS.mode) setCameraMode($('sCam').value, false); saveSet(); $('fps').classList.toggle('hidden', !SET.showFps); document.body.classList.toggle('showpad', SET.pad); $('settings').classList.add('hidden'); };
+$('bSetOk').onclick = () => { SET.quality = $('sQ').value; SET.theme = $('sTheme').value; SET.fps = +$('sF').value; SET.showFps = $('sShow').checked; SET.sens = +$('sSens').value; SET.pad = $('sPad').checked; SET.cine = $('sCine').value; SET.gore = $('sGore').checked; PBR_CFG.gore = SET.gore; phys.gore = SET.gore; if (post) post.setTier(SET.cine === 'auto' ? 4 : +SET.cine); post && (post.baseTier = post.tier); if (post) post.vivid = post.tier >= 4; audio.setVolume(+$('sVol').value); if ($('sCam').value !== camS.mode) setCameraMode($('sCam').value, false); saveSet(); $('fps').classList.toggle('hidden', !SET.showFps); document.body.classList.toggle('showpad', SET.pad); $('settings').classList.add('hidden'); };
 // sair
 $('bExit').onclick = () => { const live = MODE === 'battle' && G.phase === 'live' && me && me.alive; $('exT').textContent = live ? 'Sair da partida?' : MODE === 'open' ? 'Sair do mundo aberto?' : 'Voltar ao lobby?'; $('exP').textContent = live ? 'Você será eliminado e receberá o resultado atual.' : 'Você pode voltar quando quiser.'; $('ovExit').classList.remove('hidden'); };
 $('bExNo').onclick = () => $('ovExit').classList.add('hidden');
@@ -1824,7 +1828,7 @@ function tick(dt) {
     const vis = solarPair || (d < (TUT ? 62 : 170) && (!spaceSt || spaceSt.ids.has(a.id)) && (a === focus || _frus.intersectsSphere(_cSph))) ;   // tutorial: só desenha quem está perto (partida mais leve)
     a.hero.setVisible(vis); a.hero.cloth = d < 30;
     // LOD do personagem: malha completa só em ultra e a <12 m · padrão: malha média (≈1/3 dos triângulos) · 28–55 m malha leve · >55 m leve, sem sombra e animação a 1/3 da taxa
-    const full = qName === 'ultra' || qName === 'ultra4k', lod = d < 12 && full ? 0 : d < (a.hero.lod >= 2 ? 25 : 28) ? 1 : d < 55 ? 2 : 3; a.hero.setLOD(lod);   // histerese de 3 m: sem troca de malha/material quando alguém está na fronteira
+    const full = qName === 'ultra' || qName === 'ultra4k' || qName === 'max', lod = d < 12 && full ? 0 : d < (a.hero.lod >= 2 ? 25 : 28) ? 1 : d < 55 ? 2 : 3; a.hero.setLOD(lod);   // histerese de 3 m: sem troca de malha/material quando alguém está na fronteira
     a._hdt = (a._hdt || 0) + dt; const every = lod === 3 ? 3 : lod === 2 ? 2 : 1; a._hk = ((a._hk || 0) + 1) % every; const upd = vis && a._hk === 0; const hdt = Math.min(a._hdt, .12); if (upd) a._hdt = 0;
     if (vis) { a.hero.object.position.set(a.x, a.y, a.z); a.hero.object.rotation.y = a.yaw;
       const c = Math.cos(a.yaw), s = Math.sin(a.yaw); if (!a.gfn) a.gfn = (x, z) => envOf(a).groundAt(x, z, a.y + .9, .9);
@@ -1933,7 +1937,7 @@ async function start() {
     renderer.compile(scene, camera); warm.forEach(o => { o.removeFromParent(); o.geometry.dispose(); o.material.dispose(); });
   } catch (e) { console.warn('pré-compilação', e); }
   try { await warmTextures(setP); } catch (e) { console.warn('pré-carga de texturas', e); }
-  worldObjs = scene.children.filter(o => !preWorld.has(o)); realm = MODE === 'soccer' ? new Stadium(scene, Q, VENUE, { qname: qName }) : new Realm(scene, Q);
+  worldObjs = scene.children.filter(o => !preWorld.has(o)); realm = MODE === 'soccer' ? new Stadium(scene, Q, VENUE, { qname: qBase }) : new Realm(scene, Q);
   /* zona removida */
   setP(.97, MODE === 'battle' ? 'Procurando partida…' : MODE === 'open' ? 'Entrando no mundo aberto…' : MODE === 'soccer' ? 'Entrando no estádio…' : 'Preparando treino…');
   let room;

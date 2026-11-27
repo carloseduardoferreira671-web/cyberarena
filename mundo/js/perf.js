@@ -10,13 +10,13 @@ const URLQ = new URLSearchParams(location.search);
 const PROFILES = ['low', 'mid', 'high'];
 
 /* limites por perfil.  pr = teto da resolução (pixelRatio) · mpx = teto de megapixels renderizados · shadowMap = teto do mapa de sombra
-   cine = teto do pós-processamento (0 off · 1 bloom+grading · 2 +SSAO · 3 +motion blur) · aa = antialias do canvas
+   cine = teto do pós-processamento (0 off · 1 bloom+grading · 2 +SSAO · 3 +motion blur · 4 MÁXIMO sem motion blur) · aa = antialias do canvas
    tex = maior textura do mapa ('1k' | '2k' | '4k') · maxTexPx = lado máximo das texturas extras (rugosidade/AO) */
 export const LIMITS = {
   low:     { pr: 1.0,      mpx: 0.45,     shadowMap: 1024, cine: 0, aa: false, tex: '1k' },
   mid:     { pr: 1.25,     mpx: 0.75,     shadowMap: 1024, cine: 1, aa: false, tex: '1k' },
   high:    { pr: 1.5,      mpx: 1.1,      shadowMap: 2048, cine: 1, aa: false, tex: '1k' },
-  desktop: { pr: Infinity, mpx: Infinity, shadowMap: 4096, cine: 3, aa: true,  tex: '4k' },
+  desktop: { pr: Infinity, mpx: Infinity, shadowMap: 4096, cine: 4, aa: true,  tex: '4k' },
 };
 
 /* classifica a GPU pelo nome (WEBGL_debug_renderer_info). 0 = fraca · 1 = média/desconhecida · 2 = forte */

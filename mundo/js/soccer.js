@@ -236,6 +236,7 @@ export function createSoccer(api) {
     const l = L(m), sp = Math.hypot(vxm, vzm), dx = ball.x - m.x, dz = ball.z - m.z, d = Math.hypot(dx, dz);
     const ok = S.noCtl <= 0 && S.kickT <= 0 && !S.thr && m.grounded && m.alive && !m.down && S.state === 'play' && S.mode !== 'pen' && !S.pk && S.sp !== 'lateral';
     S.tcd = Math.max(0, (S.tcd || 0) - dt);
+    S.cobT = Math.max(0, (S.cobT || 0) - dt);   // CORREÇÃO: o recarregamento da cobertinha tem que correr SEMPRE (antes só corria conduzindo, e conduzir exigia ele zerado: travava para sempre)
     if (!ok) { S.ctl = 0; S.car = false; S.hd = 0; S.stp = null; S.pin = null; S.tr = null; S.mv = null; S.rdash = false; return; }
     const tr = S.tr; if (tr) { tr.t += dt; if (!tr.held && tr.rel == null) tr.rel = tr.t; if ((!tr.held && tr.t > tr.rel + .3) || tr.t > 6 || (tr.done && !tr.held)) { S.tr = null; if (S.rdash && m.dash && !S.mv) m.dash = null; S.rdash = false; } }
     const mv = api.readMove(), mag = mv[2] || 0, want = mag > .1, fx = sp > .7 ? vxm / sp : Math.sin(m.yaw), fz = sp > .7 ? vzm / sp : Math.cos(m.yaw);
@@ -303,7 +304,6 @@ export function createSoccer(api) {
     }
     if (!moving) { S.car = false; return; }
     if (!S.car) { if (ball.y < .4 && al > -.25 && d < 1.25 && rs < 9 && (!S.cin || ball.speed < 1.5) && !(S.cobT > 0)) { S.car = true; S.cph = 1; S.cn = 0; S.cs = 'R'; S.tint = .4; S.tlast = S.clock; S.fp = { R: { v: 0, dv: 0 }, L: { v: 0, dv: 0 } }; } else return; }
-    S.cobT = Math.max(0, (S.cobT || 0) - dt);
     if (ball.y > .45 || (d > 1.9 && !S.ch && !S.mv) || (al < -.95 && !S.mv) || S.noCtl > 0) { S.car = false; return; }
     S.last = m; S.lastTeam = 0;
     if (S.mv || S.ch) {                           // movimento de drible ou carregando chute/passe: a bola fica protegida junto do corpo: a bola acompanha o corpo (protegida) enquanto o corpo faz o movimento

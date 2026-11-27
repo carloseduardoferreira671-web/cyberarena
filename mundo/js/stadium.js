@@ -8,7 +8,7 @@ import { U } from './world.js';
 import { box, cap } from './ballphys.js';
 
 const PI = Math.PI, TAU = PI * 2;
-export const FIELD = { L: 96, W: 60, GW: 4.0, GH: 2.6, GD: 2.4, HL: 48, HW: 30, BX: 36.4, BZ: 55.4, CX: REALM_X, CZ: 0 };
+export const FIELD = { L: 96, W: 60, GW: 4.8, GH: 3.0, GD: 2.4, HL: 48, HW: 30, BX: 36.4, BZ: 55.4, CX: REALM_X, CZ: 0 };
 const { HL, HW, GW, GH, GD, BX, BZ } = FIELD;
 
 export const VENUES = {

@@ -1530,7 +1530,7 @@ function updateHud(dt) {
       if (z.phase !== G.lastZonePhase && G.started) { G.lastZonePhase = z.phase; if (z.phase > 0) { sfx('zone'); banner('NOVA ZONA MARCADA NO MAPA', 2200); } } }
   } else if (MODE === 'open') { $('tAlive').textContent = actors.size; $('tTimeL').textContent = 'MUNDO'; $('tTime').textContent = 'ABERTO'; }
   else { $('tTimeL').textContent = 'TREINO'; $('tTime').textContent = '∞'; }
-  if (MODE === 'open' || ((MODE === 'train' || MODE === 'soccer') && !net.offline)) { const hs = [...actors.values()].filter(a => a.kind === 'me' || a.kind === 'remote'), list = hs.map(a => (a.speaking ? '🎧 ' : '') + esc(a.name) + (a === me ? ' (você)' : '')); $('players').innerHTML = `<b>${hs.length}/16 ONLINE</b><br>` + list.slice(0, 8).join('<br>') + (list.length > 8 ? '<br>…' : ''); }
+  if (MODE === 'open' || ((MODE === 'train' || MODE === 'soccer') && !net.offline)) { const hs = [...actors.values()].filter(a => (a.kind === 'me' || a.kind === 'remote') && !a.apart), list = hs.map(a => (a.speaking ? '🎧 ' : '') + esc(a.name) + (a === me ? ' (você)' : '')); $('players').innerHTML = `<b>${hs.length}/16 ONLINE</b><br>` + list.slice(0, 8).join('<br>') + (list.length > 8 ? '<br>…' : ''); }
   drawMap(mmc, 336, 336, false); if (!$('bigmap').classList.contains('hidden')) drawMap(bmc, 1000, 560, true);
 }
 
@@ -1587,8 +1587,9 @@ function onSync(r) {
   if (!r || !Array.isArray(r.players)) return; const t = performance.now(); G.serverAlive = r.alive;
   if (r.startAt && MODE === 'battle') { G.startAt = r.startAt; }
   if (G.room) G.room.players = r.players;
+  if (soccer) { try { soccer.x1Recv(r.players); } catch (e) { console.error(e); } }
   const seen = new Set([myId]);
-  for (const p of r.players) { if (p.id === myId) continue; seen.add(p.id); let a = actors.get(p.id); if (!a) { if (MODE === 'battle' && G.started && !G.humansAtStart.includes(p.id)) continue; a = addActor(p.id, p.name, p.skin, 'remote', p.s && p.s.ch); if (MODE !== 'battle') { chatLine('', p.name + (MODE === 'soccer' ? ' entrou no estádio' : ' entrou no mundo'), true); } if (p.s) { a.x = p.s.x; a.y = p.s.y; a.z = p.s.z; } } applyRemote(a, p.s, t); }
+  for (const p of r.players) { if (p.id === myId) continue; seen.add(p.id); let a = actors.get(p.id); if (!a) { if (MODE === 'battle' && G.started && !G.humansAtStart.includes(p.id)) continue; a = addActor(p.id, p.name, p.skin, 'remote', p.s && p.s.ch); if (MODE !== 'battle') { chatLine('', p.name + (MODE === 'soccer' ? ' entrou no estádio' : ' entrou no mundo'), true); } if (p.s) { a.x = p.s.x; a.y = p.s.y; a.z = p.s.z; } } applyRemote(a, soccer ? soccer.rotS(p.s) : p.s, t); a.apart = soccer ? !soccer.x1Same(p) : false; }
   for (const a of [...actors.values()]) if (a.kind === 'remote' && !seen.has(a.id)) { if (MODE === 'battle' && G.started && a.alive) { G.deadSet.add(a.id); feed('Desconectou', a.name, false); checkEnd(); } if (MODE !== 'battle') chatLine('', a.name + (MODE === 'soccer' ? ' saiu do estádio' : ' saiu do mundo'), true); removeActor(a.id); }
   // bots: anfitrião simula; os outros interpolam
   const host = r.hostId === myId;
@@ -1830,7 +1831,7 @@ function tick(dt) {
     // fora do campo de visão (com folga para a sombra, que cai até ~6 m) não desenha, não faz skinning nem entra no passe de sombra
     _cSph.center.set(a.x, a.y + 1, a.z); _cSph.radius = 6 + d * .04;
     const solarPair = !!solarFocus && ((!!solarFocus.novaSequence && a === solarFocus) || (!!solarFocus.solarSequence && (a === solarFocus || (a === solarFocus.solarSequence.victim && !a.solarHidden))) || (!!solarFocus.atlasSequence && (a === solarFocus || a === solarFocus.atlasSequence.victim)) || (!!solarFocus.velocityDuel && (a === solarFocus || a === solarFocus.velocityDuel.opponent)));
-    const vis = solarPair || (d < (TUT ? 62 : 170) && (!spaceSt || spaceSt.ids.has(a.id)) && (a === focus || _frus.intersectsSphere(_cSph))) ;   // tutorial: só desenha quem está perto (partida mais leve)
+    const vis = solarPair || (d < (TUT ? 62 : 170) && (!spaceSt || spaceSt.ids.has(a.id)) && !a.apart && (a === focus || _frus.intersectsSphere(_cSph))) ;   // tutorial: só desenha quem está perto (partida mais leve)
     a.hero.setVisible(vis); a.hero.cloth = d < 30;
     // LOD do personagem: malha completa só em ultra e a <12 m · padrão: malha média (≈1/3 dos triângulos) · 28–55 m malha leve · >55 m leve, sem sombra e animação a 1/3 da taxa
     const full = qName === 'ultra' || qName === 'ultra4k' || qName === 'max', lod = d < 12 && full ? 0 : d < (a.hero.lod >= 2 ? 25 : 28) ? 1 : d < 55 ? 2 : 3; a.hero.setLOD(lod);   // histerese de 3 m: sem troca de malha/material quando alguém está na fronteira
@@ -1964,11 +1965,12 @@ async function start() {
     realm.build(); me.x = realm.spawn[0] + (Math.random() - .5) * 12; me.z = realm.spawn[1] + 16 + (Math.random() - .5) * 6; me.y = .1; me.yaw = 0; camS.yaw = 0; me.energy = 100; camS.dist = camS.mode === 'tps' ? 7.4 : 26; if (camS.mode === 'tps') camS.pitch = .32;
     skillButtons(); for (const [id, ic, tx] of [['bAtk', '⚽', 'CHUTE'], ['bLas', '➜', 'PASSE'], ['bSup', '⤴', 'CRUZAR'], ['bVel', '⚡', 'DRIBLE']]) { const I = $(id + 'I'), T = $(id + 'T'); if (I) { I.innerHTML = ic; I.style.fontSize = '30px'; I.style.fontWeight = 900; } if (T) T.textContent = tx; else { const sp = $(id).querySelector('span'); if (sp) sp.textContent = tx; } }
     const kp = makeKeeper(), sapi = { scene, stadium: realm, audio, banner, fx, actors, touch: isTouch, camera, keysDown: input.keys, me: () => me, setCamYaw: y => { camS.yaw = y; }, doDodge, readMove, shake: k => { G.shake = Math.max(G.shake || 0, k); }, focusCam: () => { if (camS.mode === 'tps') camS.pitch = .32; } };
-    soccer = createSoccer(sapi); sapi.setKeeper(kp); soccer.start('train'); window.__soccer = soccer;
+    sapi.serverNow = () => net.serverNow(); sapi.myId = () => myId; sapi.isOffline = () => net.offline;
+    soccer = createSoccer(sapi); sapi.setKeeper(kp); sapi.setKeeper2(makeKeeper()); soccer.start('train'); window.__soccer = soccer;
     if (!net.offline) { $('players').classList.remove('hidden'); } chatLine('', 'Futebol · ' + realm.V.name + (net.offline ? ': treine chutes, passes, cruzamentos e pênaltis (offline).' : ': você entrou na sala com quem já está aqui. Veja os outros jogadores, converse e treine chutes, passes e pênaltis.'), true); banner(realm.V.name.toUpperCase() + ' · TREINO', 2200); }
   else if (MODE === 'train') { G.phase = 'train'; G.started = true; $('pAlive').classList.add('hidden'); for (let i = 0; i < 4; i++) { const b = makeBot(i, null, .3, true); placeAt(b, world.randomSpot(mulberry32(i * 7 + 3), { cx: sp[0] + (i - 1.5) * 6, cz: sp[1] + 10, r: 5 })); b.brain.home = [b.x, b.z]; b.maxHp = 150 * CS.NORM; b.hp = b.maxHp; } chatLine('', 'Treino: bonecos de treino nascem de novo após 3 s.', true); }
   else { G.phase = 'waiting'; $('mmk').classList.remove('hidden'); $('emotes').classList.remove('hidden'); if (net.offline) { G.startAt = now() + 4000; chatLine('', 'Sem conexão: partida offline contra 15 bots.', true); } }
-  if (!net.offline) net.start({ getState: () => packState(me), getBots: () => MODE === 'battle' && G.started ? [...actors.values()].filter(a => a.kind === 'bot' && a.simulated).map(a => ({ id: a.id, name: a.name, skin: a.skin, s: packState(a) })) : null, onSync, onOffline: () => { chatLine('', 'Conexão instável… tentando reconectar.', true); } });
+  if (!net.offline) net.start({ getState: () => { const s0 = packState(me); if (soccer) soccer.x1Pack(s0); return s0; }, getBots: () => MODE === 'battle' && G.started ? [...actors.values()].filter(a => a.kind === 'bot' && a.simulated).map(a => ({ id: a.id, name: a.name, skin: a.skin, s: packState(a) })) : null, onSync, onOffline: () => { chatLine('', 'Conexão instável… tentando reconectar.', true); } });
   else net.h = { onSync };
   $('load').classList.add('hidden'); $('hud').classList.remove('hidden'); G.phase === 'loading' && (G.phase = 'open'); ctlEd.ready();
   if (!isTouch) banner('WASD mover · Espaço pular · clique soco · botão direito habilidade · Q super · V visão · M mapa', 4500);

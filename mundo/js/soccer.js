@@ -23,7 +23,7 @@ const KEYS = { h: 'shot', j: 'shot', k: 'pass', l: 'cross', q: 'cross' };
 export function createSoccer(api) {
   const { scene, stadium, audio, banner, fx } = api, ball = new BallPhys(), actors = api.actors;
   ball.colliders = stadium.bcols;
-  const S = { mode: 'train', state: 'play', timer: 0, last: null, lastTeam: 0, goals: 0, shots: 0, saved: 0, maxV: 0, keeperOn: true, ch: null, lock: 0, drib: 0, t: 0, clock: 0, restartKind: '', free: 0, targets: true, tHit: 0, pen: null, gk: null, gkState: null, whistleT: 0, hold: null, kickT: 0, noCtl: 0, ctl: 0, ph: 0, lastStep: -1, sp: null, thr: null, pk: null, trapT: 0 };
+  const S = { mode: 'train', state: 'play', timer: 0, last: null, lastTeam: 0, goals: 0, shots: 0, saved: 0, maxV: 0, keeperOn: true, ch: null, lock: 0, drib: 0, t: 0, clock: 0, restartKind: '', free: 0, targets: true, tHit: 0, pen: null, gk: null, gkState: null, whistleT: 0, hold: null, kickT: 0, noCtl: 0, ctl: 0, ph: 0, lastStep: -1, sp: null, thr: null, pk: null, trapT: 0, x1: null, xq: 0 };
   const cx = CX;
 
   /* ============================== bola (malha + sombra + textura de gomos) ============================== */
@@ -48,7 +48,7 @@ export function createSoccer(api) {
     blob.position.set(ball.x, .03, ball.z); const k = clamp(1 - (ball.y - R) / 14, .25, 1); blob.scale.setScalar(k * 1.1); blob.material.opacity = .42 * k;
   }
   // alvos de treino (4 anéis nos cantos do gol adversário)
-  const targets = []; for (const [sx, y] of [[-1, 2.0], [1, 2.0], [-1, .65], [1, .65]]) { const m = new THREE.Mesh(new THREE.RingGeometry(.42, .54, 28), new THREE.MeshBasicMaterial({ color: 0xffd24a, transparent: true, opacity: .75, depthWrite: false, side: THREE.DoubleSide, toneMapped: false })); m.position.set(cx + sx * (GW - 1.0), y, HL - .15); scene.add(m); targets.push({ m, sx, y, flash: 0 }); }
+  const targets = []; for (const [sx, y] of [[-1, GH - .6], [1, GH - .6], [-1, .65], [1, .65]]) { const m = new THREE.Mesh(new THREE.RingGeometry(.42, .54, 28), new THREE.MeshBasicMaterial({ color: 0xffd24a, transparent: true, opacity: .75, depthWrite: false, side: THREE.DoubleSide, toneMapped: false })); m.position.set(cx + sx * (GW - 1.0), y, HL - .15); scene.add(m); targets.push({ m, sx, y, flash: 0 }); }
 
   /* ============================== sons (síntese leve, sem arquivos) ============================== */
   const ac = () => audio.ctx && audio.master ? audio.ctx : null;
@@ -91,11 +91,11 @@ export function createSoccer(api) {
   const $xh = mk('div', 'scAim', ''), $xr = mk('div', 'scRing', '');   // v161: ponto de mira no centro da tela + anel que mostra a precisão
   const el = id => document.getElementById(id);
   el('spTrain').onclick = () => setMode('train'); el('spPen').onclick = () => setMode('pen'); el('spRst').onclick = () => resetBall(true);
-  el('spGk').onclick = () => { S.keeperOn = !S.keeperOn; el('spGk').textContent = 'GOLEIRO: ' + (S.keeperOn ? 'SIM' : 'NÃO'); if (S.gk) { S.gk.hero.object.visible = S.keeperOn; } placeKeeper(); };
+  el('spGk').onclick = () => { if (S.x1) return; S.keeperOn = !S.keeperOn; el('spGk').textContent = 'GOLEIRO: ' + (S.keeperOn ? 'SIM' : 'NÃO'); if (S.gk) { S.gk.hero.object.visible = S.keeperOn; } placeKeeper(); };
 
   /* ============================== utilidades de jogo ============================== */
   const me = () => api.me();
-  function touchBall(a) { S.last = a; S.lastTeam = a === me() ? 0 : 1; S.free = 0; }
+  function touchBall(a) { S.last = a; const K = S.x1 && kOf(a); S.lastTeam = (a === me() || (K && K.sd < 0)) ? 0 : 1; S.free = 0; if (S.x1 && a === me()) claim(); }
   function place(a, x, z, yaw) { a.x = x; a.z = z; a.y = 0; a.vx = a.vz = a.vy = 0; a.grounded = true; if (yaw !== undefined) { a.yaw = yaw; if (a === me()) api.setCamYaw(yaw); } }
   const spotKick = HL - 10.5;
   function resetBall(manual) {
@@ -103,11 +103,16 @@ export function createSoccer(api) {
     if (S.mode === 'pen' && S.pen) { penaltySetup(); return; }
     ball.frozen = false; ball.place(cx, R, 0); place(m, cx, -6, 0); placeKeeper(); S.free = 0; if (manual) banner('Bola no centro', 700);
   }
-  function placeKeeper() {
-    const g = S.gk; if (!g) return; g.hero.object.visible = S.keeperOn; g.hidden = !S.keeperOn; if (!S.keeperOn) { g.x = cx; g.z = HL + 30; return; }
-    g.x = cx; g.z = HL - 1.2; g.y = 0; g.vx = g.vz = g.vy = 0; g.grounded = true; g.yaw = PI; g.alive = true; S.gkState = { mode: 'ready', t: 0, dive: null, plan: null, cool: 0, think: 0 }; const gl = L(g); if (gl) { gl.stop(); gl.setTilt(0, false, 30); gl.setDivePose(null); gl.setReady(true); }
+  function placeKeeper(only) {
+    for (const K of KS) {
+      if (only && only !== K) continue; const g = K.g; if (!g) continue; const on = K.on(); g.hero.object.visible = on; g.hidden = !on;
+      if (!on) { g.x = cx; g.z = K.sd * (HL + 30); continue; }
+      g.x = cx; g.z = K.sd * (HL - 1.2); g.y = 0; g.vx = g.vz = g.vy = 0; g.grounded = true; g.yaw = K.sd > 0 ? PI : 0; g.alive = true; K.st = { mode: 'ready', t: 0, dive: null, plan: null, cool: 0, think: 0 }; const gl = L(g); if (gl) { gl.stop(); gl.setTilt(0, false, 30); gl.setDivePose(null); gl.setReady(true); }
+    }
+    S.gkState = KS[0] ? KS[0].st : null;
   }
   function setMode(m) {
+    if (S.x1) return;
     S.mode = m; el('spTrain').classList.toggle('on', m === 'train'); el('spPen').classList.toggle('on', m === 'pen');
     S.pen = null; S.goals = 0; S.shots = 0; S.saved = 0; S.clock = 0; el('scL').textContent = m === 'pen' ? 'PÊNALTIS' : 'TREINO';
     for (const t of targets) t.m.visible = m === 'train';
@@ -120,7 +125,10 @@ export function createSoccer(api) {
     api.focusCam && api.focusCam(); updateScoreHud();
   }
   function updateScoreHud() {
-    const A = el('scA'), X = el('scX'); if (S.mode === 'pen' && S.pen) { A.textContent = S.pen.goals; X.innerHTML = '<span class="pn">' + Array.from({ length: S.pen.total }, (_, i) => `<i class="${S.pen.res[i] === 1 ? 'g' : S.pen.res[i] === 0 ? 'm' : ''}"></i>`).join('') + '</span>'; }
+    const A = el('scA'), X = el('scX');
+    if (S.x1) { const Z = S.x1, mi = Z.host ? 0 : 1, a = Z.sc[mi], b = Z.sc[1 - mi], ha = Z.hs[mi], hb = Z.hs[1 - mi], nm = String(Z.oppName || 'ADVERSÁRIO').toUpperCase().slice(0, 9), tl = Z.golden ? 'GOL DE OURO' : Z.h + 'º TEMPO';
+      A.textContent = a; X.innerHTML = '<small>×</small><b>' + b + '</b><small>' + nm + ' · ' + tl + ' ' + ha + '-' + hb + ' (até 5)</small>'; stadium.setScore({ a, b, time: ha + ' - ' + hb, label: '1X1 · ' + tl, na: 'VOCÊ', nb: nm }); return; }
+    if (S.mode === 'pen' && S.pen) { A.textContent = S.pen.goals; X.innerHTML = '<span class="pn">' + Array.from({ length: S.pen.total }, (_, i) => `<i class="${S.pen.res[i] === 1 ? 'g' : S.pen.res[i] === 0 ? 'm' : ''}"></i>`).join('') + '</span>'; }
     else { A.textContent = S.goals; X.innerHTML = '<small>CHUTES ' + S.shots + ' · MÁX ' + Math.round(S.maxV * 3.6) + ' km/h</small>'; }
     stadium.setScore({ a: S.mode === 'pen' && S.pen ? S.pen.goals : S.goals, b: S.saved, time: fmt(S.clock), label: S.mode === 'pen' ? 'PÊNALTIS' : 'TREINO LIVRE', na: 'GOLS', nb: 'DEFESAS' });
   }
@@ -131,7 +139,7 @@ export function createSoccer(api) {
   function L(a) { if (!a || !a.hero) return null; let l = layers.get(a); if (!l && a.hero.atlasRig) { l = new SoccerLayer(a.hero.atlasRig); l.onEvent = (e, an) => animEvent(a, e, an); layers.set(a, l); } return l; }
   function animEvent(a, e, an) {
     if (a === me()) { if (e === 'impact' && S.pk && an.name === S.pk.anim) { const k = S.pk; S.pk = null; doKick(k.kind, k.p, k.spin, k.lift, k.foot); } else if (e === 'release' && S.thr) throwRelease(); }
-    else if (a === S.gk && S.gkState) { if (e === 'release' && S.gkState.mode === 'throw') gkRelease(); else if (e === 'impact' && S.gkState.kicking) gkKickImpact(); }
+    else { const K = kOf(a); if (K && K.st) { if (e === 'release' && K.st.mode === 'throw') gkRelease(K); else if (e === 'impact' && K.st.kicking) gkKickImpact(K); } }
   }
 
   /* ============================== chute / passe / lançamento / cruzamento / cabeceio ============================== */
@@ -394,17 +402,22 @@ export function createSoccer(api) {
     return true;
   }
 
-  /* ============================== goleiro ============================== */
-  function predict(maxT = 1.6) {   // onde a bola cruza o plano do gol (simulação rápida)
+  /* ============================== goleiros (um por gol; sd = +1 gol de cima, -1 gol de baixo) ============================== */
+  const hashf = v => { const q = Math.sin(v * 12.9898 + 78.233) * 43758.5453; return q - Math.floor(q); };   // "acaso" determinístico: os dois lados do 1x1 decidem igual
+  const owns = () => !S.x1 || S.x1.own;   // no 1x1 só quem manda na bola mexe nela; o outro lado recebe pelo estado
+  const KS = [], kOf = a => KS.find(k => k.g === a);
+  const isHuman = a => !!a && (a === me() || (!!S.x1 && a === S.x1.oppA));
+  function humanBallDist() { const m = me(); let d = Math.hypot(ball.x - m.x, ball.z - m.z); const o = S.x1 && S.x1.oppA; if (o) d = Math.min(d, Math.hypot(ball.x - o.x, ball.z - o.z)); return d; }
+  function predict(sd, maxT = 1.6) {   // onde a bola cruza o plano do gol (simulação rápida)
     const b = new BallPhys(); Object.assign(b, { x: ball.x, y: ball.y, z: ball.z, vx: ball.vx, vy: ball.vy, vz: ball.vz, wx: ball.wx, wy: ball.wy, wz: ball.wz, colliders: [] });
-    for (let t = 0; t < maxT; t += 1 / 60) { b.step(1 / 60); if (b.z >= HL - .1) return { x: b.x, y: b.y, t }; if (b.speed < .3) break; } return null;
+    for (let t = 0; t < maxT; t += 1 / 60) { b.step(1 / 60); if (b.z * sd >= HL - .1) return { x: b.x, y: b.y, t }; if (b.speed < .3) break; } return null;
   }
   function gkSetMode(st, mode) { st.mode = mode; st.t = 0; }
-  function gkUpdate(dt) {
-    const g = S.gk, st = S.gkState; if (!g || !st) return; const br = g.brain, l = L(g), rig = g.hero.atlasRig; br.mx = br.mz = 0;
-    if (!S.keeperOn) return; if (!l) return; const skill = S.mode === 'pen' ? .5 : .6; st.cool -= dt; st.think -= dt; st.t += dt;
+  function gkUpdate(K, dt) {
+    const g = K.g, st = K.st, sd = K.sd; if (!g || !st) return; const br = g.brain, l = L(g), rig = g.hero.atlasRig; br.mx = br.mz = 0;
+    if (!K.on()) return; if (!l) return; const skill = S.x1 ? .74 : S.mode === 'pen' ? .56 : .7; st.cool -= dt; st.think -= dt; st.t += dt;
     const toB = Math.atan2(ball.x - g.x, ball.z - g.z); g.aimT = .2; g.yaw += angDiff(toB, g.yaw) * Math.min(1, 10 * dt);
-    const hp = tmpP, hold = () => { l.handsPos(hp); ball.frozen = true; ball.place(hp.x, Math.max(R, hp.y), hp.z); ball.frozen = true; };
+    const hp = tmpP, hold = () => { if (!owns()) return; l.handsPos(hp); ball.frozen = true; ball.place(hp.x, Math.max(R, hp.y), hp.z); ball.frozen = true; };
     if (st.mode === 'hold') { rig.forceSpd = 0; l.setReady(false); hold(); if (st.t > .95) { gkSetMode(st, 'throw'); st.toss = S.mode === 'train'; l.play('gkthrow'); } return; }
     if (st.mode === 'throw') { rig.forceSpd = 0; if (ball.frozen) hold(); if (st.t > .95) { gkSetMode(st, 'ready'); l.setReady(true); } return; }
     if (st.mode === 'down') { rig.forceSpd = 0; if (st.t > .55) { gkSetMode(st, 'getup'); l.setTilt(0, false, 8); l.setDivePose(null); l.play('getup'); } return; }
@@ -414,25 +427,29 @@ export function createSoccer(api) {
       if (g.grounded && D.t > .18 && !D.landed) { D.landed = true; l.setTilt(D.sgn * 84, true, 10); }
       if (k >= 1 && g.grounded) { D.hold += dt; if (D.hold > .1) gkSetMode(st, 'down'); }
       if (D.t > D.dur + 1) gkSetMode(st, 'down');
-      gkSave(true, D); return;
+      gkSave(K, true, D); return;
     }
     // ----- pronto / corrida -----
-    const gx = cx, gz = HL, bdx = ball.x - gx, bdz = ball.z - gz, bd = Math.hypot(bdx, bdz) || 1, out = clamp(bd * .075, .5, 4.2);
-    let tx = clamp(gx + bdx / bd * out * 1.3, cx - GW + .6, cx + GW - .6), tz = clamp(gz + bdz / bd * out, HL - 4.4, HL - .5), run = false;
+    const gx = cx, gz = sd * HL, bdx = ball.x - gx, bdz = ball.z - gz, bd = Math.hypot(bdx, bdz) || 1, out = clamp(bd * .075, .5, 4.2);
+    let tx = clamp(gx + bdx / bd * out * 1.3, cx - GW + .6, cx + GW - .6), tz = sd * clamp(sd * (gz + bdz / bd * out), HL - 4.4, HL - .5), run = false;
     // bola solta perto da área: sai e pega
-    const hd = Math.hypot(ball.x - me().x, ball.z - me().z);
-    if (S.state === 'play' && S.mode === 'train' && S.last !== g && ball.speed < 7 && ball.y < .7 && ball.z > HL - 14 && Math.abs(ball.x - cx) < 17 && hd > 6 && !S.ctl) { tx = ball.x; tz = ball.z; run = true; }
+    if (S.state === 'play' && S.mode === 'train' && S.last !== g && ball.speed < 7 && ball.y < .7 && sd * ball.z > HL - 14 && Math.abs(ball.x - cx) < 17 && humanBallDist() > 6 && !S.ctl) { tx = ball.x; tz = ball.z; run = true; }
     if (st.plan) { /* seguindo uma jogada */ }
-    else if (st.think <= 0 && ball.vz > 3 && ball.speed > 7 && S.last === me() && st.cool <= 0) {
-      st.think = .06; const pr = predict();
-      if (pr && Math.abs(pr.x - cx) < GW + 1 && pr.y < GH + .5 && pr.t > .08) { const err = (Math.random() - .5) * (1 - skill) * 7; st.plan = { x: clamp(pr.x + err, cx - GW - .3, cx + GW + .3), y: pr.y + (Math.random() - .5) * (1 - skill) * 1.2, t: pr.t, age: 0, react: .16 + (1 - skill) * .4 }; }
+    else if (st.think <= 0 && ball.vz * sd > 3 && ball.speed > 7 && isHuman(S.last) && st.cool <= 0) {
+      st.think = .06; const pr = predict(sd);
+      if (pr && Math.abs(pr.x - cx) < GW + 1 && pr.y < GH + .5 && pr.t > .08) {
+        /* bola no corpo/meio do gol: sem erro de propósito (antes ele errava o lado e "liberava o caminho"); só erra um pouco nos cantos */
+        const dx0 = Math.abs(pr.x - g.x), h1 = hashf(pr.x * 3.1 + pr.t * 5.7), h2 = hashf(pr.y * 4.3 + pr.t * 2.9), mid = dx0 < 2.4;
+        const err = mid ? 0 : (h1 - .5) * (1 - skill) * 5;
+        st.plan = { x: clamp(pr.x + err, cx - GW - .3, cx + GW + .3), y: pr.y + (mid ? 0 : (h2 - .5) * (1 - skill) * 1), t: pr.t, age: 0, react: mid ? .07 : .12 + (1 - skill) * .35 };
+      }
     }
     if (st.plan) {
       const P = st.plan; P.age += dt; const rem = P.t - P.age, dist = Math.abs(P.x - g.x);
       if (P.age >= P.react) {
-        if (dist < 1.0 && P.y < 1.9) { tx = P.x; tz = Math.max(tz, HL - 1.2); }
-        else if (dist / 5.4 < Math.max(.06, rem - .06) && P.y < 1.5) { tx = P.x; run = false; br.mx = Math.sign(P.x - g.x); br.mz = 0; st.stepping = true; }
-        else { startDive(P); st.plan = null; return; }
+        if (dist < 1.1 && P.y < 2.3) { tx = P.x; tz = sd * Math.max(sd * tz, HL - 1.2); }
+        else if (dist / 5.8 < Math.max(.06, rem - .06) && P.y < 1.6) { tx = P.x; run = false; br.mx = Math.sign(P.x - g.x); br.mz = 0; st.stepping = true; }
+        else { startDive(K, P); st.plan = null; return; }
       }
       if (rem < -.5) st.plan = null;
     }
@@ -440,37 +457,164 @@ export function createSoccer(api) {
     if (!run) { rig.forceSpd = 0; l.setReady(true); l.setShuffle(Math.sign(lat) * (Math.cos(g.yaw) < 0 ? 1 : -1) || 0, Math.abs(g.vx) + Math.abs(g.vz)); g.aimT = .2; }
     else { rig.forceSpd = null; l.setReady(false); g.aimT = 0; l.setShuffle(0, 0); }
     if (!br.mx) { const ex = tx - g.x, ez = tz - g.z, el = Math.hypot(ex, ez); if (el > .25) { const sc = run ? 1 : Math.min(1, el * 1.4); br.mx = ex / el * sc; br.mz = ez / el * sc; } }
-    gkSave(false, null);
+    gkSave(K, false, null);
   }
-  function startDive(P) {
-    const g = S.gk, st = S.gkState, l = L(g); if (!l) return; const dx = clamp(P.x, cx - GW + .3, cx + GW - .3) - g.x, dirW = Math.sign(dx) || 1;
+  function startDive(K, P) {
+    const g = K.g, st = K.st, l = L(g); if (!l) return; const dx = clamp(P.x, cx - GW + .3, cx + GW - .3) - g.x, dirW = Math.sign(dx) || 1;
     const rightX = Math.cos(g.yaw), toRight = dirW * rightX > 0, sgn = toRight ? 1 : -1, kind = P.y < .75 ? 'low' : P.y < 1.65 ? 'mid' : 'high', ang = kind === 'low' ? 76 : kind === 'mid' ? 64 : 48;
-    st.dive = { t: 0, dur: clamp(Math.abs(dx) / 5.6, .32, .85), x0: g.x, x1: g.x + dx, sgn, kind, hold: 0, landed: false }; gkSetMode(st, 'dive'); st.cool = 1.6; g.grounded = false; g.vy = kind === 'low' ? 3 : kind === 'mid' ? 4.4 : 5.8;
+    st.dive = { t: 0, dur: clamp(Math.abs(dx) / 6.2, .3, .85), x0: g.x, x1: g.x + dx, sgn, kind, hold: 0, landed: false }; gkSetMode(st, 'dive'); st.cool = 1.6; g.grounded = false; g.vy = kind === 'low' ? 3 : kind === 'mid' ? 4.4 : 5.8;
     l.setReady(false); l.setDivePose(kind); l.setTilt(sgn * ang, false, 13); g.hero.atlasRig.forceSpd = 0;
   }
-  function gkSave(diving, D) {   // encaixa ou espalma
-    const g = S.gk, st = S.gkState, l = L(g); if (ball.frozen || S.last === g || ball.speed < .5) return;
-    const ext = diving ? 1.1 : .35, dirx = diving ? (D.x1 - D.x0 >= 0 ? 1 : -1) : 0, hx = g.x + dirx * ext, hy = g.y + (diving ? (D.kind === 'low' ? .7 : D.kind === 'mid' ? 1.3 : 2.0) : 1.25), hz = g.z;
-    const dd = Math.hypot(ball.x - hx, ball.y - hy, ball.z - hz); if (dd > (diving ? 1.5 : 1.25)) return;
-    const sp = ball.speed, pCatch = clamp(1.05 - sp / 22, .12, .95) * (S.mode === 'pen' ? .8 : .9), catchable = sp < 9 || (sp < 19 && Math.random() < pCatch);
-    S.saved++; resolveShot('save'); S.hitPost = false; updateScoreHud();
+  function gkSave(K, diving, D) {   // encaixa ou espalma
+    const g = K.g, st = K.st, sd = K.sd, l = L(g); if (!owns() || ball.frozen || S.last === g || ball.speed < .5) return;
+    const ext = diving ? 1.15 : .4, dirx = diving ? (D.x1 - D.x0 >= 0 ? 1 : -1) : 0, hx = g.x + dirx * ext, hy = g.y + (diving ? (D.kind === 'low' ? .7 : D.kind === 'mid' ? 1.3 : 2.1) : 1.3), hz = g.z;
+    const dd = Math.hypot(ball.x - hx, ball.y - hy, ball.z - hz); if (dd > (diving ? 1.6 : 1.35)) return;
+    const sp = ball.speed, pCatch = clamp(1.05 - sp / 22, .12, .95) * (S.mode === 'pen' ? .8 : .9), catchable = sp < 9 || (sp < 19 && hashf(sp * 7.3 + ball.x * 3.7 + ball.y * 5.1) < pCatch);
+    if (sd > 0) { S.saved++; resolveShot('save'); } S.hitPost = false; updateScoreHud();
     if (catchable) { ball.vx = ball.vy = ball.vz = 0; ball.frozen = true; banner('DEFESA!', 900); snd.save(); stadium.cheerUp(.25); if (diving) { st.dive.hold = 9; } l.setTilt(0, false, 9); l.setDivePose(null); l.play('catch'); gkSetMode(st, 'hold'); st.throwing = false; }
-    else { const nx = (ball.x - hx) / (dd || 1), out = Math.sign(ball.x - cx) || (Math.random() < .5 ? -1 : 1); ball.vx = (nx * .45 + out * .55) * sp * .5; ball.vz = -Math.abs(ball.vz) * .4 - 2; ball.vy = Math.abs(ball.vy) * .4 + 2.8; banner('ESPALMOU!', 800); snd.save(); touchBall(g); if (!diving) l.play('punch'); if (diving) st.dive.hold = 0; }
+    else { const nx = (ball.x - hx) / (dd || 1), out = Math.sign(ball.x - cx) || (hashf(ball.z * 9.1) < .5 ? -1 : 1); ball.vx = (nx * .45 + out * .55) * sp * .5; ball.vz = -sd * (Math.abs(ball.vz) * .4 + 2); ball.vy = Math.abs(ball.vy) * .4 + 2.8; banner('ESPALMOU!', 800); snd.save(); touchBall(g); if (!diving) l.play('punch'); if (diving) st.dive.hold = 0; }
     if (!diving) st.plan = null;
   }
-  function gkRelease() {   // arremesso do goleiro depois de encaixar
-    const g = S.gk, st = S.gkState; if (!ball.frozen) return; ball.frozen = false; const dir = (Math.random() - .5) * .8, sd = S.mode === 'train' ? 1 : 0, short = Math.random() < .35, v = short ? 11 : 18, el = d2r(short ? 12 : 38);
-    ball.launch(Math.sin(dir) * v * Math.cos(el), v * Math.sin(el), -Math.cos(dir) * v * Math.cos(el), 0, 0, 0); touchBall(g); snd.kick(.4); S.noCtl = .3;
+  function gkRelease(K) {   // arremesso do goleiro depois de encaixar
+    const g = K.g, st = K.st; if (!ball.frozen || !owns()) return; ball.frozen = false; const dir = (Math.random() - .5) * .8, short = Math.random() < .35, v = short ? 11 : 18, el = d2r(short ? 12 : 38);
+    ball.launch(Math.sin(dir) * v * Math.cos(el), v * Math.sin(el), -K.sd * Math.cos(dir) * v * Math.cos(el), 0, 0, 0); touchBall(g); snd.kick(.4); S.noCtl = .3;
   }
-  function gkKickImpact() { const g = S.gk, st = S.gkState; st.kicking = false; ball.frozen = false; const dir = (Math.random() - .5) * .7, v = 22; ball.launch(Math.sin(dir) * v * .85, v * .52, -Math.cos(dir) * v * .85, 0, 0, 0); touchBall(g); snd.kick(.8); }
+  function gkKickImpact(K) { const g = K.g, st = K.st; st.kicking = false; if (!owns()) return; ball.frozen = false; const dir = (Math.random() - .5) * .7, v = 22; ball.launch(Math.sin(dir) * v * .85, v * .52, -K.sd * Math.cos(dir) * v * .85, 0, 0, 0); touchBall(g); snd.kick(.8); }
   function resolveShot(res) {   // só os pênaltis precisam do resultado de cada cobrança
     const P = S.pen; if (!P || P.phase !== 'flight' && P.phase !== 'ready' || P.resolved) return; if (P.phase === 'ready' && !P.kicked) return;
     P.resolved = true; P.res[P.round] = res === 'goal' ? 1 : 0; if (res === 'goal') P.goals++; P.round++; P.phase = 'result'; P.t = 0; updateScoreHud();
   }
 
+  /* ============================== 1x1 online (amigo contra amigo) ==============================
+     Totem no meio do campo (lado direito) → botão 1X1 → fila → dois jogadores da sala viram adversários. Cada lado vê a si mesmo atacando o gol de cima:
+     o convidado joga num referencial girado 180° (x → 2cx−x, z → −z) e isso é desfeito ao enviar/receber. A bola é simulada por quem mexeu nela por último
+     ("posse"); o outro lado recebe o estado a cada sincronização. Gols, laterais, escanteios e tiros de meta são eventos numerados (idempotentes). */
+  const TOT = { x: cx + HW + 2.6, z: 0 };
+  const totem = new THREE.Group(); totem.position.set(TOT.x, 0, TOT.z);
+  { const base = new THREE.Mesh(new THREE.CylinderGeometry(.6, .75, .25, 24), new THREE.MeshStandardMaterial({ color: 0x1a2233, roughness: .5, metalness: .6 }));
+    const pil = new THREE.Mesh(new THREE.CylinderGeometry(.26, .32, 2.7, 18), new THREE.MeshStandardMaterial({ color: 0x20304a, emissive: 0x1d6fff, emissiveIntensity: 1.5, roughness: .35, metalness: .5 })); pil.position.y = 1.55;
+    const c = document.createElement('canvas'); c.width = 256; c.height = 128; const x = c.getContext('2d'); x.fillStyle = 'rgba(8,12,24,.9)'; x.fillRect(0, 0, 256, 128); x.strokeStyle = '#ffd24a'; x.lineWidth = 6; x.strokeRect(5, 5, 246, 118); x.fillStyle = '#ffd24a'; x.font = '900 76px system-ui,sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('1x1', 128, 58); x.font = '700 17px system-ui,sans-serif'; x.fillStyle = '#fff'; x.fillText('AMIGO × AMIGO', 128, 106);
+    const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
+    const sign = new THREE.Mesh(new THREE.PlaneGeometry(2.4, 1.2), new THREE.MeshBasicMaterial({ map: tex, toneMapped: false, side: THREE.DoubleSide })); sign.position.y = 3.7; sign.rotation.y = -PI / 2;
+    const ring = new THREE.Mesh(new THREE.RingGeometry(1.4, 1.7, 40), new THREE.MeshBasicMaterial({ color: 0xffd24a, transparent: true, opacity: .55, depthWrite: false, side: THREE.DoubleSide, toneMapped: false })); ring.rotation.x = -PI / 2; ring.position.y = .06; totem.userData.ring = ring;
+    totem.add(base, pil, sign, ring); scene.add(totem); }
+  { const st = document.createElement('style'); st.textContent = '#sx1{position:fixed;left:calc(14px + env(safe-area-inset-left,0px));top:126px;z-index:32;max-width:42vw;padding:12px 16px;border-radius:14px;border:2px solid #ffd24a;background:rgba(8,12,24,.9);color:#ffd24a;font:900 14px system-ui,sans-serif;letter-spacing:.06em;display:none;box-shadow:0 4px 18px rgba(0,0,0,.5)}#sx1.q{color:#fff;border-color:#43e08a}#sx1.m{color:#ff8a7a;border-color:#ff5a4a}'; document.head.appendChild(st); css.after(st); }
+  const $sx1 = mk('button', 'sx1', '1X1');
+  const nearTotem = () => { const m = me(); return !!m && Math.hypot(m.x - TOT.x, m.z - TOT.z) < 7; };
+  function sx1Refresh() {
+    if (S.x1) { $sx1.style.display = 'block'; $sx1.className = 'm'; $sx1.textContent = 'SAIR DO 1X1'; }
+    else if (S.xq) { $sx1.style.display = 'block'; $sx1.className = 'q'; $sx1.textContent = 'PROCURANDO ADVERSÁRIO… (cancelar)'; }
+    else if (nearTotem()) { $sx1.style.display = 'block'; $sx1.className = ''; $sx1.textContent = '1X1 · ENTRAR NA FILA'; }
+    else $sx1.style.display = 'none';
+  }
+  $sx1.addEventListener('pointerdown', e => e.stopPropagation());
+  $sx1.onclick = () => {
+    if (S.x1) { x1End('Você saiu do 1x1'); return; }
+    if (api.isOffline && api.isOffline()) { banner('O 1x1 precisa de internet', 1600); return; }
+    if (S.xq) { S.xq = 0; banner('Fila cancelada', 900); } else { S.xq = Date.now(); banner('1X1 · aguardando um amigo apertar o 1X1 também', 2600); }
+    sx1Refresh();
+  };
+  const rotXZ = (x, z) => S.x1 && !S.x1.host ? { x: 2 * cx - x, z: -z } : { x, z };
+  function rotS(s) { if (!s || !S.x1 || S.x1.host) return s; return Object.assign({}, s, { x: 2 * cx - s.x, z: -s.z, r: (s.r || 0) + PI }); }
+  function x1Start(host, oppId) {
+    const oa = actors.get(oppId); S.xq = 0;
+    S.x1 = { host, opp: oppId, oppA: oa, oppName: oa ? oa.name : 'ADVERSÁRIO', own: host, n: 0, evN: 0, ev: null, sc: [0, 0], hs: [0, 0], h: 1, golden: false, clk: 0, seen: performance.now() + 4000, tk: 0, over: false, ui: 0 };
+    S.pen = null; S.mode = 'train'; S.keeperOn = true; el('spGk').textContent = 'GOLEIRO: SIM'; $spt.style.display = 'none'; el('scL').textContent = '1X1'; for (const t of targets) t.m.visible = false;
+    S.goals = 0; S.shots = 0; S.saved = 0; S.clock = 0; S.sp = null; S.thr = null; S.pk = null; placeKeeper();
+    S.state = 'wait'; S.timer = 3; S.restartKind = 'center'; ball.frozen = false; ball.place(cx, R, 0);
+    banner('1X1 · VOCÊ × ' + String(S.x1.oppName).toUpperCase(), 2600); snd.whistle(); updateScoreHud(); sx1Refresh();
+  }
+  function x1End(msg) {
+    if (!S.x1) return; S.x1 = null; S.xq = 0; $spt.style.display = ''; el('spGk').textContent = 'GOLEIRO: SIM'; S.keeperOn = true; S.mode = 'pen'; setMode('train');
+    if (msg) banner(msg, 2200); sx1Refresh();
+  }
+  function claim() { const X = S.x1; if (!X || X.own) return; X.own = true; X.n++; }
+  function emit(ev) { const X = S.x1; ev.n = X.evN + 1; ev.t = Math.round(api.serverNow()); X.ev = ev; applyEv(ev); }
+  function x1Goal(sd) {   // 1x1 sem relógio: cada tempo acaba quando alguém faz 5 gols NAQUELE tempo; o placar total soma os dois tempos
+    const X = S.x1, mi = X.host ? 0 : 1, by = sd > 0 ? mi : 1 - mi, sc = X.sc.slice(), hs = X.hs.slice(); sc[by]++; hs[by]++;
+    let end = 0, w = -1;
+    if (X.golden) { end = 2; w = by; }
+    else if (hs[by] >= 5) { if (X.h === 1) end = 1; else if (sc[0] !== sc[1]) { end = 2; w = sc[0] > sc[1] ? 0 : 1; } else end = 3; }
+    emit({ k: 'goal', by, sc, hs, h: X.h, end, w });
+  }
+  function x1OutTouch(sx) { const X = S.x1, z = clamp(ball.z, -HL + 4, HL - 4), p = rotXZ(cx + sx * (HW - .35), z), mi = X.host ? 0 : 1, tkL = 1 - S.lastTeam; emit({ k: 'out', kind: 'lateral', tk: tkL === 0 ? mi : 1 - mi, x: p.x, z: p.z, sd: 0 }); }
+  function x1OutEnd(sd) {
+    const X = S.x1, mi = X.host ? 0 : 1, mine = S.lastTeam === 0; let kind, tkL, xl, zl;
+    if (sd > 0) { if (mine) { kind = 'goalkick'; tkL = 1; } else { kind = 'corner'; tkL = 0; } } else { if (mine) { kind = 'goalkick'; tkL = 0; } else { kind = 'corner'; tkL = 1; } }
+    if (kind === 'corner') { xl = cx + (Math.sign(ball.x - cx) || 1) * (HW - .35); zl = sd * (HL - .35); } else { xl = cx + (Math.random() - .5) * 4; zl = sd * (HL - 5.5); }
+    const p = rotXZ(xl, zl); emit({ k: 'out', kind, tk: tkL === 0 ? mi : 1 - mi, x: p.x, z: p.z, sd: X.host ? sd : -sd });
+  }
+  function applyEv(ev) {
+    const X = S.x1; if (!X || ev.n <= X.evN && X.ev !== ev) return; X.evN = Math.max(X.evN, ev.n); const age = clamp((api.serverNow() - ev.t) / 1000, 0, 3), mi = X.host ? 0 : 1; X.n = Math.max(X.n, ev.n * 100);
+    if (ev.k === 'goal') {
+      X.sc = ev.sc; X.hs = ev.hs; X.h = ev.h; const mine = ev.by === mi; S.state = 'wait'; S.timer = Math.max(.4, (ev.end ? 4.6 : 3.4) - age); S.restartKind = 'center';
+      stadium.goalRipple(mine ? 1 : -1); stadium.cheerUp(1.3); snd.net(); snd.cheer(1.2); snd.whistle(); banner(mine ? 'GOOOL!' : 'GOL DO ADVERSÁRIO', 2000);
+      if (fx && fx.emit) fx.emit(ball.x, 1.5, ball.z, 40, { color: mine ? [1, .85, .4] : [.5, .7, 1], speed: 5, up: 4, life: 1.1, size: .2 });
+      if (ev.end === 1) { X.h = 2; X.hs = [0, 0]; setTimeout(() => { if (S.x1 === X) banner('FIM DO 1º TEMPO · ' + X.sc[mi] + ' × ' + X.sc[1 - mi] + ' — 2º TEMPO: primeiro a 5', 3200); }, 1800); }
+      else if (ev.end === 3) { X.golden = true; setTimeout(() => { if (S.x1 === X) banner('EMPATE! GOL DE OURO: o próximo gol vence', 3200); }, 1800); }
+      else if (ev.end === 2) { X.over = true; S.timer = 99; setTimeout(() => { if (S.x1 === X) banner(ev.w === mi ? 'VOCÊ VENCEU! ' + X.sc[mi] + ' × ' + X.sc[1 - mi] : 'VOCÊ PERDEU · ' + X.sc[mi] + ' × ' + X.sc[1 - mi], 4000); }, 1800); setTimeout(() => { if (S.x1 === X) x1End(); }, 6400); }
+    } else if (ev.k === 'out') {
+      S.state = 'wait'; S.timer = Math.max(.4, 1.4 - age); S.restartKind = ev.kind; X.tk = ev.tk; const p = rotXZ(ev.x, ev.z); X.rx = p.x; X.rz = p.z; X.rsd = X.host ? ev.sd : -ev.sd; snd.whistle();
+      banner(ev.kind === 'lateral' ? 'LATERAL' : ev.kind === 'corner' ? 'ESCANTEIO' : 'TIRO DE META', 1100);
+    }
+    updateScoreHud();
+  }
+  function x1Restart() {
+    const X = S.x1, k = S.restartKind, mi = X.host ? 0 : 1, iTake = k === 'center' ? X.host : X.tk === mi, m = me();
+    S.state = 'play'; S.free = 0; ball.frozen = false; S.hitPost = false; S.sp = null; S.thr = null; S.pk = null; X.own = iTake;
+    if (k === 'center') { resetBall(false); return; }
+    const sxl = Math.sign(X.rx - cx) || 1; ball.place(X.rx, R, X.rz);
+    if (k === 'lateral') { if (iTake) { S.sp = 'lateral'; S.spX = ball.x; S.spZ = ball.z; place(m, cx + sxl * (HW + 1.0), X.rz, -sxl * PI / 2); } }
+    else if (k === 'corner') { if (iTake) place(m, cx + sxl * (HW + .9), X.rsd * (HL + .7), Math.atan2(-sxl * 1.2, -X.rsd)); }
+    else if (k === 'goalkick') {
+      const K = KS.find(q => q.sd === X.rsd); if (K && K.g) { placeKeeper(K); K.g.x = ball.x; K.g.z = ball.z + X.rsd * 1.15; K.st.kicking = true; setTimeout(() => { if (S.state !== 'play' || !S.x1 || K.st.mode === 'dive') return; const l = L(K.g); if (l) l.play('shot'); else gkKickImpact(K); }, 900); }
+    }
+  }
+  function ballOut() {
+    const X = S.x1, rot = !X.host, g = rot ? -1 : 1, q = v => Math.round(v * 100) / 100;
+    return { x: q(rot ? 2 * cx - ball.x : ball.x), y: q(ball.y), z: q(g * ball.z), vx: q(g * ball.vx), vy: q(ball.vy), vz: q(g * ball.vz), wx: q(g * ball.wx), wz: q(g * ball.wz), f: ball.frozen ? 1 : 0, ts: Math.round(api.serverNow()), n: X.n };
+  }
+  function ballIn(b) {
+    const X = S.x1, rot = !X.host, g = rot ? -1 : 1, px = ball.x, pz = ball.z;
+    const x = rot ? 2 * cx - b.x : b.x, z = g * b.z;
+    if (b.f) { ball.frozen = false; ball.place(x, b.y, z); ball.frozen = true; return; }
+    ball.frozen = false; ball.x = x; ball.y = b.y; ball.z = z; ball.vx = g * b.vx; ball.vy = b.vy; ball.vz = g * b.vz; ball.wx = g * b.wx; ball.wz = g * b.wz;
+    const age = clamp((api.serverNow() - b.ts) / 1000, 0, .5); for (let t = 0; t < age; t += 1 / 60) ball.step(Math.min(1 / 60, age - t));
+    const d = Math.hypot(ball.x - px, ball.z - pz); if (d < .6 && !ball.frozen) { ball.x = px + (ball.x - px) * .45; ball.z = pz + (ball.z - pz) * .45; }
+  }
+  function x1Same(p) {   // quem joga 1x1 fica num "campo" à parte: só se vê com o próprio adversário; treino só vê treino
+    const myId = api.myId(), mine = S.x1 ? [myId, S.x1.opp].sort().join() : '', o = p && p.s && p.s.x1, theirs = o && o.vs ? [p.id, o.vs].sort().join() : '';
+    return mine === theirs;
+  }
+  function x1Pack(s) {
+    const X = S.x1; if (!X) { if (S.xq) s.x1 = { q: 1 }; return; }
+    if (!X.host) { s.x = Math.round((2 * cx - s.x) * 100) / 100; s.z = Math.round(-s.z * 100) / 100; s.r = Math.round(((s.r || 0) + PI) * 100) / 100; }
+    const o = { vs: X.opp, h: X.host ? 1 : 0, sc: X.sc, n: X.n }; if (X.ev) o.ev = X.ev; if (X.own) o.bl = ballOut(); s.x1 = o;
+  }
+  function x1Recv(players) {
+    const myId = api.myId(); if (!players) return;
+    if (!S.x1) {
+      if (!S.xq) return;
+      for (const p of players) { const o = p.id !== myId && p.s && p.s.x1; if (o && o.vs === myId && o.h === 1) return x1Start(false, p.id); }
+      const cand = players.filter(p => p.id !== myId && p.s && p.s.x1 && p.s.x1.q).sort((a, b) => a.id < b.id ? -1 : 1)[0];
+      if (cand && myId < cand.id) x1Start(true, cand.id);
+      return;
+    }
+    const X = S.x1, p = players.find(q => q.id === X.opp), o = p && p.s && p.s.x1; X.oppA = actors.get(X.opp) || X.oppA; if (X.oppA) X.oppName = X.oppA.name;
+    if (!o || o.vs !== myId) return; X.seen = performance.now();
+    if (o.ev && o.ev.n > X.evN) applyEv(o.ev);
+    if (o.bl) { const b = o.bl; if (b.n > X.n || (b.n === X.n && (!X.own || !X.host))) { if (X.own) { X.own = false; S.last = X.oppA || S.last; S.lastTeam = 1; } else if (b.n > X.n) { S.last = X.oppA || S.last; S.lastTeam = 1; } X.n = b.n; X.own = false; ballIn(b); } }
+  }
+  function x1Tick(dt) {
+    const X = S.x1, m = me(); X.oppA = actors.get(X.opp) || X.oppA; X.ui -= dt;
+    if (performance.now() - X.seen > 5000 && !X.over) { x1End('O adversário saiu do 1x1'); return; }
+    if (!X.own && S.state === 'play' && ball.y < 1.3 && Math.hypot(ball.x - m.x, ball.z - m.z) < .85) claim();
+    if (X.ui <= 0) { X.ui = .5; updateScoreHud(); }
+  }
+
   /* ============================== regras: gol, lateral, escanteio, tiro de meta ============================== */
   function checkRules() {
-    if (S.state !== 'play') return; const bx = ball.x - cx, bz = ball.z, sd = Math.sign(bz);
+    if (S.state !== 'play') return; if (S.x1 && !S.x1.own) return; const bx = ball.x - cx, bz = ball.z, sd = Math.sign(bz);
     if (Math.abs(bz) > HL + R * .9) {
       if (Math.abs(bx) < GW - R * .5 && ball.y < GH - R * .4) return goal(sd);
       return outGoalLine(sd);
@@ -478,14 +622,16 @@ export function createSoccer(api) {
     if (Math.abs(bx) > HW + R * .9) outTouch(Math.sign(bx));
   }
   function goal(sd) {
+    if (S.x1) return x1Goal(sd);
     if (sd < 0) { S.state = 'wait'; S.timer = 2.2; S.restartKind = 'center'; banner('GOL CONTRA!', 1500); snd.cheer(.6); stadium.goalRipple(sd); if (S.mode === 'pen') resolveShot('goal'); return; }
     S.state = 'wait'; S.timer = 3.4; S.restartKind = 'center'; S.goals++; stadium.goalRipple(sd); stadium.cheerUp(1.3); snd.net(); snd.cheer(1.2); snd.whistle();
     let tg = null; for (const t of targets) if (S.mode === 'train' && Math.abs(ball.x - (cx + t.sx * (GW - 1.0))) < .85 && Math.abs(ball.y - t.y) < .65) { tg = t; t.flash = 1; }
     banner(tg ? 'ALVO! · GOOOL!' : 'GOOOL!', 2000); if (S.mode === 'pen') resolveShot('goal'); updateScoreHud();
     if (fx && fx.emit) fx.emit(ball.x, 1.5, ball.z - 1, 40, { color: [1, .85, .4], speed: 5, up: 4, life: 1.1, size: .2 });
   }
-  function outTouch(sx) { if (S.mode === 'pen') return missPen(); S.state = 'wait'; S.timer = 1.4; S.restartKind = 'lateral'; S.restartX = sx; S.restartZ = clamp(ball.z, -HL + 4, HL - 4); banner('LATERAL', 1100); snd.whistle(); }
+  function outTouch(sx) { if (S.x1) return x1OutTouch(sx); if (S.mode === 'pen') return missPen(); S.state = 'wait'; S.timer = 1.4; S.restartKind = 'lateral'; S.restartX = sx; S.restartZ = clamp(ball.z, -HL + 4, HL - 4); banner('LATERAL', 1100); snd.whistle(); }
   function outGoalLine(sd) {
+    if (S.x1) return x1OutEnd(sd);
     if (S.mode === 'pen') return missPen();
     S.state = 'wait'; S.timer = 1.5; snd.whistle();
     if (sd > 0) { S.restartKind = 'goalkick'; banner('TIRO DE META', 1100); }
@@ -493,18 +639,19 @@ export function createSoccer(api) {
   }
   function missPen() { const P = S.pen; if (P && !P.resolved && P.kicked) { banner(S.hitPost ? 'NA TRAVE!' : 'PARA FORA!', 1200); resolveShot('miss'); } S.state = 'wait'; S.timer = 99; }
   function doRestart() {
+    if (S.x1) return x1Restart();
     const m = me(), k = S.restartKind; S.state = 'play'; S.free = 0; ball.frozen = false; S.hitPost = false; S.sp = null; S.thr = null; S.pk = null;
     if (k === 'center') { resetBall(false); return; }
     if (k === 'lateral') { S.sp = 'lateral'; const sx = S.restartX; ball.place(cx + sx * (HW - .35), R, S.restartZ); S.spX = ball.x; S.spZ = ball.z; place(m, cx + sx * (HW + 1.0), S.restartZ, -sx * PI / 2); }
     else if (k === 'corner') { const sx = S.restartX; ball.place(cx + sx * (HW - .35), R, -HL + .35); place(m, cx + sx * (HW + .9), -HL - .7, Math.atan2(-sx * 1.2, 1)); }
-    else if (k === 'goalkick') { ball.place(cx + (Math.random() - .5) * 4, R, HL - 5.5); place(m, cx, 6, PI); placeKeeper(); const g = S.gk; if (g && S.keeperOn) { g.x = ball.x; g.z = ball.z + 1.15; S.gkState.kicking = true; setTimeout(() => { if (S.state !== 'play' || S.mode !== 'train') return; const l = L(g); if (l) l.play('shot'); else gkKickImpact(); }, 900); } }
+    else if (k === 'goalkick') { ball.place(cx + (Math.random() - .5) * 4, R, HL - 5.5); place(m, cx, 6, PI); placeKeeper(); const g = S.gk; if (g && S.keeperOn) { g.x = ball.x; g.z = ball.z + 1.15; S.gkState.kicking = true; setTimeout(() => { if (S.state !== 'play' || S.mode !== 'train') return; const l = L(g); if (l) l.play('shot'); else gkKickImpact(KS[0]); }, 900); } }
   }
 
   /* ============================== por quadro ============================== */
   function update(dt) {
     dt = Math.min(dt, .05); S.t += dt; S.clock += dt; const m = me(); if (!m) return;
     if (S.sp === 'lateral' && !S.thr && !S.ch && (Math.hypot(ball.x - S.spX, ball.z - S.spZ) > 1.2 || Math.abs(m.x - cx) < HW - .8)) S.sp = null;   // a mão só vale na cobrança do lateral: saiu do ponto, acabou
-    S.lock = Math.max(0, S.lock - dt); S.drib = Math.max(0, S.drib - dt); S.free += dt; S.kickT = Math.max(0, S.kickT - dt); S.noCtl = Math.max(0, S.noCtl - dt); L(m); S.gk && L(S.gk);
+    S.lock = Math.max(0, S.lock - dt); S.drib = Math.max(0, S.drib - dt); S.free += dt; S.kickT = Math.max(0, S.kickT - dt); S.noCtl = Math.max(0, S.noCtl - dt); L(m); for (const K of KS) K.g && L(K.g);
     // carga do chute
     if (S.ch) { const c = S.ch, K = KICK[c.kind]; c.t += dt; const K2 = api.keysDown, kx = (K2.has('o') ? 1 : 0) - (K2.has('u') ? 1 : 0), ky = (K2.has('i') ? 1 : 0) - (K2.has('n') ? 1 : 0); if (kx || ky) { c.spin = clamp(c.spin + kx * dt * 2.5, -1, 1); c.lift = clamp(c.lift + ky * dt * 2.5, -1, 1); }
       const p = clamp(c.t / K.full, 0, 1); el('chgF').style.width = p * 100 + '%'; el('chgV').textContent = Math.round(lerp(K.v0, K.v1, Math.max(.24, p)) * 3.6) + ' km/h'; el('chgU').style.left = 50 + c.spin * 42 + '%'; el('chgU').style.top = 50 - c.lift * 38 + '%'; }
@@ -515,14 +662,15 @@ export function createSoccer(api) {
     // física da bola + contatos + condução
     if (!ball.frozen) {
       ball.step(dt);
-      if (!(S.mode === 'pen' && S.pen && !S.pen.kicked) && (!S.ctl || S.cin) && !S.thr) bodyContact(m, false); const g = S.gk; if (g && S.keeperOn && S.gkState && S.gkState.mode !== 'hold' && S.gkState.mode !== 'throw') bodyContact(g, true);
+      if (!(S.mode === 'pen' && S.pen && !S.pen.kicked) && (!S.ctl || S.cin) && !S.thr) bodyContact(m, false); if (owns()) for (const K of KS) if (K.g && K.on() && K.st && K.st.mode !== 'hold' && K.st.mode !== 'throw') bodyContact(K.g, true);
       feet(dt, m);
     } else feet(dt, m);
     if (S.thr) { const l = L(m), a = l && l.anims.find(x => x.name === 'throwin'); if (a && a.t > .1) { ball.frozen = true; l.handsPos(tmpP); ball.place(tmpP.x, Math.max(R, tmpP.y + .12), tmpP.z); ball.frozen = true; } }
     syncMesh(dt);
     // anel de cobrança quando a bola está parada num reinício
     const idle = ball.speed < .4 && ball.y < R + .05; ringM.position.set(ball.x, .05, ball.z); ringM.material.opacity = idle ? .45 + Math.sin(S.t * 6) * .2 : 0;
-    checkRules(); if (S.gk && S.gk.brain === S.gk.brain) gkUpdate(dt); stadium.crowdFollow && stadium.crowdFollow(ball);
+    { const rg = totem.userData.ring; if (rg) rg.material.opacity = .4 + Math.sin(S.t * 3) * .2; if ((S.t * 4 | 0) !== S._sx) { S._sx = S.t * 4 | 0; if (S.xq && Date.now() - S.xq > 90000) { S.xq = 0; banner('Ninguém entrou na fila', 1400); } sx1Refresh(); } }
+    if (S.x1) x1Tick(dt); checkRules(); for (const K of KS) if (K.g) gkUpdate(K, dt); stadium.crowdFollow && stadium.crowdFollow(ball);
     // estados de espera
     if (S.state === 'wait') { S.timer -= dt; if (S.timer <= 0 && S.mode !== 'pen') doRestart(); }
     if (S.mode === 'pen' && S.pen) penaltyTick(dt);
@@ -558,8 +706,9 @@ export function createSoccer(api) {
     });
   }
   // clique do mouse no campo = chute leve
-  api.setKeeper = g => { S.gk = g; placeKeeper(); };
+  api.setKeeper = g => { S.gk = g; KS[0] = { g, st: null, sd: 1, on: () => S.keeperOn || !!S.x1 }; placeKeeper(); };
+  api.setKeeper2 = g => { KS[1] = { g, st: null, sd: -1, on: () => !!S.x1 }; placeKeeper(KS[1]); };
   function start(mode) { setMode(mode || 'train'); }
-  function dispose() { for (const e of [$sc, $chg, $spt, $spi, $xh, $xr, css]) e.remove(); scene.remove(mesh, blob, ringM); for (const t of targets) scene.remove(t.m); }
-  return { update, act, start, setMode, ball, S, dispose, resetBall, onRelease, L, me, preview(name, t, foot) { const l = L(me()); if (!l) return; l.preview = name ? { name, t, foot } : null; if (!name) l.stop(); } };
+  function dispose() { for (const e of [$sc, $chg, $spt, $spi, $xh, $xr, css, $sx1]) e.remove(); scene.remove(mesh, blob, ringM, totem); for (const t of targets) scene.remove(t.m); }
+  return { x1Pack, x1Recv, x1Same, x1Rot: () => !!S.x1 && !S.x1.host, rotS, update, act, start, setMode, ball, S, dispose, resetBall, onRelease, L, me, preview(name, t, foot) { const l = L(me()); if (!l) return; l.preview = name ? { name, t, foot } : null; if (!name) l.stop(); } };
 }

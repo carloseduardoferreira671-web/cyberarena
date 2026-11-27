@@ -21,6 +21,7 @@ import { Powers, makeBlackHole } from './powers.js';
 import { Audio } from './audio.js';
 import { NOPROG, Net, getIdentity, saveIdentity } from './net.js';
 import { initCtl } from './ctledit.js';
+import { initTutMatch } from './tutmatch.js';
 import { detectDevice, clampPreset, capCine } from './perf.js';   // v158: orçamento de desempenho por aparelho
 
 const $ = id => document.getElementById(id);
@@ -37,6 +38,7 @@ const CODE = (params.get('code') || '').toUpperCase().replace(/[^A-Z0-9]/g, '').
 const PARTY = /^[A-Z0-9]{8}$/.test(params.get('party') || '') ? params.get('party') : null;   // grupo do lobby: todos caem na mesma sala
 const FORCE_OFFLINE = params.get('offline') === '1' || NOPROG || MODE === 'soccer';   // Teste de Poderes (space) e treino (train) agora são online (caem para offline sozinhos se o servidor não responder)
 const TRAINLIKE = MODE === 'train' || MODE === 'space';
+const TUT = params.get('tut') === '1' && MODE === 'battle'; let tut = null;   // primeira partida roteirizada (tutorial)
 const isTouch = matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window;
 if (!isTouch) document.body.classList.add('desktop');
 
@@ -356,7 +358,9 @@ function act(name) {
   if (name === 'crouch') { if (me.sitting) { toggleSit(me); return; } if (!me.crouch && me.grounded && me.spd > 4.6 && !me.climb && !me.down) { doSlide(me); return; } setCrouch(me, !me.crouch); return; }
   if (name === 'dodge') { doDodge(me); return; }
   if (!canFight()) { if (name === 'punch' || name === 'kick' || name === 'laser' || name === 'super' || name === 'extra' || name === 'solar') banner(MODE === 'open' ? 'Mundo aberto: sem combate' : 'Aguarde o início da partida', 1200); return; }
+  if (TUT && tut && !tut.allow(name)) return;   // tutorial: só o botão da vez funciona
   if (name === 'punch') doPunch(me); else if (name === 'kick') doPunch(me, null, 'kick'); else if (name === 'laser') doSkill(me); else if (name === 'super') doSuper(me); else if (name === 'extra') doExtra(me); else if (name === 'solar') doSolar(me);
+  if (TUT && tut) tut.afterAct(name);
 }
 /* ===================== v147 · COMBATE POR ZONAS =====================
    Cada golpe tem uma zona (cabeça / peito / barriga / pernas) e uma variação POR OPONENTE (fightdata.js): a distância e a altura
@@ -682,7 +686,7 @@ function updateNovaSequence(a,dt){
           if(MODE==='battle')realityFracture(target,8.5);sfx('nova',a,1.65);
           fx.flash(target,0xffffff,230,.85);fx.ring(target.x,target.y,target.z,0xffe3a1,260,1.2,.9);fx.ring(target.x,target.y,target.z,0xff7b24,390,1.8,1.2);
           if(s.env===world){const gone=world.destroyAlong(target.x,target.z,target.x,target.z,145);debris(gone.slice(0,180));const pts=[{x:target.x,y:world.terrainAt(target.x,target.z),z:target.z}];for(let i=0;i<64;i++){const an=i/64*TAU,d=8+(i%8)*13,x=target.x+Math.cos(an)*d,z=target.z+Math.sin(an)*d;pts.push({x,y:world.terrainAt(x,z),z});}powers.scorch(pts,24,28);}
-          if(authOf(a))for(const e of enemiesOf(a)){const dx=e.x-target.x,dz=e.z-target.z,d=Math.hypot(dx,dz);if(d<145&&Math.abs(e.y-target.y)<95)damage(e,Math.max(1,Math.ceil(e.hp/CS.mulAt(a.char,a.lvl||1))),a,'super',{kx:dx/(d||1)*55,kz:dz/(d||1)*55,up:28});}
+          if(authOf(a))for(const e of enemiesOf(a)){const dx=e.x-target.x,dz=e.z-target.z,d=Math.hypot(dx,dz);if(TUT||(d<145&&Math.abs(e.y-target.y)<95))damage(e,Math.max(1,Math.ceil(e.hp/CS.mulAt(a.char,a.lvl||1))),a,'super',{kx:dx/(d||1)*55,kz:dz/(d||1)*55,up:28});}
           G.shake=Math.max(G.shake,3.2);powers.screenFlash('rgba(255,246,224,1)',.9,1);
         });
       },18);
@@ -1194,6 +1198,7 @@ function doOmega(a, remote, target) {
 function damage(t, dmg, src, kind, kb) {
   const base = dmg;   // dano-base do ataque (unidade interna); o dano real depende do personagem e do nível de quem ataca
   if (src && dmg > 0 && (src === me || (src.kind === 'bot' && src.simulated))) dmg = CS.dmgOf(src.char, src.lvl || 1, dmg);
+  if (TUT && tut) dmg = tut.dmg(t, dmg, src, kind);
   if (!t.alive || !canFight() || dmg <= 0 || mates(src, t)) return;
   if (t.atlasVictim && src && src.id !== t.atlasVictim) return; // o alvo fica preso na coreografia e não pode contra-atacar/interromper
   if (t.char==='atlas' && t.atlasGuardUntil>world.time && src && src.alive) {
@@ -1281,9 +1286,9 @@ class Brain {
       gx = ux * fwd + sx * sw; gz = uz * fwd + sz * sw;
       if (this.react <= 0) {
         if (this.melee && d < 2.9) { if (doPunch(a, t, Math.random() < .28 ? 'kick' : undefined)) this.react = .08; }
-        else if (d < (a.char === 'cyber' ? 15 : 20) && d > (this.melee ? 3.2 : 0) && a.cd.laser <= 0 && !(a.busyMove > 0) && Math.random() < .3 + S * .5) { const vis = !envOf(a).rayBlocked(a.x, a.y + 1.8, a.z, t.x, t.y + 1.6, t.z); if (vis) { if (doSkill(a, t)) this.react = .6 - S * .3 + Math.random() * .3; } else { gx = ux; gz = uz; } }
-        if (a.cd.vel <= 0 && d < 24 && Math.random() < .12 + S * .1) doExtra(a);
-        if (a.energy >= 100) { const near = enemiesOf(a).filter(b => Math.hypot(b.x - a.x, b.z - a.z) < 5.5).length; if ((near >= 2 || (near >= 1 && hpPct(t) < 50)) && Math.random() < .5 + S * .4) doSuper(a); }
+        else if (!TUT && d < (a.char === 'cyber' ? 15 : 20) && d > (this.melee ? 3.2 : 0) && a.cd.laser <= 0 && !(a.busyMove > 0) && Math.random() < .3 + S * .5) { const vis = !envOf(a).rayBlocked(a.x, a.y + 1.8, a.z, t.x, t.y + 1.6, t.z); if (vis) { if (doSkill(a, t)) this.react = .6 - S * .3 + Math.random() * .3; } else { gx = ux; gz = uz; } }
+        if (!TUT && a.cd.vel <= 0 && d < 24 && Math.random() < .12 + S * .1) doExtra(a);
+        if (!TUT && a.energy >= 100) { const near = enemiesOf(a).filter(b => Math.hypot(b.x - a.x, b.z - a.z) < 5.5).length; if ((near >= 2 || (near >= 1 && hpPct(t) < 50)) && Math.random() < .5 + S * .4) doSuper(a); }
       }
     } else if (this.goal) { gx = this.goal[0] - a.x; gz = this.goal[1] - a.z; const d = Math.hypot(gx, gz); if (d < 1.5) { this.goal = null; gx = gz = 0; } else { gx /= d; gz /= d; } if (this.mode === 'roam') run = .9; }
     // esquivar de lasers vindo na direção do bot
@@ -1617,6 +1622,7 @@ function beginBattle(players) {
   if (net.isHost()) { const nb = 16 - humans.length, sk = botSkill(); for (let i = 0; i < nb; i++) makeBot(i, null, sk); [...actors.values()].filter(a => a.kind === 'bot').forEach((a, i) => placeAt(a, S[(humans.length + i) % 16], true)); }
   $('mmk').classList.add('hidden'); $('count').classList.add('hidden'); $('emotes').classList.add('hidden'); sfx('go'); banner('A BATALHA COMEÇOU! · seja o último de pé', 2600);
   camS.yaw = Math.atan2(-me.x, -me.z); camS.pitch = .35;
+  if (TUT) { tut = initTutMatch({ banner, sfx, getMe: () => me, actors, getCam: () => camS, placeAt, enemiesOf }); tut.begin(); }
 }
 function onMyDeath(k) { G.placement = aliveCount() + 0; G.killer = k; G.phase = 'dead'; $('dPlace').textContent = '#' + (G.placement); $('dBy').textContent = k && k !== me ? 'Eliminado por ' + k.name : 'Você foi eliminado'; setTimeout(() => { if (G.phase === 'dead') $('ovDeath').classList.remove('hidden'); }, 1800); }
 function checkEnd() {
@@ -1812,7 +1818,7 @@ function tick(dt) {
     // fora do campo de visão (com folga para a sombra, que cai até ~6 m) não desenha, não faz skinning nem entra no passe de sombra
     _cSph.center.set(a.x, a.y + 1, a.z); _cSph.radius = 6 + d * .04;
     const solarPair = !!solarFocus && ((!!solarFocus.novaSequence && a === solarFocus) || (!!solarFocus.solarSequence && (a === solarFocus || (a === solarFocus.solarSequence.victim && !a.solarHidden))) || (!!solarFocus.atlasSequence && (a === solarFocus || a === solarFocus.atlasSequence.victim)) || (!!solarFocus.velocityDuel && (a === solarFocus || a === solarFocus.velocityDuel.opponent)));
-    const vis = solarPair || (d < 170 && (!spaceSt || spaceSt.ids.has(a.id)) && (a === focus || _frus.intersectsSphere(_cSph))) ;
+    const vis = solarPair || (d < (TUT ? 62 : 170) && (!spaceSt || spaceSt.ids.has(a.id)) && (a === focus || _frus.intersectsSphere(_cSph))) ;   // tutorial: só desenha quem está perto (partida mais leve)
     a.hero.setVisible(vis); a.hero.cloth = d < 30;
     // LOD do personagem: malha completa só em ultra e a <12 m · padrão: malha média (≈1/3 dos triângulos) · 28–55 m malha leve · >55 m leve, sem sombra e animação a 1/3 da taxa
     const full = qName === 'ultra' || qName === 'ultra4k', lod = d < 12 && full ? 0 : d < (a.hero.lod >= 2 ? 25 : 28) ? 1 : d < 55 ? 2 : 3; a.hero.setLOD(lod);   // histerese de 3 m: sem troca de malha/material quando alguém está na fronteira
@@ -1833,6 +1839,7 @@ function tick(dt) {
   for (const a of pushList) { if (pi >= 8) break; if (actors.get(a.id) !== a) continue; push[pi++].set(a.x, a.y, a.z, .55 + Math.min(1, a.spd / 7) * .25); } for (; pi < 8; pi++) push[pi].set(0, -999, 0, 0);
   fx.update(dt, laserCollide); SOFTBODY.begin(); powers.update(dt); SOFTBODY.end();
   updateItems(dt);
+  if (tut) tut.update(dt);
   if (zoneMesh && zoneMesh.visible && G.zone) { const z = G.zone.at(battleSec()); zoneMesh.position.set(z.x, 20, z.z); zoneMesh.scale.set(Math.max(.01, z.r), 1, Math.max(.01, z.r)); }
   const fr = focus && inRealm(focus); world.update(dt, camera.position, fr ? null : focus); if (realm) realm.update(world.time, camera.position); updateEnv(dt, focus);
   updateCamera(dt); updateTags(); updateHud(dt);

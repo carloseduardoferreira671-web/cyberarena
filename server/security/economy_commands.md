@@ -18,6 +18,7 @@ Every economic or progression mutation from a connected account must use `POST /
 - `claim_inbox_reward`
 - `mark_character_created`
 - `mark_first_match`
+- `mark_tutorial_done`
 
 ## Invariants
 

@@ -10,7 +10,7 @@ const MEMBER_MS = 45000;     // quem some por 45 s sai do grupo
 const INVITE_MS = 60000;
 const FRIENDS_MAX = 100, REQ_MAX = 30, KEEP_MSGS = 60;
 const CODE_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-const isMode = m => m === 'battle' || m === 'open' || m === 'train' || m === 'space';
+const isMode = m => m === 'battle' || m === 'open' || m === 'train' || m === 'space' || m === 'soccer_gold' || m === 'soccer_blue';
 
 export function createSocial({ players, rooms, live, rankOf, levelOf, markDirty, HttpError, cleanText, cleanCode }) {
   /* servidores STUN/TURN para a voz. TURN é opcional (TURN_URL, TURN_USER, TURN_PASS) mas recomendado: sem ele,

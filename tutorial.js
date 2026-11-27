@@ -2,7 +2,7 @@
    Parte 1: personagens → loja (gemas e caixas grátis) → modos (16 jogadores) → gráficos (ultra leve) → JOGAR (partida roteirizada)
    Parte 2 (ao voltar da partida): evoluir o Cyber → modos (o que cada um faz) → gráficos (perguntar se quer aumentar) → fim
    O jogador só consegue tocar no que o tutorial pede: o resto da tela fica escuro e bloqueado. */
-const KEY0 = 'cyberarena.tut.v1';
+const KEY0 = 'cyberarena.tut.v2';   // v2: zera o estado antigo; todos (inclusive quem já jogava) fazem o tutorial completo uma vez
 const acct = () => (typeof activeCyberAccountId !== 'undefined' && activeCyberAccountId) || '';
 const keyOf = () => KEY0 + (acct() ? '@' + acct() : '');   // o tutorial é por conta: conta nova = tutorial novo
 const $ = id => document.getElementById(id);
@@ -79,7 +79,7 @@ const gemDone = () => (typeof player !== 'undefined' && player.gem_offer_claimed
 async function claimGems() {
   for (let n = 0; n < 3; n++) {
     if (gemDone()) return;
-    const clicked = await tap('#gemOfferButton', '30 GEMAS GRÁTIS', 'Presente de boas-vindas! Toque em COLETAR para pegar suas gemas.', { step: '2 · PRESENTES' });
+    const clicked = await tap('#gemOfferButton', '30 GEMAS GRÁTIS', 'Presente de boas-vindas! Toque em COLETAR para pegar suas gemas.', { step: '2 · PRESENTES', wait: 2500 });
     if (!clicked) return;
     await waitFor(() => gemDone() || overlayOpen(), 6000);
     await waitClear();
@@ -91,7 +91,7 @@ async function claimGems() {
 /* abre a Mini Caixa de verdade: se não abrir, deixa tentar de novo ou pular */
 async function openMini() {
   for (let n = 0; n < 3; n++) {
-    const clicked = await tap('#box_mini .bx-go, #box_mini .box-action', 'MINI CAIXA GRÁTIS', 'Você tem caixas grátis todos os dias. Toque para abrir a primeira!', { step: '2 · PRESENTES' });
+    const clicked = await tap('#box_mini .bx-go, #box_mini .box-action', 'MINI CAIXA GRÁTIS', 'Você tem caixas grátis todos os dias. Toque para abrir a primeira!', { step: '2 · PRESENTES', wait: 2500 });
     if (!clicked) return;
     const opened = await waitFor(() => overlayOpen(), 4500);
     await waitClear();
@@ -106,14 +106,23 @@ async function point(sel, title, text, label = 'ENTENDI', opt = {}) {
   const el = await waitFor(() => find(sel), 9000); if (!el) return false;
   await sleep(120); await new Promise(res => show(title, text, { el, noHand: true, step: opt.step || '', buttons: [{ label, cls: 'prim', fn: () => { hide(); res(); } }] })); return true;
 }
-const needs = () => !st.done && typeof player !== 'undefined' && !(player.missions && player.missions.first_match) && (player.level || 1) <= 1 && !(player.total_xp > 0);
+
+/* ---------- o tutorial concluído fica salvo na CONTA (servidor, ou neste aparelho se for conta local/convidado) ---------- */
+const accDone = () => { try { return !!(window.tutorialIsDone && window.tutorialIsDone()); } catch (_) { return false; } };
+async function finish() {
+  st.stage = 'done'; st.done = true; st.redo = false; save(st);   // reserva neste aparelho caso o servidor não responda agora
+  try { await window.markTutorialDone(); } catch (e) { console.warn('tutorial: não salvou na conta', e); }
+}
 
 /* ---------- PARTE 1 ---------- */
 async function part1() {
-  await waitFor(() => vis($('lobby')) && !overlayOpen(), 120000); await sleep(500);
-  if (!needs()) { st.done = true; st.stage = 'done'; save(st); return; }   // conta que já tinha progresso: sem tutorial
+  // espera o lobby (depois do login/avisos) sem desistir cedo: conta antiga também faz o tutorial completo
+  if (!await waitFor(() => vis($('lobby')) && !overlayOpen(), 1800000)) return; await sleep(800);
+  // a conta já concluiu (em qualquer aparelho)? então não repete, a menos que tenha tocado em REFAZER
+  if (!st.redo && (accDone() || st.done)) { if (!accDone()) { try { window.markTutorialDone(); } catch (_) { } } st.stage = 'done'; st.done = true; save(st); return; }
+  st.done = false; st.stage = 'new'; save(st);
   const w = await say('BEM-VINDO À CYBERARENA!', 'Vou te mostrar o básico em poucos passos e você já joga sua primeira partida. Vamos?', ['COMEÇAR', 'PULAR TUTORIAL'], { step: 'TUTORIAL' });
-  if (w === 1) { st.done = true; st.stage = 'done'; save(st); return; }
+  if (w === 1) { await finish(); return; }
   // 1 · personagens
   await tap('.l2-chars', 'SEUS PERSONAGENS', 'Aqui ficam seus lutadores. Toque em PERSONAGENS.', { step: '1 · PERSONAGEM' });
   await waitFor(() => vis($('characters')));
@@ -168,7 +177,7 @@ async function part2() {
   await tap('#characters .lc-chars button[data-char="cyber"]', 'CYBER', 'Selecione o Cyber.', { step: '6 · EVOLUIR' });
   await sleep(700);
   if (await tap('#evoBox .ev-btn:not([disabled])', 'EVOLUIR!', 'Seu Cyber já tem XP e recursos suficientes. Toque em EVOLUIR para ficar mais forte!', { step: '6 · EVOLUIR', wait: 8000 })) await waitClear();
-  else await say('EVOLUÇÃO', 'Você ainda não juntou tudo para evoluir. Jogue mais partidas para encher a barra de XP e evolua quando estiver pronto.', ['OK'], { step: '6 · EVOLUIR' });
+  else await say('EVOLUÇÃO', 'Evoluir gasta XP e recursos. Quando a barra estiver cheia, o botão EVOLUIR acende. Jogue partidas para juntar tudo!', ['OK'], { step: '6 · EVOLUIR' });
   await tap('#characters .ca-nav button:nth-child(1)', 'VOLTAR AO LOBBY', 'Agora volte ao lobby.', { step: '7 · MAPAS' });
   await waitFor(() => vis($('lobby')));
   await tap('#mcModeBtn', 'MAPAS', 'Vamos ver o que cada mapa faz. Toque em MAPAS.', { step: '7 · MAPAS' });
@@ -193,7 +202,7 @@ async function part2() {
   await tap('.settings-done', 'PRONTO', 'Toque em PRONTO para fechar.', { step: '8 · GRÁFICOS' });
   await sleep(400);
   await say('TUTORIAL CONCLUÍDO!', 'Agora é com você. Evolua seus personagens, abra caixas e suba nos troféus. Boa sorte na arena!', ['JOGAR!'], { step: 'FIM' });
-  st.done = true; st.stage = 'done'; save(st);
+  await finish();
 }
 
 /* ---------- controle ---------- */
@@ -206,15 +215,20 @@ async function run() {
 }
 function boot() {
   build();
-  if (new URLSearchParams(location.search).get('tutorial') === '1') { st = { stage: 'new' }; save(st); }
-  if (st.done) return;
+  if (new URLSearchParams(location.search).get('tutorial') === '1') { st = { stage: 'new', redo: true }; save(st); }
+  if (st.done && !st.redo) return;
   if (st.stage === 'inmatch') { run(); return; }
-  if (needs()) { st.stage = 'new'; run(); } else { st.done = true; st.stage = 'done'; save(st); }
+  st.stage = 'new'; run();   // quem decide se repete é a conta (part1)
 }
 /* volta da partida: continua o tutorial */
 addEventListener('message', e => { if (e.data && e.data.type === 'cyberarena:match-result' && st.stage === 'inmatch') { st.matched = true; save(st); }
   if (e.data && e.data.type === 'cyberarena:exit-world' && st.stage === 'inmatch' && !running) setTimeout(run, 600); });
-window.CATut = { restart() { st = { stage: 'new' }; save(st); try { window.closeSettings && window.closeSettings(); } catch (_) { } running = false; setTimeout(run, 300); }, get state() { return st; } };
-let lastAcct = acct();
-setInterval(() => { const a = acct(); if (a === lastAcct) return; lastAcct = a; if (running) return; st = load(); boot(); }, 1500);   // trocou/criou conta: tutorial dessa conta
+window.CATut = {
+  restart() {
+    if (running) return;
+    try { window.closeSettings && window.closeSettings(); } catch (_) { }
+    hide(); st = { stage: 'new', redo: true }; save(st); setTimeout(run, 350);
+  },
+  get state() { return st; }
+};
 if (document.readyState === 'complete') setTimeout(boot, 1200); else addEventListener('load', () => setTimeout(boot, 1200));

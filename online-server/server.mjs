@@ -126,7 +126,7 @@ function cleanup() {
 }
 
 function queue(p, body) {
-  const mode = body.mode === 'open' ? 'open' : body.mode === 'space' ? 'space' : body.mode === 'train' ? 'train' : 'battle', code = cleanCode(body.code);   // 'open' = mundo aberto, 'space' = teste de poderes online, 'train' = treino online (sala livre, separada do mundo aberto)
+  const mode = ['open', 'space', 'train', 'soccer_gold', 'soccer_blue'].includes(body.mode) ? body.mode : 'battle', code = cleanCode(body.code);   // soccer_* = estádios (um por mapa): quem entra cai na sala que já tem gente e ainda não está cheia, igual ao mundo aberto;   // 'open' = mundo aberto, 'space' = teste de poderes online, 'train' = treino online (sala livre, separada do mundo aberto)
   cleanup();
   for (const r of rooms.values()) { const m = r.members.get(p.id); if (m && !m.left) m.left = true; }
   let room = null, best = -1;

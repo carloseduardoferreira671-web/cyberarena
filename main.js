@@ -213,7 +213,7 @@ const DEFAULT_PLAYER = {
   level:1, xp:0, total_xp:0, pass_xp:0, pass_level:1,
   free_offer_claimed:false, gem_offer_claimed:false, gem_offer_start:null,
   name_changes:0, box_daily:{date:'',mini:0,cyber:0,mecha:0},
-  pass_claimed:[], premium_pass:false, premium_claimed:[], account_claimed:[], inventory:{mini:0,cyber:0,mecha:0}, offer_seed:0, missions:{character_created:false,first_match:false,character_claimed:false,first_match_claimed:false}, inbox:[], redeemed_codes:[],
+  pass_claimed:[], premium_pass:false, premium_claimed:[], account_claimed:[], inventory:{mini:0,cyber:0,mecha:0}, offer_seed:0, missions:{character_created:false,first_match:false,character_claimed:false,first_match_claimed:false,tutorial_v2:false}, inbox:[], redeemed_codes:[],
 };
 let player={...DEFAULT_PLAYER};
 let cyberAccounts={};
@@ -779,6 +779,14 @@ async function completeCharacterCreationMission(){
  if(cyberRemoteMode){try{await remoteCommand('mark_character_created');}catch(e){showModal('MISSÃO','Não foi possível atualizar',remoteErrorMessage(e));}return;}
  if(!player.missions)player.missions={...DEFAULT_PLAYER.missions};player.missions.character_created=true;saveGame();renderAll();
 }
+/* tutorial: o "concluído" fica salvo na CONTA (conta online = servidor; conta local/convidado = neste aparelho) */
+function tutorialIsDone(){ return !!(player&&player.missions&&player.missions.tutorial_v2); }
+async function markTutorialDone(){
+ if(tutorialIsDone())return true;
+ if(cyberRemoteMode){try{await remoteCommand('mark_tutorial_done');return true;}catch(e){return false;}}
+ if(!player.missions)player.missions={...DEFAULT_PLAYER.missions};player.missions.tutorial_v2=true;saveGame();return true;
+}
+window.tutorialIsDone=tutorialIsDone;window.markTutorialDone=markTutorialDone;window.tutorialAccountId=()=>activeCyberAccountId||'guest';
 async function completeFirstMatchMission(){
  if(cyberRemoteMode){try{await remoteCommand('mark_first_match');}catch(e){showModal('MISSÃO','Não foi possível atualizar',remoteErrorMessage(e));}return;}
  if(!player.missions)player.missions={...DEFAULT_PLAYER.missions};player.missions.first_match=true;saveGame();renderAll();

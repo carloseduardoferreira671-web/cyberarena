@@ -100,7 +100,7 @@ function defaultState(name = 'CYBER') {
     account_claimed: [],
     inventory: { mini: 0, cyber: 0, mecha: 0 },
     offer_seed: 0,
-    missions: { character_created: false, first_match: false, character_claimed: false, first_match_claimed: false },
+    missions: { character_created: false, first_match: false, character_claimed: false, first_match_claimed: false, tutorial_v2: false },
     inbox: [],
     redeemed_codes: []
   };
@@ -282,7 +282,7 @@ function commandError(status, error, extra = {}) { const e = new Error(error); e
 async function runCommand(req,res,next) {
   const operation = String(req.body?.operation || '').trim();
   const payload = req.body?.payload && typeof req.body.payload === 'object' ? req.body.payload : {};
-  const allowed = new Set(['claim_free_offer','claim_gem_offer','buy_offer','buy_gem_bundle','open_box','buy_premium','claim_pass_reward','claim_premium_reward','claim_account_reward','claim_mission','change_name','claim_inbox_reward','mark_character_created','mark_first_match']);
+  const allowed = new Set(['claim_free_offer','claim_gem_offer','buy_offer','buy_gem_bundle','open_box','buy_premium','claim_pass_reward','claim_premium_reward','claim_account_reward','claim_mission','change_name','claim_inbox_reward','mark_character_created','mark_first_match','mark_tutorial_done']);
   if (!allowed.has(operation)) return res.status(400).json({error:'unknown_operation'});
   const client = await pool.connect();
   try {
@@ -385,6 +385,8 @@ async function runCommand(req,res,next) {
       state.missions.character_created = true; result = {type:'mission_progress',id:'character'};
     } else if (operation === 'mark_first_match') {
       state.missions.first_match = true; result = {type:'mission_progress',id:'first_match'};
+    } else if (operation === 'mark_tutorial_done') {
+      state.missions.tutorial_v2 = true; result = {type:'tutorial_done'};   // tutorial concluído: fica salvo na conta (vale em qualquer aparelho)
     }
 
     state = normalizeState(state,account.name); ensureDaily(state);

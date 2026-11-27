@@ -1233,4 +1233,13 @@ body.game-control-editing .game-control-done{display:block}body.game-control-edi
 #tutL .tl-btns:empty{display:none}
 #tutL .tl-btns button{min-height:38px;padding:0 20px;border-radius:10px;border:1.5px solid rgba(255,255,255,.4);background:rgba(255,255,255,.08);color:#fff;font:800 13px system-ui;letter-spacing:.05em}
 #tutL .tl-btns button.prim{background:linear-gradient(#35e0a1,#119a6a);border-color:#8ff5d2;color:#04231a}
-#tutL .tl-btns button.skip{background:transparent;border-color:rgba(255,255,255,.28);font-size:11px;min-height:32px;padding:0 14px;opacity:.9}
+
+/* ---------- barra "Tutorial" nas configurações ---------- */
+.setting-row.tut-setting{display:flex;flex-direction:row;align-items:center;justify-content:flex-start;gap:12px;border:1.5px solid rgba(53,224,255,.55);background:linear-gradient(100deg,rgba(53,224,255,.16),rgba(0,0,0,.28));box-shadow:0 0 14px rgba(53,224,255,.18)}
+.tut-setting .ts-ic{flex:0 0 40px;height:40px;border-radius:12px;display:grid;place-items:center;font-size:21px;background:rgba(53,224,255,.18);border:1px solid rgba(53,224,255,.5)}
+.tut-setting .ts-tx{flex:1 1 auto;min-width:0!important}
+.tut-setting .ts-tx b{font-size:13px;letter-spacing:.06em;color:#ffd34d}
+.tut-setting .ts-tx small{font-size:9px;opacity:.75;line-height:1.35}
+.tut-setting .ts-btn{flex:0 0 auto;min-height:40px;padding:0 16px;border-radius:11px;border:1.5px solid #8ff5d2;background:linear-gradient(#35e0a1,#119a6a);color:#04231a;font:800 12px system-ui,sans-serif;letter-spacing:.05em;white-space:nowrap;cursor:pointer}
+.tut-setting .ts-btn:active{transform:scale(.96)}
+@media(max-width:600px){.setting-row.tut-setting{flex-direction:row;align-items:center;flex-wrap:wrap}.tut-setting .ts-btn{flex:1 1 100%}}

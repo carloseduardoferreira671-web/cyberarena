@@ -100,7 +100,7 @@ function openWorld(mode, extra = '', code = S.code) {
   }
   try { window.closeCharacterTestMenu?.(); } catch (_) { }
   let w = $('world3d'); if (!w) { w = document.createElement('iframe'); w.id = 'world3d'; w.className = 'world3d-frame'; w.setAttribute('allow', 'fullscreen; autoplay'); w.title = 'CyberArena · Mundo 3D'; document.body.appendChild(w); }
-  const id = getIdentity(); w.src = `mundo/index.html?mode=${mode}&char=${curChar()}${code && mode !== 'train' && mode !== 'space' ? '&code=' + encodeURIComponent(code) : ''}${S.party && (mode === 'battle' || mode === 'open' || mode === 'space') && !extra.includes('offline') ? '&party=' + S.party : ''}${extra}`; w.classList.remove('hidden');
+  const id = getIdentity(); w.src = `mundo/index.html?mode=${mode}&char=${curChar()}${code && mode !== 'train' && mode !== 'space' ? '&code=' + encodeURIComponent(code) : ''}${S.party && (mode === 'battle' || mode === 'open' || mode === 'space' || mode.startsWith('soccer')) && !extra.includes('offline') ? '&party=' + S.party : ''}${extra}`; w.classList.remove('hidden');
   document.querySelectorAll('.screen').forEach(s => s.classList.add('hidden')); document.body.classList.add('world3d-open'); pauseHeroes(true);
   try { const m = $('lobbyMusic'); if (m && !m.paused) m.pause(); const m2 = $('lobbyMusicB'); if (m2 && !m2.paused) m2.pause(); } catch (_) { }
   try { window.playUISound?.('play'); } catch (_) { } setTimeout(() => { try { w.focus(); } catch (_) { } }, 300);

@@ -12,12 +12,12 @@ export const MODES = [
   { id: 'space', map: 'Espaço de Treino', name: 'TREINO', tag: 'TESTE DE PODERES', players: 'ONLINE · TREINO', btn: 'ESCOLHER', cover: 'assests/modes/space.webp', accent: '#58a6ff',
     desc: 'Uma plataforma flutuante entre estrelas, cristais e ilhas no espaço. Um lugar tranquilo para treinar, sem pressa e sem pontuação.',
     chips: ['4 ALVOS', 'ENERGIA RÁPIDA', 'SEM RISCO'] },
-  { id: 'soccer_gold', map: 'Estádio Dourado', name: 'FUTEBOL', tag: 'PÔR DO SOL', players: 'TREINO · PÊNALTIS', btn: 'ESCOLHER', cover: 'assests/modes/soccer_gold.webp', accent: '#ffb020',
-    desc: 'Um estádio ao pôr do sol, com torcida, refletores e placar 3D. Bola com física de verdade: carregue o chute, dê efeito e bata pênaltis contra o goleiro.',
-    chips: ['FÍSICA DA BOLA', 'PÊNALTIS', 'OFFLINE'] },
-  { id: 'soccer_blue', map: 'Estádio Azul', name: 'FUTEBOL', tag: 'NOITE', players: 'TREINO · PÊNALTIS', btn: 'ESCOLHER', cover: 'assests/modes/soccer_blue.webp', accent: '#38b6ff',
-    desc: 'O mesmo campo numa noite fria sob luzes azuis. Chute, passe, cruze e bata pênaltis com o goleiro bot.',
-    chips: ['FÍSICA DA BOLA', 'PÊNALTIS', 'OFFLINE'] },
+  { id: 'soccer_gold', map: 'Estádio Dourado', name: 'FUTEBOL', tag: 'PÔR DO SOL', players: 'ATÉ 16 JOGADORES', btn: 'ESCOLHER', cover: 'assests/modes/soccer_gold.webp', accent: '#ffb020',
+    desc: 'Um estádio ao pôr do sol, com torcida, refletores e placar 3D. Entre numa sala com quem já está lá. Bola com física de verdade: carregue o chute, dê efeito e bata pênaltis contra o goleiro.',
+    chips: ['ONLINE', 'FÍSICA DA BOLA', 'PÊNALTIS'] },
+  { id: 'soccer_blue', map: 'Estádio Azul', name: 'FUTEBOL', tag: 'NOITE', players: 'ATÉ 16 JOGADORES', btn: 'ESCOLHER', cover: 'assests/modes/soccer_blue.webp', accent: '#38b6ff',
+    desc: 'O mesmo campo numa noite fria sob luzes azuis. Entre numa sala com quem já está lá. Chute, passe, cruze e bata pênaltis com o goleiro bot.',
+    chips: ['ONLINE', 'FÍSICA DA BOLA', 'PÊNALTIS'] },
 ];
 
 const $ = id => document.getElementById(id);

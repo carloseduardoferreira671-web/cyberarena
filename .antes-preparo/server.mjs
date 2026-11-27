@@ -126,7 +126,7 @@ function cleanup() {
 }
 
 function queue(p, body) {
-  const mode = body.mode === 'open' ? 'open' : body.mode === 'space' ? 'space' : body.mode === 'train' ? 'train' : 'battle', code = cleanCode(body.code);   // 'open' = mundo aberto, 'space' = teste de poderes online, 'train' = treino online (sala livre, separada do mundo aberto)
+  const mode = ['open', 'space', 'train', 'soccer_gold', 'soccer_blue'].includes(body.mode) ? body.mode : 'battle', code = cleanCode(body.code);   // soccer_* = estádios (um por mapa): quem entra cai na sala que já tem gente e ainda não está cheia, igual ao mundo aberto;   // 'open' = mundo aberto, 'space' = teste de poderes online, 'train' = treino online (sala livre, separada do mundo aberto)
   cleanup();
   for (const r of rooms.values()) { const m = r.members.get(p.id); if (m && !m.left) m.left = true; }
   let room = null, best = -1;
@@ -238,7 +238,7 @@ function finish(p, body) {
 }
 
 /* ---------------- HTTP ---------------- */
-const send = (res, status, data) => { const b = JSON.stringify(data); res.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store', ...CORS }); res.end(b); };
+const send = (res, status, data) => { /*gz-api*/ const b = JSON.stringify(data), h = { 'content-type': 'application/json', 'cache-control': 'no-store', ...CORS }; if (b.length > 300 && /\bgzip\b/.test(res._ae || '')) { const z = zlib.gzipSync(b, { level: 4 }); h['content-encoding'] = 'gzip'; h.vary = 'accept-encoding'; res.writeHead(status, h); return res.end(z); } res.writeHead(status, h); res.end(b); };
 
 async function api(req, res, route) {
   try {
@@ -319,11 +319,13 @@ const limited = req => { const ip = String(req.headers['x-forwarded-for'] || req
 
 http.createServer((req, res) => {
   const url = new URL(req.url, 'http://x');
+  res._ae = req.headers['accept-encoding'] || '';
   if ((url.pathname.startsWith('/api/') || url.pathname === '/api') && req.method !== 'OPTIONS' && limited(req)) return send(res, 429, { error: 'Muitas requisições' });
   if (url.pathname === '/sobre') return serveStatic(req, res, '/site/index.html');   // página de apresentação (opcional); o jogo É o site em "/"
   if (url.pathname === '/jogar') { res.writeHead(302, { location: '/' }); return res.end(); }
   if (req.method === 'OPTIONS') { res.writeHead(204, CORS); return res.end(); }
   if (url.pathname.startsWith('/api/') || url.pathname === '/api') return api(req, res, url.pathname.replace(/^\/api\/?/, '').replace(/\/$/, ''));
   if (req.method !== 'GET' && req.method !== 'HEAD') { res.writeHead(405); return res.end(); }
+  /*site-redirect*/ const SITE = (process.env.SITE_URL || '').replace(/\/$/, ''); if (SITE) { let h = ''; try { h = new URL(SITE).host; } catch {} if (h && (req.headers.host || '') !== h) { res.writeHead(302, { location: SITE + req.url, 'cache-control': 'no-store' }); return res.end(); } }
   serveStatic(req, res, url.pathname);
 }).listen(PORT, '0.0.0.0', () => console.log(`CyberArena online em http://localhost:${PORT}  (site + API /api)`));

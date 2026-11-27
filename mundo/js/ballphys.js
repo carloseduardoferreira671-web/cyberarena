@@ -27,7 +27,7 @@ export class BallPhys {
   launch(vx, vy, vz, wx, wy, wz) { this.vx = vx; this.vy = vy; this.vz = vz; this.wx = wx; this.wy = wy; this.wz = wz; this.onGround = false; this.rest = 0; }
   step(dt) {
     if (this.frozen) return;
-    const sp = this.speed, n = Math.min(14, Math.max(1, Math.ceil(sp * dt / (R * .45))));
+    const sp = this.speed, n = Math.min(32, Math.max(1, Math.ceil(sp * dt / (R * .45))));   // chutes de até ~70 m/s: sem atravessar trave/rede nem com FPS baixo
     const h = dt / n; for (let i = 0; i < n; i++) this.sub(h);
   }
   sub(h) {

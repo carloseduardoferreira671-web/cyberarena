@@ -214,12 +214,12 @@ const ctlEd = initCtl({ trainlike: TRAINLIKE, autoEdit: params.get('ctl') === '1
   let id = null, lx = 0, ly = 0, moved = 0, t0 = 0, pinch = null; const touches = new Map();
   canvas.addEventListener('pointerdown', e => { audio.unlock(); canvas.focus(); touches.set(e.pointerId, [e.clientX, e.clientY]); if (touches.size === 2) { const p = [...touches.values()]; pinch = { d: Math.hypot(p[0][0] - p[1][0], p[0][1] - p[1][1]), dist: camS.dist }; } if (id === null) { id = e.pointerId; lx = e.clientX; ly = e.clientY; moved = 0; t0 = performance.now(); canvas.setPointerCapture(e.pointerId); } });
   canvas.addEventListener('pointermove', e => { if (touches.has(e.pointerId)) touches.set(e.pointerId, [e.clientX, e.clientY]);
-    if (pinch && touches.size === 2) { const p = [...touches.values()], d = Math.hypot(p[0][0] - p[1][0], p[0][1] - p[1][1]); camS.dist = clamp(pinch.dist * pinch.d / d, camS.mode === 'tps' ? 3.2 : 14, camS.mode === 'tps' ? 10 : 36); return; }
+    if (pinch && touches.size === 2) { const p = [...touches.values()], d = Math.hypot(p[0][0] - p[1][0], p[0][1] - p[1][1]); camS.dist = clamp(pinch.dist * pinch.d / d, camS.mode === 'tps' ? 3.2 : 8, camS.mode === 'tps' ? 10 : 54); return; }
     if (e.pointerId !== id) return; const dx = e.clientX - lx, dy = e.clientY - ly; lx = e.clientX; ly = e.clientY; moved += Math.abs(dx) + Math.abs(dy);
-    const k = .0055 * SET.sens * (isTouch ? 1.1 : 1); camS.yaw -= dx * k; camS.pitch = clamp(camS.pitch + dy * k * .8, camS.mode === 'tps' ? -.45 : .5, camS.mode === 'tps' ? 1.15 : 1.35); });
+    const k = .0055 * SET.sens * (isTouch ? 1.1 : 1); camS.yaw -= dx * k; camS.pitch = clamp(camS.pitch + dy * k * .8, camS.mode === 'tps' ? -.45 : .1, camS.mode === 'tps' ? 1.15 : 1.5); });   // câmera alta: gira e inclina quase por inteiro (de ~6° até ~86°)
   const up = e => { touches.delete(e.pointerId); if (touches.size < 2) pinch = null; if (e.pointerId !== id) return; id = null; if (!isTouch && moved < 6 && performance.now() - t0 < 350) { if (e.button === 2) act('laser'); else if (e.button === 0) act('punch'); } };
   canvas.addEventListener('pointerup', up); canvas.addEventListener('pointercancel', up); canvas.addEventListener('contextmenu', e => e.preventDefault());
-  canvas.addEventListener('wheel', e => { camS.dist = clamp(camS.dist * (1 + Math.sign(e.deltaY) * .1), camS.mode === 'tps' ? 3.2 : 14, camS.mode === 'tps' ? 10 : 36); e.preventDefault(); }, { passive: false });
+  canvas.addEventListener('wheel', e => { camS.dist = clamp(camS.dist * (1 + Math.sign(e.deltaY) * .1), camS.mode === 'tps' ? 3.2 : 8, camS.mode === 'tps' ? 10 : 54); e.preventDefault(); }, { passive: false });
 }
 const hold = (el, fn) => { el.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); audio.unlock(); fn(); }); };
 hold($('bAtk'), () => act('punch')); hold($('bLas'), () => act('laser')); hold($('bSup'), () => act('super')); hold($('bSolar'), () => act('solar')); hold($('bJmp'), () => { input.jump = true; }); hold($('bVel'), () => act('extra')); hold($('bSwap'), () => swapAbyss(me));
@@ -342,7 +342,7 @@ const DMG = { punch: [10, 12, 20], laser: 18, super: 42 };
 /* nível do personagem (vem do lobby): HP, dano e velocidade crescem com a evolução — limites pensados p/ não quebrar o PvP */
 const CS = globalThis.CYBER_STATS;   // mundo/js/charstats.js (carregado antes deste módulo)
 const hpPct = a => a.maxHp ? a.hp / a.maxHp * 100 : a.hp;   // só para a IA/efeitos: vida como % da vida máxima
-const ME_BUFF = (() => { try { const id = JSON.parse(localStorage.getItem('cyberarena.identity') || '{}'), c = JSON.parse(localStorage.getItem('cyberarena.chars.v1') || '{}'), ch = CS.idOf(id.char || 'nexus'); return { lvl: CS.clampL((c[ch] || {}).lvl) }; } catch (_) { return { lvl: 1 }; } })();
+const ME_BUFF = (() => { try { try { parent.__ensureSlot && parent.__ensureSlot(); } catch (_) { } const id = JSON.parse(localStorage.getItem('cyberarena.identity') || '{}'), c = JSON.parse(localStorage.getItem('cyberarena.chars.v1') || '{}'), ch = CS.idOf(id.char || 'nexus'); return { lvl: CS.clampL((c[ch] || {}).lvl) }; } catch (_) { return { lvl: 1 }; } })();
 
 function canFight() { return (MODE === 'battle' && G.phase === 'live') || TRAINLIKE; }
 function findTarget(a, range, cone, dir) {
@@ -1680,7 +1680,7 @@ function updateCamera(dt) {
   const p = camS.pitch, cd = tps ? Math.max(2.6, cdc * camS.zk) : rawD, dx = -Math.sin(fy) * Math.cos(p), dy = Math.sin(p), dz = -Math.cos(fy) * Math.cos(p);
   let ex = camS.tx + dx * cd, ey = camS.ty + dy * cd, ez = camS.tz + dz * cd;
   const spatialCamera = !!spaceSt || !!ns;
-  const blk = spatialCamera ? null : envOf(f).rayBlocked(camS.tx, camS.ty, camS.tz, ex, ey, ez); let want = cd; if (blk) want = Math.max(1.4, cd * blk.t - .4);
+  const blk = (spatialCamera || (!tps && MODE === 'soccer')) ? null : envOf(f).rayBlocked(camS.tx, camS.ty, camS.tz, ex, ey, ez); let want = cd; if (blk) want = Math.max(1.4, cd * blk.t - .4);
   camS.cur = camS.cur == null ? want : (want < camS.cur ? want : lerp(camS.cur, want, 1 - Math.exp(-dt * 4))); ex = camS.tx + dx * camS.cur; ey = camS.ty + dy * camS.cur; ez = camS.tz + dz * camS.cur;
   // No espaço cinematográfico a câmera não pode ser empurrada de volta para cima do terreno invisível.
   if (!spatialCamera) ey = Math.max(ey, envOf(f).groundAt(ex, ez, ey + 2) + .5, inRealm(f) ? -1e9 : WATER_Y + .4);

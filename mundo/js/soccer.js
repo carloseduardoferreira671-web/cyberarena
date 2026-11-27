@@ -10,13 +10,18 @@ import { solveAim, launchVec, accuracy, errCone, pickFoot } from './aim.js';   /
 const { HL, HW, GW, GH, CX } = FIELD, R = BALL.R, PI = Math.PI, TAU = PI * 2;
 const clamp = (x, a, b) => x < a ? a : x > b ? b : x, lerp = (a, b, t) => a + (b - a) * t, d2r = d => d * PI / 180;
 const angDiff = (a, b) => { let d = a - b; while (d > PI) d -= TAU; while (d < -PI) d += TAU; return d; };
-const KICK = {   // velocidade (m/s) mínima→máxima, elevação base e alcance do efeito, tempo de carga
-  shot: { v0: 9, v1: 33, el: 5, elUp: 24, elDn: 4, spin: 46, full: .95, label: 'CHUTE' },
-  pass: { v0: 5.5, v1: 20, el: 1.2, elUp: 10, elDn: 0, spin: 12, full: .7, label: 'PASSE' },
-  cross: { v0: 11, v1: 26, el: 36, elUp: 48, elDn: 24, spin: 34, full: .85, label: 'CRUZAMENTO' },
-  chip: { v0: 9, v1: 27, el: 30, elUp: 44, elDn: 20, spin: 18, full: .8, label: 'LANÇAMENTO' },
-  head: { v0: 7, v1: 19, el: -4, elUp: 12, elDn: -14, spin: 8, full: .6, label: 'CABECEIO' },
+/* Chutes mais fortes (estilo BLUE LOCK). v0/v1 = velocidade MOSTRADA (km/h → m/s) da carga mínima à máxima; b = fator de "sensação":
+   o mundo é grande e a câmera é aberta, então a bola real precisa andar b× mais rápido para PARECER a velocidade escrita.
+   Passe mínimo = 70 km/h, chute básico ≈ 90 km/h, chute carregado = 135 km/h (acima do Kaiser Impact, 104–130 km/h). */
+const kmh = v => v / 3.6;
+const KICK = {
+  shot: { v0: kmh(60), v1: kmh(135), b: 1.9, el: 5, elUp: 24, elDn: 4, spin: 46, full: .95, label: 'CHUTE' },
+  pass: { v0: kmh(70), v1: kmh(110), b: 1.7, el: 1.2, elUp: 10, elDn: 0, spin: 12, full: .7, label: 'PASSE' },
+  cross: { v0: kmh(85), v1: kmh(125), b: 1.35, el: 36, elUp: 48, elDn: 24, spin: 34, full: .85, label: 'CRUZAMENTO' },
+  chip: { v0: kmh(70), v1: kmh(115), b: 1.35, el: 30, elUp: 44, elDn: 20, spin: 18, full: .8, label: 'LANÇAMENTO' },
+  head: { v0: kmh(45), v1: kmh(95), b: 1.5, el: -4, elUp: 12, elDn: -14, spin: 8, full: .6, label: 'CABECEIO' },
 };
+const SB = 1.9;   // fator do chute: o goleiro compara a força do chute na escala "mostrada" (km/h do HUD), não na física
 const NAMES = { punch: 'shot', kick: 'shot', laser: 'pass', super: 'cross', extra: 'drib' };
 const KEYS = { h: 'shot', j: 'shot', k: 'pass', l: 'cross', q: 'cross' };
 
@@ -195,7 +200,7 @@ export function createSoccer(api) {
     if (!(d < reach && okH && fr > -.4)) { snd.whoosh(); return; }   // v161: bola ao lado ou levemente atrás também vale (antes só à frente)
     const K = KICK[kind] || KICK.shot, q = clamp(1 - Math.abs(d - .85) / 1.5, .65, 1), tg = aimTarget(), lift = liftIn;
     let yaw = tg ? aimYaw(tg) : (kind === 'shot' || kind === 'head') ? aimAssist(m.yaw) : m.yaw;   // direção = ponto da mira (sem mira: como antes)
-    const v = lerp(K.v0, K.v1, p) * (.9 + .1 * q);
+    const v = lerp(K.v0, K.v1, p) * (.9 + .1 * q) * K.b;   // velocidade real da bola (a mostrada no HUD × fator de sensação)
     let el = d2r(lift >= 0 ? lerp(K.el, K.elUp, lift) : lerp(K.el, K.elDn, -lift)) + (ball.y > R + .4 ? -.02 : 0);
     // chute no gol ou lançamento: simula a física e acha direção e altura para a bola CHEGAR no ponto da mira, com o efeito escolhido (gol olímpico)
     const T = tg && tg.t;
@@ -208,7 +213,7 @@ export function createSoccer(api) {
     yaw += (Math.random() + Math.random() - 1) * e; el += (Math.random() + Math.random() - 1) * e * .5;
     const [vx, vy, vz, wx, wy, wz] = launchVec({ kind, K, p, spin: spinIn, lift, v }, yaw, el);
     ball.launch(vx, vy, vz, wx, wy, wz); touchBall(m); S.ctl = 0; S.noCtl = .45;
-    snd.kick(p); S.maxV = Math.max(S.maxV, v);
+    snd.kick(p); S.maxV = Math.max(S.maxV, v / K.b);   // recorde mostrado em km/h do HUD
     if (kind === 'shot' || kind === 'head') { S.shots++; }
     if (S.pen) S.pen.kicked = true;
     if (p > .75 && fx && fx.emit) fx.emit(ball.x, ball.y, ball.z, 14, { color: [1, .9, .6], speed: 3.5, life: .35, size: .12, grav: 0 });
@@ -412,13 +417,34 @@ export function createSoccer(api) {
     const b = new BallPhys(); Object.assign(b, { x: ball.x, y: ball.y, z: ball.z, vx: ball.vx, vy: ball.vy, vz: ball.vz, wx: ball.wx, wy: ball.wy, wz: ball.wz, colliders: [] });
     for (let t = 0; t < maxT; t += 1 / 60) { b.step(1 / 60); if (b.z * sd >= HL - .1) return { x: b.x, y: b.y, t }; if (b.speed < .3) break; } return null;
   }
+  function predictLand(maxT = 1.5) {   // onde a bola desce até a altura das mãos (cruzamentos / bolas altas na área)
+    const b = new BallPhys(); Object.assign(b, { x: ball.x, y: ball.y, z: ball.z, vx: ball.vx, vy: ball.vy, vz: ball.vz, wx: ball.wx, wy: ball.wy, wz: ball.wz, colliders: [] });
+    for (let t = 0; t < maxT; t += 1 / 30) { b.step(1 / 30); if (b.y < 1.3 && b.vy <= 0) return { x: b.x, z: b.z, t }; } return null;
+  }
+  function gkGather(K) {   // goleiro domina a bola com as mãos (bola rasteira, solta ou nos pés do atacante dentro da área)
+    const g = K.g, st = K.st, l = L(g); if (!owns() || ball.frozen) return false;
+    ball.vx = ball.vy = ball.vz = 0; ball.frozen = true; banner('DEFESA!', 900); snd.save(); stadium.cheerUp(.25); S.hitPost = false;
+    if (l) { l.setTilt(0, false, 9); l.setDivePose(null); l.play('catch'); }
+    gkSetMode(st, 'hold'); st.throwing = false; st.chase = 0; st.punt = Math.random() < .5; return true;   // metade das vezes joga com a mão, metade chuta
+  }
   function gkSetMode(st, mode) { st.mode = mode; st.t = 0; }
   function gkUpdate(K, dt) {
     const g = K.g, st = K.st, sd = K.sd; if (!g || !st) return; const br = g.brain, l = L(g), rig = g.hero.atlasRig; br.mx = br.mz = 0;
     if (!K.on()) return; if (!l) return; const skill = S.x1 ? .74 : S.mode === 'pen' ? .56 : .7; st.cool -= dt; st.think -= dt; st.t += dt;
     const toB = Math.atan2(ball.x - g.x, ball.z - g.z); g.aimT = .2; g.yaw += angDiff(toB, g.yaw) * Math.min(1, 10 * dt);
     const hp = tmpP, hold = () => { if (!owns()) return; l.handsPos(hp); ball.frozen = true; ball.place(hp.x, Math.max(R, hp.y), hp.z); ball.frozen = true; };
-    if (st.mode === 'hold') { rig.forceSpd = 0; l.setReady(false); hold(); if (st.t > .95) { gkSetMode(st, 'throw'); st.toss = S.mode === 'train'; l.play('gkthrow'); } return; }
+    if (st.mode === 'hold') {
+      rig.forceSpd = 0; l.setReady(false); hold();
+      if (st.punt && S.mode !== 'pen') g.yaw = sd > 0 ? PI : 0;   // de frente para o campo
+      if (st.t > (st.punt ? .8 : .95)) {
+        if (st.punt && S.mode !== 'pen' && owns()) {   // solta a bola nos pés, domina e chuta
+          const fx = Math.sin(g.yaw), fz = Math.cos(g.yaw); ball.frozen = false; ball.vx = ball.vy = ball.vz = 0; ball.place(g.x + fx * 1.05, R, g.z + fz * 1.05); touchBall(g);
+          st.kicking = true; gkSetMode(st, 'kick'); l.setReady(false); l.play('shot');
+        } else { gkSetMode(st, 'throw'); st.toss = S.mode === 'train'; l.play('gkthrow'); }
+      }
+      return;
+    }
+    if (st.mode === 'kick') { rig.forceSpd = 0; if (st.kicking && st.t > .95) gkKickImpact(K); if (st.t > 1.4) { st.kicking = false; gkSetMode(st, 'ready'); l.setReady(true); } return; }
     if (st.mode === 'throw') { rig.forceSpd = 0; if (ball.frozen) hold(); if (st.t > .95) { gkSetMode(st, 'ready'); l.setReady(true); } return; }
     if (st.mode === 'down') { rig.forceSpd = 0; if (st.t > .55) { gkSetMode(st, 'getup'); l.setTilt(0, false, 8); l.setDivePose(null); l.play('getup'); } return; }
     if (st.mode === 'getup') { rig.forceSpd = 0; if (st.t > .7) { gkSetMode(st, 'ready'); l.setReady(true); } return; }
@@ -430,10 +456,18 @@ export function createSoccer(api) {
       gkSave(K, true, D); return;
     }
     // ----- pronto / corrida -----
-    const gx = cx, gz = sd * HL, bdx = ball.x - gx, bdz = ball.z - gz, bd = Math.hypot(bdx, bdz) || 1, out = clamp(bd * .075, .5, 4.2);
-    let tx = clamp(gx + bdx / bd * out * 1.3, cx - GW + .6, cx + GW - .6), tz = sd * clamp(sd * (gz + bdz / bd * out), HL - 4.4, HL - .5), run = false;
-    // bola solta perto da área: sai e pega
-    if (S.state === 'play' && S.mode === 'train' && S.last !== g && ball.speed < 7 && ball.y < .7 && sd * ball.z > HL - 14 && Math.abs(ball.x - cx) < 17 && humanBallDist() > 6 && !S.ctl) { tx = ball.x; tz = ball.z; run = true; }
+    const gx = cx, gz = sd * HL, bdx = ball.x - gx, bdz = ball.z - gz, bd = Math.hypot(bdx, bdz) || 1, depth = sd * ball.z, ax = Math.abs(ball.x - cx);
+    const inBox = depth > HL - 16.5 && ax < 20.5, zone = depth > HL - 27 && ax < 29, hb = humanBallDist(), live = S.state === 'play' && S.mode !== 'pen' && S.last !== g;
+    const danger = live && zone && hb < 11;   // atacante chegando perto da área: o goleiro SAI e fecha o ângulo, em vez de ficar só na linha
+    const out = danger ? clamp(bd * .5 - 1.5, 1, 9.5) : clamp(bd * .075, .5, 4.2);
+    let tx = clamp(gx + bdx / bd * out * 1.3, cx - GW + .6, cx + GW - .6), tz = sd * clamp(sd * (gz + bdz / bd * out), HL - (danger ? 10.5 : 4.4), HL - .5), run = false;
+    // bola solta, rasteira ou nos pés do atacante dentro da área: vai ATÉ ela, domina e depois joga com a mão ou chuta
+    const pursue = live && inBox && ball.y < 1.25 && ball.speed < 12;
+    if (pursue) { st.chase = (st.chase || 0) + dt; tx = ball.x; tz = ball.z; run = true; } else st.chase = 0;
+    // bola alta/cruzamento que vai descer na área: corre até o ponto de queda
+    if ((st.lpT = (st.lpT || 0) - dt) <= 0) { st.lpT = .15; st.lp = (!pursue && live && depth > HL - 32 && ball.y > .9 && ball.speed > 3 && hb > 2.2) ? predictLand() : null; }
+    if (!pursue && st.lp && st.lp.t > .15 && sd * st.lp.z > HL - 17 && Math.abs(st.lp.x - cx) < 19) { tx = st.lp.x; tz = st.lp.z; run = true; }
+    if (live && owns() && !ball.frozen && st.mode === 'ready' && (pursue || st.lp) && Math.hypot(ball.x - g.x, ball.z - g.z) < 1.45 && ball.y < 1.75 && ball.speed < 12 && (!S.ctl || st.chase > .4) && gkGather(K)) return;
     if (st.plan) { /* seguindo uma jogada */ }
     else if (st.think <= 0 && ball.vz * sd > 3 && ball.speed > 7 && isHuman(S.last) && st.cool <= 0) {
       st.think = .06; const pr = predict(sd);
@@ -469,9 +503,9 @@ export function createSoccer(api) {
     const g = K.g, st = K.st, sd = K.sd, l = L(g); if (!owns() || ball.frozen || S.last === g || ball.speed < .5) return;
     const ext = diving ? 1.15 : .4, dirx = diving ? (D.x1 - D.x0 >= 0 ? 1 : -1) : 0, hx = g.x + dirx * ext, hy = g.y + (diving ? (D.kind === 'low' ? .7 : D.kind === 'mid' ? 1.3 : 2.1) : 1.3), hz = g.z;
     const dd = Math.hypot(ball.x - hx, ball.y - hy, ball.z - hz); if (dd > (diving ? 1.6 : 1.35)) return;
-    const sp = ball.speed, pCatch = clamp(1.05 - sp / 22, .12, .95) * (S.mode === 'pen' ? .8 : .9), catchable = sp < 9 || (sp < 19 && hashf(sp * 7.3 + ball.x * 3.7 + ball.y * 5.1) < pCatch);
+    const sp = ball.speed, spn = sp / SB, pCatch = clamp(1.05 - spn / 22, .12, .95) * (S.mode === 'pen' ? .8 : .9), catchable = spn < 9 || (spn < 19 && hashf(sp * 7.3 + ball.x * 3.7 + ball.y * 5.1) < pCatch);   // força na escala do HUD
     if (sd > 0) { S.saved++; resolveShot('save'); } S.hitPost = false; updateScoreHud();
-    if (catchable) { ball.vx = ball.vy = ball.vz = 0; ball.frozen = true; banner('DEFESA!', 900); snd.save(); stadium.cheerUp(.25); if (diving) { st.dive.hold = 9; } l.setTilt(0, false, 9); l.setDivePose(null); l.play('catch'); gkSetMode(st, 'hold'); st.throwing = false; }
+    if (catchable) { ball.vx = ball.vy = ball.vz = 0; ball.frozen = true; banner('DEFESA!', 900); snd.save(); stadium.cheerUp(.25); if (diving) { st.dive.hold = 9; } l.setTilt(0, false, 9); l.setDivePose(null); l.play('catch'); gkSetMode(st, 'hold'); st.throwing = false; st.punt = Math.random() < .5; }
     else { const nx = (ball.x - hx) / (dd || 1), out = Math.sign(ball.x - cx) || (hashf(ball.z * 9.1) < .5 ? -1 : 1); ball.vx = (nx * .45 + out * .55) * sp * .5; ball.vz = -sd * (Math.abs(ball.vz) * .4 + 2); ball.vy = Math.abs(ball.vy) * .4 + 2.8; banner('ESPALMOU!', 800); snd.save(); touchBall(g); if (!diving) l.play('punch'); if (diving) st.dive.hold = 0; }
     if (!diving) st.plan = null;
   }

@@ -8,7 +8,8 @@ import { U } from './world.js';
 import { box, cap } from './ballphys.js';
 
 const PI = Math.PI, TAU = PI * 2;
-export const FIELD = { L: 96, W: 60, GW: 4.8, GH: 3.0, GD: 2.4, HL: 48, HW: 30, BX: 36.4, BZ: 55.4, CX: REALM_X, CZ: 0 };
+export const FIELD = { L: 96, W: 60, GW: 6.2, GH: 3.8, GD: 3.2,   // gol maior (antes 4,8 × 3,0 × 2,4)
+   HL: 48, HW: 30, BX: 36.4, BZ: 55.4, CX: REALM_X, CZ: 0 };
 const { HL, HW, GW, GH, GD, BX, BZ } = FIELD;
 
 export const VENUES = {
@@ -137,11 +138,11 @@ export class Stadium {
     for (const s of [-1, 1]) {
       const zl = s * HL, zb = s * (HL + GD);
       for (const sx of [-1, 1]) {                                                                        // traves
-        P.push({ x: cx + sx * GW, z: zl, r: .1, y1: GH }); B.push(cap(cx + sx * GW, 0, zl, cx + sx * GW, GH, zl, .075, { e: .55, tf: .92, post: 1 }));
+        P.push({ x: cx + sx * GW, z: zl, r: .15, y1: GH }); B.push(cap(cx + sx * GW, 0, zl, cx + sx * GW, GH, zl, .115, { e: .55, tf: .92, post: 1 }));
         const xs = cx + sx * (GW + .14);                                                                  // rede lateral
         P.push({ x0: xs - .1, x1: xs + .1, z0: Math.min(zl, zb), z1: Math.max(zl, zb), y1: GH + .3 }); B.push(box(xs - .1, 0, Math.min(zl, zb), xs + .1, GH + .3, Math.max(zl, zb), { e: .12, tf: .5, soft: .45, net: s }));
       }
-      B.push(cap(cx - GW, GH, zl, cx + GW, GH, zl, .075, { e: .55, tf: .92, post: 1 }));                    // travessão
+      B.push(cap(cx - GW, GH, zl, cx + GW, GH, zl, .115, { e: .55, tf: .92, post: 1 }));                    // travessão
       P.push({ x0: cx - GW - .2, x1: cx + GW + .2, z0: Math.min(zb, zb + s * .2), z1: Math.max(zb, zb + s * .2), y1: GH + .3 });
       B.push(box(cx - GW - .2, 0, Math.min(zb, zb + s * .25), cx + GW + .2, GH + .3, Math.max(zb, zb + s * .25), { e: .1, tf: .45, soft: .35, net: s, back: 1 }));   // fundo da rede
       B.push(box(cx - GW - .2, GH + .02, Math.min(zl, zb), cx + GW + .2, GH + .3, Math.max(zl, zb), { e: .12, tf: .5, soft: .45, net: s }));           // teto da rede
@@ -295,19 +296,36 @@ void main(){vec3 d=normalize(vD);float y=max(d.y,0.);
     const g2 = new THREE.BufferGeometry(); g2.setAttribute('position', new THREE.Float32BufferAttribute(P2, 3)); g2.setIndex(I2); g2.computeVertexNormals(); const tm = new THREE.Mesh(g2, new THREE.MeshStandardMaterial({ color: 0x15181d, roughness: .6, side: THREE.DoubleSide })); G.add(tm);
   }
   buildGoals() {
-    const G = this.group, cx = REALM_X, post = new THREE.MeshStandardMaterial({ color: 0xf4f6f8, roughness: .35, metalness: .3 }), netTex = ctex(paintNet()); netTex.wrapS = netTex.wrapT = THREE.RepeatWrapping;
+    const G = this.group, cx = REALM_X, accent = new THREE.Color(this.V.boards[0]),
+      post = new THREE.MeshStandardMaterial({ color: 0xf6f8fa, roughness: .28, metalness: .35 }),
+      thin = new THREE.MeshStandardMaterial({ color: 0xdfe5ea, roughness: .4, metalness: .45 }),
+      netTex = ctex(paintNet()); netTex.wrapS = netTex.wrapT = THREE.RepeatWrapping;
     this.goals = [];
     for (const s of [-1, 1]) {
       const zl = s * HL, zb = s * (HL + GD), grp = new THREE.Group(); G.add(grp);
-      const cyl = (x0, y0, z0, x1, y1, z1, r) => { const a = new THREE.Vector3(x0, y0, z0), b = new THREE.Vector3(x1, y1, z1), L = a.distanceTo(b), m = new THREE.Mesh(new THREE.CylinderGeometry(r, r, L, 10), post); m.position.copy(a).add(b).multiplyScalar(.5); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize()); m.castShadow = true; grp.add(m); };
-      cyl(cx - GW, 0, zl, cx - GW, GH, zl, .075); cyl(cx + GW, 0, zl, cx + GW, GH, zl, .075); cyl(cx - GW, GH, zl, cx + GW, GH, zl, .075);
-      cyl(cx - GW, GH, zl, cx - GW, GH - .6, zb, .035); cyl(cx + GW, GH, zl, cx + GW, GH - .6, zb, .035);
-      const nm = (w, h, rx, ry) => { const t = netTex.clone(); t.needsUpdate = true; t.repeat.set(rx, ry); return new THREE.MeshBasicMaterial({ map: t, transparent: true, side: THREE.DoubleSide, depthWrite: false, opacity: .8, alphaTest: .05 }); };
+      const cyl = (x0, y0, z0, x1, y1, z1, r, m = post, shadow = true) => { const a = new THREE.Vector3(x0, y0, z0), b = new THREE.Vector3(x1, y1, z1), L = a.distanceTo(b), mm = new THREE.Mesh(new THREE.CylinderGeometry(r, r, L, 12), m); mm.position.copy(a).add(b).multiplyScalar(.5); mm.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize()); mm.castShadow = shadow; grp.add(mm); return mm; };
+      const trim = new THREE.MeshBasicMaterial({ color: accent.clone(), toneMapped: false }), base = accent.clone();
+      // moldura da frente: traves e travessão mais grossos
+      cyl(cx - GW, 0, zl, cx - GW, GH, zl, .115); cyl(cx + GW, 0, zl, cx + GW, GH, zl, .115); cyl(cx - GW, GH, zl, cx + GW, GH, zl, .115);
+      // moldura de trás (gol completo): colunas, barra de cima, barras laterais e base no chão
+      for (const sx of [-1, 1]) {
+        cyl(cx + sx * GW, 0, zb, cx + sx * GW, GH, zb, .06, thin); cyl(cx + sx * GW, GH, zl, cx + sx * GW, GH, zb, .06, thin);   // coluna traseira · barra lateral de cima
+        cyl(cx + sx * GW, .05, zl, cx + sx * GW, .05, zb, .05, thin, false);                                                   // base lateral
+        cyl(cx + sx * GW, GH, zl, cx + sx * GW, GH * .42, zb, .035, thin, false);                                              // escora diagonal
+      }
+      cyl(cx - GW, GH, zb, cx + GW, GH, zb, .06, thin); cyl(cx - GW, .05, zb, cx + GW, .05, zb, .05, thin, false);
+      // faixas de neon da cor do estádio nas traves e no travessão (dão identidade ao gol)
+      for (const sx of [-1, 1]) for (const y of [GH * .3, GH * .62]) cyl(cx + sx * GW, y - .09, zl, cx + sx * GW, y + .09, zl, .127, trim, false);
+      for (const k of [-.55, 0, .55]) cyl(cx + k * GW - .09, GH, zl, cx + k * GW + .09, GH, zl, .127, trim, false);
+      // linha de gol luminosa no chão e um brilho suave dentro da boca do gol
+      const line = new THREE.Mesh(new THREE.PlaneGeometry(GW * 2, .16), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: .55, toneMapped: false, depthWrite: false })); line.rotation.x = -PI / 2; line.position.set(cx, .03, zl); grp.add(line);
+      const glow = new THREE.Mesh(new THREE.PlaneGeometry(GW * 2, GH), new THREE.MeshBasicMaterial({ color: accent.clone(), transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, side: THREE.DoubleSide })); glow.position.set(cx, GH / 2, zb - s * .05); grp.add(glow);
+      const nm = (w, h, rx, ry) => { const t = netTex.clone(); t.needsUpdate = true; t.repeat.set(rx, ry); return new THREE.MeshBasicMaterial({ map: t, transparent: true, side: THREE.DoubleSide, depthWrite: false, opacity: .82, alphaTest: .05 }); };
       const nets = []; const mk = (w, h, rx, ry) => new THREE.Mesh(new THREE.PlaneGeometry(w, h, 12, 8), nm(w, h, rx, ry));
       const back = mk(GW * 2, GH, GW * 2 / .12, GH / .12); back.position.set(cx, GH / 2, zb); grp.add(back); nets.push(back);
       for (const sx of [-1, 1]) { const side = mk(GD, GH, GD / .12, GH / .12); side.position.set(cx + sx * GW, GH / 2, (zl + zb) / 2); side.rotation.y = PI / 2; grp.add(side); nets.push(side); }
       const top = mk(GW * 2, GD, GW * 2 / .12, GD / .12); top.rotation.x = PI / 2; top.position.set(cx, GH, (zl + zb) / 2); grp.add(top); nets.push(top);
-      this.goals.push({ s, grp, nets, rip: 0, hit: new THREE.Vector3() });
+      this.goals.push({ s, grp, nets, rip: 0, flash: 0, trim, glow, base, hit: new THREE.Vector3() });
     }
   }
   buildFlags() {
@@ -334,9 +352,10 @@ void main(){vec3 d=normalize(vD);float y=max(d.y,0.);
     if (!this.built || !this.group.visible) return; const dt = this.t ? Math.min(.1, t - this.t) : .016; this.t = t;
     this.sky.position.copy(cam); this.skyU.uTime.value = t; this.crowdU.uT.value = t; this.cheer = Math.max(0, this.cheer - dt * .35); this.crowdU.uCheer.value = Math.min(1, .12 + this.cheer);
     this.boardTex.offset.x = (t * .012) % 1;
+    for (const g of this.goals) if (g.flash > 0) { g.flash = Math.max(0, g.flash - dt * .6); const k = g.flash, on = (Math.sin(t * 18) * .5 + .5) * k; g.trim.color.copy(g.base).lerp(new THREE.Color(0xffffff), on); g.glow.material.opacity = k * (.28 + .22 * on); } else if (g.glow.material.opacity) { g.glow.material.opacity = 0; g.trim.color.copy(g.base); }
     for (const g of this.goals) if (g.rip > 0) { g.rip = Math.max(0, g.rip - dt * 1.4); const k = g.rip, w = Math.sin(t * 22) * k * .18; for (const n of g.nets) { n.position.y = (n.userData.y0 ?? (n.userData.y0 = n.position.y)) + w * .25; } }
     const sd = this.light.sunDir; U.uSun.value.set(sd[0], sd[1], sd[2]).normalize();
   }
-  goalRipple(side) { const g = this.goals[side > 0 ? 1 : 0]; if (g) g.rip = 1; }
+  goalRipple(side) { const g = this.goals[side > 0 ? 1 : 0]; if (g) { g.rip = 1; g.flash = 1; } }
   cheerUp(k = 1) { this.cheer = Math.min(1.4, this.cheer + k); }
 }

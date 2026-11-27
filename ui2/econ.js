@@ -8,8 +8,28 @@
 const $=id=>document.getElementById(id);
 const E={MAXLV:20,DAY:{coins:600,fichas:35},SOFT:.2,GEM_COIN:25,GEM_FICHA:5,XCH_DAY:20,
   MS:{5:{gems:3,coins:100},10:{gems:5,coins:250},15:{gems:8,coins:500},20:{gems:15,coins:1000}}};
-const jget=(k,d)=>{try{return JSON.parse(localStorage.getItem(k))||d}catch(_){return d}};
-const jset=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v))}catch(_){}};
+/* progresso por CONTA: níveis/XP dos personagens, garantias das caixas e limite de troca são guardados por conta.
+   As chaves 'cyberarena.chars.v1' etc. sempre guardam a conta ativa (game.js lê direto); ao trocar de conta, a anterior é guardada e a nova é carregada.
+   Conta nova começa do zero; no primeiro uso depois desta atualização, o que já existia continua com quem está logado agora. */
+const SLOT_KEYS=['cyberarena.chars.v1','cyberarena.pity.v1','cyberarena.xch.v1','cyberarena.econseen'];
+function ensureSlot(){
+  try{
+    const id=typeof activeCyberAccountId!=='undefined'?(activeCyberAccountId||''):'',owner=localStorage.getItem('cyberarena.slot');
+    if(owner===null){localStorage.setItem('cyberarena.slot',id);return}
+    if(owner===id)return;
+    for(const k of SLOT_KEYS){
+      const v=localStorage.getItem(k),sk='cyberarena.s:'+owner+':'+k;
+      if(v===null)localStorage.removeItem(sk);else localStorage.setItem(sk,v);
+      const nv=localStorage.getItem('cyberarena.s:'+id+':'+k);
+      if(nv===null)localStorage.removeItem(k);else localStorage.setItem(k,nv);
+    }
+    localStorage.setItem('cyberarena.slot',id);
+    try{seen.clear();for(const x of jget('cyberarena.econseen',[]))seen.add(x)}catch(_){}
+  }catch(_){}
+}
+window.__ensureSlot=ensureSlot;
+const jget=(k,d)=>{if(SLOT_KEYS.includes(k))ensureSlot();try{return JSON.parse(localStorage.getItem(k))||d}catch(_){return d}};
+const jset=(k,v)=>{if(SLOT_KEYS.includes(k))ensureSlot();try{localStorage.setItem(k,JSON.stringify(v))}catch(_){}};
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const CH={nexus:'NEXUS',cyber:'CYBER',atlas:'ATLAS'};
 const curChar=()=>{const c=(jget('cyberarena.identity',{})||{}).char;return CH[c]?c:'nexus'};

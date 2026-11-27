@@ -1233,3 +1233,4 @@ body.game-control-editing .game-control-done{display:block}body.game-control-edi
 #tutL .tl-btns:empty{display:none}
 #tutL .tl-btns button{min-height:38px;padding:0 20px;border-radius:10px;border:1.5px solid rgba(255,255,255,.4);background:rgba(255,255,255,.08);color:#fff;font:800 13px system-ui;letter-spacing:.05em}
 #tutL .tl-btns button.prim{background:linear-gradient(#35e0a1,#119a6a);border-color:#8ff5d2;color:#04231a}
+#tutL .tl-btns button.skip{background:transparent;border-color:rgba(255,255,255,.28);font-size:11px;min-height:32px;padding:0 14px;opacity:.9}

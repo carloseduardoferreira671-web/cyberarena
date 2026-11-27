@@ -2,11 +2,13 @@
    Parte 1: personagens → loja (gemas e caixas grátis) → modos (16 jogadores) → gráficos (ultra leve) → JOGAR (partida roteirizada)
    Parte 2 (ao voltar da partida): evoluir o Cyber → modos (o que cada um faz) → gráficos (perguntar se quer aumentar) → fim
    O jogador só consegue tocar no que o tutorial pede: o resto da tela fica escuro e bloqueado. */
-const KEY = 'cyberarena.tut.v1';
+const KEY0 = 'cyberarena.tut.v1';
+const acct = () => (typeof activeCyberAccountId !== 'undefined' && activeCyberAccountId) || '';
+const keyOf = () => KEY0 + (acct() ? '@' + acct() : '');   // o tutorial é por conta: conta nova = tutorial novo
 const $ = id => document.getElementById(id);
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-const load = () => { try { return JSON.parse(localStorage.getItem(KEY) || 'null') || {}; } catch (_) { return {}; } };
-const save = s => { try { localStorage.setItem(KEY, JSON.stringify(s)); } catch (_) { } };
+const load = () => { try { return JSON.parse(localStorage.getItem(keyOf()) || 'null') || {}; } catch (_) { return {}; } };
+const save = s => { try { localStorage.setItem(keyOf(), JSON.stringify(s)); } catch (_) { } };
 let st = load(), running = false, layer = null, cur = null;
 
 /* ---------- utilidades ---------- */
@@ -57,7 +59,7 @@ const hide = () => { cur = null; layer && layer.classList.add('hidden'); };
 function say(title, text, labels = ['CONTINUAR'], opt = {}) {
   return new Promise(res => show(title, text, { ...opt, buttons: labels.map((l, i) => ({ label: l, cls: i === 0 ? 'prim' : '', fn: () => { hide(); res(i); } })) }));
 }
-/* toque obrigatório: só o elemento destacado funciona */
+/* toque obrigatório: só o elemento destacado funciona. Depois de alguns segundos aparece "PULAR PASSO" para o jogador nunca ficar preso */
 async function tap(sel, title, text, opt = {}) {
   const el = await waitFor(() => find(sel), opt.wait || 9000);
   if (!el) return false;                                   // não existe nesta versão/conta: segue sem travar
@@ -65,11 +67,40 @@ async function tap(sel, title, text, opt = {}) {
   try { el.scrollIntoView({ block: 'nearest', inline: 'center' }); } catch (_) { }
   await sleep(120);
   return new Promise(res => {
+    let fin = false, skipT = 0; const done = v => { if (fin) return; fin = true; clearTimeout(skipT); document.removeEventListener('click', h, true); hide(); setTimeout(() => res(v), v ? (opt.delay ?? 300) : 80); };
+    const h = e => { if (!el.contains(e.target)) return; done(true); };
     show(title, text, { el, step: opt.step || '' });
-    const h = e => { if (!el.contains(e.target)) return; document.removeEventListener('click', h, true); hide(); setTimeout(() => res(true), opt.delay ?? 300); };
     document.addEventListener('click', h, true);
+    skipT = setTimeout(() => { if (fin || !layer) return; const bx = layer.querySelector('.tl-btns'); if (bx.querySelector('.skip')) return; const b = document.createElement('button'); b.className = 'skip'; b.textContent = 'PULAR PASSO'; b.onclick = () => done(false); bx.appendChild(b); }, opt.skipAfter ?? 6000);
   });
 }
+const gemDone = () => (typeof player !== 'undefined' && player.gem_offer_claimed) || !!($('gemOfferButton') && ($('gemOfferButton').disabled || /RECEBIDO|ENCERRADA/i.test($('gemOfferButton').textContent || '')));
+/* pega as gemas de verdade: confere se coletou; se não coletou, deixa tentar de novo ou pular (nunca trava) */
+async function claimGems() {
+  for (let n = 0; n < 3; n++) {
+    if (gemDone()) return;
+    const clicked = await tap('#gemOfferButton', '30 GEMAS GRÁTIS', 'Presente de boas-vindas! Toque em COLETAR para pegar suas gemas.', { step: '2 · PRESENTES' });
+    if (!clicked) return;
+    await waitFor(() => gemDone() || overlayOpen(), 6000);
+    await waitClear();
+    if (gemDone()) return;
+    const c = await say('NÃO DEU CERTO', 'Não consegui coletar as gemas agora. Quer tentar de novo ou continuar o tutorial?', ['TENTAR DE NOVO', 'CONTINUAR'], { step: '2 · PRESENTES' });
+    if (c === 1) return;
+  }
+}
+/* abre a Mini Caixa de verdade: se não abrir, deixa tentar de novo ou pular */
+async function openMini() {
+  for (let n = 0; n < 3; n++) {
+    const clicked = await tap('#box_mini .bx-go, #box_mini .box-action', 'MINI CAIXA GRÁTIS', 'Você tem caixas grátis todos os dias. Toque para abrir a primeira!', { step: '2 · PRESENTES' });
+    if (!clicked) return;
+    const opened = await waitFor(() => overlayOpen(), 4500);
+    await waitClear();
+    if (opened) return;
+    const c = await say('NÃO DEU CERTO', 'A caixa não abriu agora. Quer tentar de novo ou continuar o tutorial?', ['TENTAR DE NOVO', 'CONTINUAR'], { step: '2 · PRESENTES' });
+    if (c === 1) return;
+  }
+}
+
 /* destaca um elemento e espera o jogador tocar em "ENTENDI" */
 async function point(sel, title, text, label = 'ENTENDI', opt = {}) {
   const el = await waitFor(() => find(sel), 9000); if (!el) return false;
@@ -81,7 +112,8 @@ const needs = () => !st.done && typeof player !== 'undefined' && !(player.missio
 async function part1() {
   await waitFor(() => vis($('lobby')) && !overlayOpen(), 120000); await sleep(500);
   if (!needs()) { st.done = true; st.stage = 'done'; save(st); return; }   // conta que já tinha progresso: sem tutorial
-  await say('BEM-VINDO À CYBERARENA!', 'Vou te mostrar o básico em poucos passos e você já joga sua primeira partida. Vamos?', ['COMEÇAR'], { step: 'TUTORIAL' });
+  const w = await say('BEM-VINDO À CYBERARENA!', 'Vou te mostrar o básico em poucos passos e você já joga sua primeira partida. Vamos?', ['COMEÇAR', 'PULAR TUTORIAL'], { step: 'TUTORIAL' });
+  if (w === 1) { st.done = true; st.stage = 'done'; save(st); return; }
   // 1 · personagens
   await tap('.l2-chars', 'SEUS PERSONAGENS', 'Aqui ficam seus lutadores. Toque em PERSONAGENS.', { step: '1 · PERSONAGEM' });
   await waitFor(() => vis($('characters')));
@@ -94,8 +126,8 @@ async function part1() {
   await waitFor(() => vis($('shop')));
   await tap('.shop-sidebar button:nth-child(2)', 'CAIXAS', 'Toque em CAIXAS para ver as ofertas grátis.', { step: '2 · PRESENTES' });
   await sleep(600);
-  if (await tap('#gemOfferButton', '30 GEMAS GRÁTIS', 'Presente de boas-vindas! Toque em COLETAR para pegar suas gemas.', { step: '2 · PRESENTES' })) await waitClear();
-  if (await tap('#box_mini .bx-go, #box_mini .box-action', 'MINI CAIXA GRÁTIS', 'Você tem caixas grátis todos os dias. Toque para abrir a primeira!', { step: '2 · PRESENTES' })) await waitClear();
+  await claimGems();
+  await openMini();
   // 3 · lobby + mapas
   await tap('#shop .ca-nav button:nth-child(1)', 'VOLTAR AO LOBBY', 'Pronto! Agora volte ao lobby.', { step: '3 · MAPAS' });
   await waitFor(() => vis($('lobby')));
@@ -183,4 +215,6 @@ function boot() {
 addEventListener('message', e => { if (e.data && e.data.type === 'cyberarena:match-result' && st.stage === 'inmatch') { st.matched = true; save(st); }
   if (e.data && e.data.type === 'cyberarena:exit-world' && st.stage === 'inmatch' && !running) setTimeout(run, 600); });
 window.CATut = { restart() { st = { stage: 'new' }; save(st); try { window.closeSettings && window.closeSettings(); } catch (_) { } running = false; setTimeout(run, 300); }, get state() { return st; } };
+let lastAcct = acct();
+setInterval(() => { const a = acct(); if (a === lastAcct) return; lastAcct = a; if (running) return; st = load(); boot(); }, 1500);   // trocou/criou conta: tutorial dessa conta
 if (document.readyState === 'complete') setTimeout(boot, 1200); else addEventListener('load', () => setTimeout(boot, 1200));

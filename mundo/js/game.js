@@ -338,7 +338,7 @@ const DMG = { punch: [10, 12, 20], laser: 18, super: 42 };
 /* nível do personagem (vem do lobby): HP, dano e velocidade crescem com a evolução — limites pensados p/ não quebrar o PvP */
 const CS = globalThis.CYBER_STATS;   // mundo/js/charstats.js (carregado antes deste módulo)
 const hpPct = a => a.maxHp ? a.hp / a.maxHp * 100 : a.hp;   // só para a IA/efeitos: vida como % da vida máxima
-const ME_BUFF = (() => { try { const id = JSON.parse(localStorage.getItem('cyberarena.identity') || '{}'), c = JSON.parse(localStorage.getItem('cyberarena.chars.v1') || '{}'), ch = CS.idOf(id.char || 'nexus'); return { lvl: CS.clampL((c[ch] || {}).lvl) }; } catch (_) { return { lvl: 1 }; } })();
+const ME_BUFF = (() => { try { try { parent.__ensureSlot && parent.__ensureSlot(); } catch (_) { } const id = JSON.parse(localStorage.getItem('cyberarena.identity') || '{}'), c = JSON.parse(localStorage.getItem('cyberarena.chars.v1') || '{}'), ch = CS.idOf(id.char || 'nexus'); return { lvl: CS.clampL((c[ch] || {}).lvl) }; } catch (_) { return { lvl: 1 }; } })();
 
 function canFight() { return (MODE === 'battle' && G.phase === 'live') || TRAINLIKE; }
 function findTarget(a, range, cone, dir) {

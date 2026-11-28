@@ -1909,6 +1909,10 @@ function makeKeeper() {   // goleiro bot do futebol: um ator comum controlado pe
   const a = addActor('gk-' + Math.random().toString(36).slice(2, 6), 'GOLEIRO', 'cyber', 'bot', 'cyber'); a.simulated = true; a.lvl = 5; a.maxHp = CS.hpAt(a.char, a.lvl); a.hp = a.maxHp; a.team = 1;
   a.brain = { mx: 0, mz: 0, jump: false, passive: true, home: [0, 0], update() { } }; a.grounded = true; return a;
 }
+function makeFieldBot() {   // adversário de linha do 1x1 contra bot: ator comum, controlado pelo soccer.js (brain.mx/mz)
+  const a = addActor('fb-' + Math.random().toString(36).slice(2, 6), 'BOT', 'cyber', 'bot', 'cyber'); a.simulated = true; a.lvl = 5; a.maxHp = CS.hpAt(a.char, a.lvl); a.hp = a.maxHp; a.team = 2;
+  a.brain = { mx: 0, mz: 0, jump: false, passive: true, home: [0, 0], update() { } }; a.grounded = true; return a;
+}
 function canFightBots() { return TRAINLIKE || MODE === 'soccer' || (MODE === 'battle' && G.phase !== 'waiting'); }
 
 /* ===================================================== início ===================================================== */
@@ -1965,7 +1969,7 @@ async function start() {
     realm.build(); me.x = realm.spawn[0] + (Math.random() - .5) * 12; me.z = realm.spawn[1] + 16 + (Math.random() - .5) * 6; me.y = .1; me.yaw = 0; camS.yaw = 0; me.energy = 100; camS.dist = camS.mode === 'tps' ? 7.4 : 26; if (camS.mode === 'tps') camS.pitch = .32;
     skillButtons(); for (const [id, ic, tx] of [['bAtk', '⚽', 'CHUTE'], ['bLas', '➜', 'PASSE'], ['bSup', '⤴', 'CRUZAR'], ['bVel', '⚡', 'DRIBLE']]) { const I = $(id + 'I'), T = $(id + 'T'); if (I) { I.innerHTML = ic; I.style.fontSize = '30px'; I.style.fontWeight = 900; } if (T) T.textContent = tx; else { const sp = $(id).querySelector('span'); if (sp) sp.textContent = tx; } }
     const kp = makeKeeper(), sapi = { scene, stadium: realm, audio, banner, fx, actors, touch: isTouch, camera, keysDown: input.keys, me: () => me, setCamYaw: y => { camS.yaw = y; }, doDodge, readMove, shake: k => { G.shake = Math.max(G.shake || 0, k); }, focusCam: () => { if (camS.mode === 'tps') camS.pitch = .32; } };
-    sapi.serverNow = () => net.serverNow(); sapi.myId = () => myId; sapi.isOffline = () => net.offline;
+    sapi.makeFieldBot = makeFieldBot; sapi.removeActor = removeActor; sapi.serverNow = () => net.serverNow(); sapi.myId = () => myId; sapi.isOffline = () => net.offline;
     soccer = createSoccer(sapi); sapi.setKeeper(kp); sapi.setKeeper2(makeKeeper()); soccer.start('train'); window.__soccer = soccer;
     if (!net.offline) { $('players').classList.remove('hidden'); } chatLine('', 'Futebol · ' + realm.V.name + (net.offline ? ': treine chutes, passes, cruzamentos e pênaltis (offline).' : ': você entrou na sala com quem já está aqui. Veja os outros jogadores, converse e treine chutes, passes e pênaltis.'), true); banner(realm.V.name.toUpperCase() + ' · TREINO', 2200); }
   else if (MODE === 'train') { G.phase = 'train'; G.started = true; $('pAlive').classList.add('hidden'); for (let i = 0; i < 4; i++) { const b = makeBot(i, null, .3, true); placeAt(b, world.randomSpot(mulberry32(i * 7 + 3), { cx: sp[0] + (i - 1.5) * 6, cz: sp[1] + 10, r: 5 })); b.brain.home = [b.x, b.z]; b.maxHp = 150 * CS.NORM; b.hp = b.maxHp; } chatLine('', 'Treino: bonecos de treino nascem de novo após 3 s.', true); }

@@ -418,25 +418,27 @@ export class Powers {
 
   /* ---------- CYBER: FLASH ÔMEGA — feixe de laser gigante que atravessa e destrói tudo ---------- */
   megaBeam(o, dir, len, R, dur, color) {
-    const U = { uT: { value: 0 }, uO: { value: 0 }, uC: { value: new THREE.Color(color) } }, d = dir.clone().normalize(), q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d);
+    const c1 = new THREE.Color(color), c2 = new THREE.Color(), hs = {}; c1.getHSL(hs); c2.setHSL((hs.h + .17) % 1, 1, .55);   // matiz vizinho para a borda do feixe (visual de anime)
+    const U = { uT: { value: 0 }, uO: { value: 0 }, uC: { value: c1 }, uC2: { value: c2 } }, d = dir.clone().normalize(), q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 1, 0), d);
     const g = geo('mbeam', () => { const c = new THREE.CylinderGeometry(1, 1, 1, 48, 1, true); c.translate(0, .5, 0); return c; });
     const mk = (core) => new THREE.ShaderMaterial({ ...add, side: THREE.DoubleSide, uniforms: U,
       vertexShader: 'varying vec2 vUv;varying vec3 vN,vV;void main(){vUv=uv;vN=normalize(mat3(modelMatrix)*normal);vec4 w=modelMatrix*vec4(position,1.);vV=normalize(cameraPosition-w.xyz);gl_Position=projectionMatrix*viewMatrix*w;}',
-      fragmentShader: NOISE + 'uniform float uT,uO;uniform vec3 uC;varying vec2 vUv;varying vec3 vN,vV;void main(){float f=abs(dot(normalize(vN),vV));float n=fbm(vec3(vUv.x*6.,vUv.y*40.-uT*30.,uT*2.));' +
-        (core ? 'vec3 c=mix(uC*2.,vec3(1.),pow(f,1.5))*(1.2+n);float a=pow(f,1.2);' : 'vec3 c=uC*(.6+n*1.4);float a=pow(f,3.)*.8;') +
+      fragmentShader: NOISE + 'uniform float uT,uO;uniform vec3 uC,uC2;varying vec2 vUv;varying vec3 vN,vV;void main(){float f=abs(dot(normalize(vN),vV));float n=fbm(vec3(vUv.x*6.,vUv.y*40.-uT*30.,uT*2.));' +
+        (core ? 'vec3 c=mix(uC*2.,vec3(1.),pow(f,1.5))*(1.2+n);float a=pow(f,1.2);' : 'vec3 c=mix(uC2*1.3,uC,smoothstep(.1,.7,f))*(.7+n*1.6);float a=pow(f,3.)*.8;') +
         'float fade=smoothstep(0.,.02,vUv.y)*smoothstep(1.,.8,vUv.y);gl_FragColor=vec4(c*a*fade*uO*1.6,1.);}' });
-    const core = new THREE.Mesh(g, mk(true)), glow = new THREE.Mesh(g, mk(false)); glow.material.uniforms = U;
-    for (const m of [core, glow]) { m.position.copy(o); m.quaternion.copy(q); m.renderOrder = 8; m.frustumCulled = false; this.scene.add(m); }
+    const core = new THREE.Mesh(g, mk(true)), glow = new THREE.Mesh(g, mk(false)), halo = new THREE.Mesh(g, mk(false)); glow.material.uniforms = U; halo.material.uniforms = U;   // halo: brilho de bloom externo
+    for (const m of [core, glow, halo]) { m.position.copy(o); m.quaternion.copy(q); m.renderOrder = 8; m.frustumCulled = false; this.scene.add(m); }
     // anéis de choque que correm pelo feixe
     const rings = []; for (let i = 0; i < 6; i++) { const r = new THREE.Mesh(geo('mbRing', () => new THREE.TorusGeometry(1, .08, 8, 48)), new THREE.MeshBasicMaterial({ color, ...add, opacity: 1 })); r.quaternion.copy(q).multiply(new THREE.Quaternion().setFromEuler(new THREE.Euler(Math.PI / 2, 0, 0))); r.renderOrder = 8; this.scene.add(r); rings.push({ r, k: i / 6 }); }
     const fx = this.fx, end = o.clone().addScaledVector(d, len);
     fx.flash(o, 0xffffff, R * 5, .3); fx.flash(o, color, R * 9, .5); fx.ring(o.x, o.y, o.z, color, R * 4, .5);
-    const e = this.add({ t: 0, update: dt => { const t = e.t; U.uT.value += dt; const k = t < .08 ? t / .08 : t > dur ? Math.max(0, 1 - (t - dur) / .35) : 1; U.uO.value = k;
-      const w = R * k * (1 + Math.sin(t * 70) * .06); core.scale.set(w * .55, len, w * .55); glow.scale.set(w * 1.6, len, w * 1.6);
+    const e = this.add({ t: 0, update: dt => { const t = e.t; U.uT.value += dt; const k = t < .08 ? t / .08 : t > dur ? Math.max(0, 1 - (t - dur) / .35) : 1; const rl = this.cam.position.clone().sub(o), al = rl.dot(d), pp = rl.addScaledVector(d, -al).length(), vis = Math.min(1, Math.max(.08, (pp - R * .9) / (R * 1.4)));   // câmera dentro do feixe: abaixa o brilho (não cega a tela)
+      U.uO.value = k * vis;
+      const w = R * k * (1 + Math.sin(t * 70) * .06); core.scale.set(w * .55, len, w * .55); glow.scale.set(w * 1.6, len, w * 1.6); halo.scale.set(w * 2.3, len, w * 2.3);
       for (const it of rings) { it.k = (it.k + dt * 1.8) % 1; it.r.position.copy(o).addScaledVector(d, it.k * len); it.r.scale.setScalar(R * (1.1 + it.k * 1.2) * k); it.r.material.opacity = (1 - it.k) * k; }
       if (t < dur) { for (let i = 0; i < 6; i++) { const p = o.clone().addScaledVector(d, Math.random() * len); fx.emit(p.x, p.y, p.z, 1, { color: [.8, .95, 1], speed: 6, up: 1, life: .45, size: .25, grav: 0 }); }
         if (Math.random() < .5) fx.flash(end, color, R * 3, .12); }
-      return t < dur + .4; }, dispose: () => { for (const m of [core, glow]) { m.removeFromParent(); } core.material.dispose(); glow.material.dispose(); for (const it of rings) { it.r.removeFromParent(); it.r.material.dispose(); } } });
+      return t < dur + .4; }, dispose: () => { for (const m of [core, glow, halo]) { m.removeFromParent(); } core.material.dispose(); glow.material.dispose(); halo.material.dispose(); for (const it of rings) { it.r.removeFromParent(); it.r.material.dispose(); } } });
     return e;
   }
   /* EXTINÇÃO SOLAR: estrela procedural com superfície turbulenta, corona e anéis de plasma */

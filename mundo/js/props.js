@@ -46,7 +46,7 @@ export function makeProps(THREE, by, id, k, wrap) {
   /* mostra a espada/arco enquanto o clipe atual for de espada/arco (ou o clipe que está entrando) */
   out.update = (dt, ctl) => {
     const n = ctl && ctl.cur ? ctl.cur.n : '';
-    const want = { sword: /^Sword|Shield One/.test(n) && !/Idle To|Block/.test(n) || /^Sword (Idle|Block)/.test(n), bow: /^Bow/.test(n) };
+    const want = { sword: false, bow: /^Bow/.test(n) };   // a lâmina de energia foi removida de todos os poderes e animações
     for (const key of ['sword', 'bow']) {
       const o = out[key]; if (!o) continue;
       out.vis[key] += ((want[key] ? 1 : 0) - out.vis[key]) * Math.min(1, dt * 14);

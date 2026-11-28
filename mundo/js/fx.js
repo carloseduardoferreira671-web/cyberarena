@@ -49,16 +49,32 @@ export class FX {
     this.beams.push(b); this.flash(from, color, .5, .12); this.emit(from.x, from.y, from.z, 10, { color: [c.r * .5 + .5, c.g * .5 + .5, c.b * .5 + .5], speed: 4, up: 0, life: .2, size: .12, dir: [b.dir.x, b.dir.y, b.dir.z], spread: .6, grav: 0 });
     return b;
   }
-  flash(p, color, size = 1, life = .15) { const m = new THREE.Mesh(this.sphGeo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 1, blending: THREE.AdditiveBlending, depthWrite: false })); m.position.copy(p); m.scale.setScalar(size * .3); m.renderOrder = 7; this.scene.add(m); this.flashes.push({ m, t: 0, life, size }); }
+  starTex() {
+    if (this._star) return this._star; const c = document.createElement('canvas'); c.width = c.height = 256; const x = c.getContext('2d');
+    const g = x.createRadialGradient(128, 128, 0, 128, 128, 70); g.addColorStop(0, 'rgba(255,255,255,1)'); g.addColorStop(.25, 'rgba(255,255,255,.55)'); g.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = g; x.fillRect(0, 0, 256, 256);
+    const spike = (ang, len, w) => { x.save(); x.translate(128, 128); x.rotate(ang); const l = x.createLinearGradient(-len, 0, len, 0); l.addColorStop(0, 'rgba(255,255,255,0)'); l.addColorStop(.5, 'rgba(255,255,255,.95)'); l.addColorStop(1, 'rgba(255,255,255,0)'); x.fillStyle = l; x.beginPath(); x.moveTo(-len, 0); x.lineTo(0, -w); x.lineTo(len, 0); x.lineTo(0, w); x.closePath(); x.fill(); x.restore(); };
+    spike(0, 126, 5); spike(Math.PI / 2, 126, 5); spike(Math.PI / 4, 78, 3); spike(-Math.PI / 4, 78, 3);
+    const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return (this._star = t);
+  }
+  flash(p, color, size = 1, life = .15) {
+    if (size >= 3 && (this.nStar || 0) < 6) { this.nStar = (this.nStar || 0) + 1;   // brilho em estrela (lens flare de anime)
+      const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.starTex(), color, transparent: true, opacity: .8, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false })); sp.position.copy(p); const cap = Math.min(size * 2.2, Math.max(1.2, this.camera.position.distanceTo(p) * .55)); sp.scale.setScalar(cap); sp.renderOrder = 9; sp.material.rotation = Math.random() * 3; this.scene.add(sp); this.flashes.push({ m: sp, t: 0, life: Math.max(life, .18), size: cap / 2.2, star: true }); } const m = new THREE.Mesh(this.sphGeo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 1, blending: THREE.AdditiveBlending, depthWrite: false })); m.position.copy(p); m.scale.setScalar(size * .3); m.renderOrder = 7; this.scene.add(m); this.flashes.push({ m, t: 0, life, size }); }
   ring(x, y, z, color, r1 = 6, life = .5, w = .2) { const m = new THREE.Mesh(this.ringGeo, new THREE.MeshBasicMaterial({ color, transparent: true, opacity: .9, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide })); m.position.set(x, y + .08, z); m.renderOrder = 6; this.scene.add(m); this.rings.push({ m, t: 0, life, r1 }); }
   impact(p, color, big) {
     if (this.hook && this.hook.impact) this.hook.impact(p, big);
     const c = new THREE.Color(color); this.flash(p, color, big ? 2.2 : 1.2, .16);
     this.emit(p.x, p.y, p.z, big ? 40 : 22, { color: [c.r * .6 + .4, c.g * .6 + .4, c.b * .6 + .4], speed: big ? 10 : 7, up: 1.5, life: .45, size: .14 });
     this.emit(p.x, p.y, p.z, 8, { color: [1, 1, 1], speed: 3, up: .5, life: .2, size: .3, grav: 0 });
+    this.emit(p.x, p.y, p.z, big ? 18 : 9, { color: [1, 1, 1], speed: big ? 18 : 13, up: 0, life: .16, size: .07, grav: 0 });   // riscos de luz radiais
+    this.emit(p.x, p.y, p.z, big ? 14 : 7, { color: [1, .6, .22], speed: 4, up: 3.5, life: 1, size: .1, grav: 11 });   // brasas que caem
+    this.ring(p.x, p.y, p.z, color, big ? 4.2 : 2.6, .32, .1); this.puff(p.x, p.y, p.z, big ? 7 : 3, { r: .25, speed: 1.4, up: .7, size: 1, life: 1.1, color: [.3, .3, .34] });
   }
   hitSpark(p) { this.emit(p.x, p.y, p.z, 14, { color: [1, .85, .5], speed: 6, up: 1, life: .3, size: .12 }); this.flash(p, 0xffe0a0, .9, .1); }
-  shock(x, y, z, color) { if (this.hook && this.hook.shock) this.hook.shock(x, y, z); this.ring(x, y, z, color, 7, .6); this.ring(x, y, z, 0xffffff, 4.5, .35); this.puff(x, y, z, 40, { r: 1.2, speed: 6, up: .6, size: 1.3, life: 1.1 }); this.emit(x, y + .3, z, 60, { color: [.7, .5, 1], speed: 12, up: 4, life: .7, size: .18 }); }
+  shock(x, y, z, color) { if (this.hook && this.hook.shock) this.hook.shock(x, y, z); this.ring(x, y, z, color, 7, .6); this.ring(x, y, z, 0xffffff, 4.5, .35); this.puff(x, y, z, 40, { r: 1.2, speed: 6, up: .6, size: 1.3, life: 1.1 }); this.emit(x, y + .3, z, 60, { color: [.7, .5, 1], speed: 12, up: 4, life: .7, size: .18 });
+    const hc = new THREE.Color(color), hh = {}; hc.getHSL(hh); hc.setHSL((hh.h + .17) % 1, 1, .6); this.emit(x, y + .5, z, 30, { color: [hc.r, hc.g, hc.b], speed: 9, up: 5, life: .8, size: .2, grav: 5 });
+    setTimeout(() => this.ring(x, y, z, hc, 12, .8, .12), 110); setTimeout(() => this.ring(x, y, z, 0xffffff, 16, .95, .06), 240);   // ondas em cascata
+    this.flash(new THREE.Vector3(x, y + 1, z), color, 5.5, .24); this.emit(x, y + .25, z, 44, { color: [1, 1, 1], speed: 20, up: .6, life: .22, size: .07, grav: 0 });
+    this.emit(x, y + .4, z, 26, { color: [1, .55, .2], speed: 5, up: 8, life: 1.4, size: .12, grav: 12 }); }
   splash(x, y, z, k = 1) { this.emit(x, y + .05, z, (14 * k) | 0, { color: [.75, .9, 1], speed: 2.5 * k, up: 3.5 * k, life: .6, size: .13, grav: 14, drag: .6 }); this.puff(x, y, z, (5 * k) | 0, { color: [.85, .95, 1], r: .3, speed: 1.2, up: .4, size: .6, life: .5 }); }
   dustStep(x, y, z, k = 1) { if (this.hook && this.hook.dust) this.hook.dust(x, y, z, k); this.puff(x, y + .05, z, (3 * k) | 0, { r: .15, speed: .9 * k, up: .35, size: .45 * k, life: .7 }); }
   number(worldPos, text, color, big) {
@@ -83,10 +99,16 @@ export class FX {
       b.head.position.copy(b.pos); b.head.scale.setScalar(b.dead ? .001 : .22 + Math.sin(b.t * 40) * .04);
       const a = b.dead ? Math.max(0, 1 - b.fade * 8) : 1; b.core.material.opacity = a; b.glow.material.opacity = .55 * a;
       if (!b.dead && Math.random() < .6) this.emit(b.pos.x, b.pos.y, b.pos.z, 1, { color: [b.color.r, b.color.g, b.color.b], speed: .6, up: 0, life: .25, size: .1, grav: 0 });
+      if (!b.dead) {   // hélice dupla de energia em volta do feixe + faíscas estalando na cauda
+        if (!b.u) { const up = Math.abs(b.dir.y) > .95 ? new THREE.Vector3(1, 0, 0) : new THREE.Vector3(0, 1, 0); b.u = new THREE.Vector3().crossVectors(b.dir, up).normalize(); b.w = new THREE.Vector3().crossVectors(b.dir, b.u).normalize(); }
+        for (let h = 0; h < 2; h++) for (let s = 0; s < 3; s++) { const ph = b.t * 38 + h * Math.PI + s * .9, back = s * .45, r = .3 - s * .06, cx = Math.cos(ph) * r, cy = Math.sin(ph) * r;
+          this.emit(b.pos.x - b.dir.x * back + b.u.x * cx + b.w.x * cy, b.pos.y - b.dir.y * back + b.u.y * cx + b.w.y * cy, b.pos.z - b.dir.z * back + b.u.z * cx + b.w.z * cy, 1, { color: h ? [1, 1, 1] : [b.color.r * .6 + .4, b.color.g * .6 + .4, b.color.b * .6 + .4], speed: 0, up: 0, life: .16, size: .085, grav: 0 }); }
+        if (Math.random() < .35) this.emit(b.pos.x - b.dir.x * Math.random() * 2.5, b.pos.y - b.dir.y * Math.random() * 2.5, b.pos.z - b.dir.z * Math.random() * 2.5, 2, { color: [1, 1, 1], speed: 3.5, up: 0, life: .14, size: .06, grav: 0 });
+      }
     }
     this.beams = this.beams.filter(b => { if (b.dead && b.fade > .2) { for (const m of [b.core, b.glow, b.head]) { m.removeFromParent(); m.material.dispose(); } return false; } return true; });
-    for (const f of this.flashes) { f.t += dt; const k = f.t / f.life; f.m.scale.setScalar(f.size * (.3 + k * .9)); f.m.material.opacity = Math.max(0, 1 - k); }
-    this.flashes = this.flashes.filter(f => { if (f.t > f.life) { f.m.removeFromParent(); f.m.material.dispose(); return false; } return true; });
+    for (const f of this.flashes) { f.t += dt; const k = f.t / f.life; if (f.star) { f.m.scale.setScalar(f.size * 2.2 * (.5 + k * .7)); f.m.material.rotation += dt * 1.6; } else f.m.scale.setScalar(f.size * (.3 + k * .9)); f.m.material.opacity = Math.max(0, 1 - k) * (f.star ? .8 : 1); }
+    this.flashes = this.flashes.filter(f => { if (f.t > f.life) { if (f.star) this.nStar--; f.m.removeFromParent(); f.m.material.dispose(); return false; } return true; });
     for (const r of this.rings) { r.t += dt; const k = r.t / r.life, e = 1 - (1 - k) ** 3; r.m.scale.setScalar(.3 + e * r.r1); r.m.material.opacity = Math.max(0, 1 - k) * .9; }
     this.rings = this.rings.filter(r => { if (r.t > r.life) { r.m.removeFromParent(); r.m.material.dispose(); return false; } return true; });
     // partículas

@@ -277,7 +277,7 @@ function stepActor(a, dt, mx, mz, mag, wantJump) {
   if (a.held) { a.x = a.held.x; a.y = a.held.y; a.z = a.held.z; a.vx = a.vz = a.vy = 0; a.spd = 0; a.grounded = true; a.peakY = a.y; return; }
   if (a.dash) { const D = a.dash, sg = D.segs[D.i]; if (!sg || !a.alive) { a.dash = null; } else { D.t += dt; const k = clamp(D.t / sg.du, 0, 1);
       const ox = a.x, oz = a.z; a.x = lerp(sg.x0, sg.x1, k); a.z = lerp(sg.z0, sg.z1, k); a.y = E.groundAt(a.x, a.z, a.y + 3, 3); a.yaw = Math.atan2(sg.x1 - sg.x0, sg.z1 - sg.z0); a.vx = a.vz = a.vy = 0; a.grounded = true; a.spd = Math.hypot(a.x - ox, a.z - oz) / Math.max(dt, 1e-4); a.peakY = a.y;
-      if (Math.random() < .8) fx.dustStep(a.x, a.y, a.z, 1.4);
+      if (!D.nodust && Math.random() < .8) fx.dustStep(a.x, a.y, a.z, 1.4);
       if (k >= 1) { D.h = (D.h || 0) + dt; if (D.h >= (sg.hold || 0)) { D.h = 0; D.i++; D.t = 0; if (D.i >= D.segs.length) a.dash = null; } } return; } }
   if (a.stunT > 0) { a.stunT -= dt; mx = mz = mag = 0; wantJump = false; }
   if (!a.alive) { a.vx *= .9; a.vz *= .9; a.y = lerp(a.y, E.groundAt(a.x, a.z, a.y + 1), .2); a.spd = 0; return; }
@@ -356,6 +356,7 @@ function moveIntent(a) { if (a === me) { const m = readMove(); return m[2] > .1 
 function act(name) {
   if (!me || !me.alive || me.drop > 0 || G.phase === 'loading') return;
   if (soccer && soccer.act(name)) return;
+  if (ultCtx(me)) { tryEscape(name); return; }   // ataque inbloqueável em andamento: só a habilidade de negação
   if (name === 'sit') { toggleSit(me); return; }
   if (name.startsWith('emote_')) { if (MODE === 'battle' && G.phase === 'live') return; if (name === 'emote_sit' && MODE !== 'open') return; if (MODE === 'open' && !OPEN_EMOTES.includes(name.slice(6))) return; if (!me.hero.isBusy() && !me.down) me.play(name); return; }
   if (name === 'wave' || name === 'dance') return; // emotes genéricos removidos
@@ -450,6 +451,114 @@ function tickCombat(a, dt) {
   if (a.down) { a.downT += dt; if (!a.alive) { a.down = false; return; } const dn = DOWN_T[a.downKind] || 1.2; if (!a.gettingUp && a.downT >= dn) { a.gettingUp = true; a.play('getup'); } if (a.downT >= dn + GETUP_T) { a.down = false; a.gettingUp = false; } }
 }
 const _v1 = new THREE.Vector3(), _v2 = new THREE.Vector3();
+/* ===================================================== diretor de cenas (estilo Budokai Tenkaichi / Sparking Zero) =====================================================
+   Cada poder grande vira uma mini-animação: sequência de planos (contra-plongée, close no rosto, macro das mãos, câmera seguindo o projétil, reação da vítima,
+   órbita, plano geral) com zoom, faixas de cinema e câmera lenta no impacto. A cena só toca se o cálculo disser que o ataque acerta, para quem ataca e para quem é atingido, e NÃO pode ser pulada. */
+const CIN = { s: null }; const _cA = new THREE.Vector3(), _cT = new THREE.Vector3(), _cP = new THREE.Vector3(), _cL = new THREE.Vector3(), _cF = new THREE.Vector3(), _cS = new THREE.Vector3(), _cH = new THREE.Vector3();
+const cSm = x => x * x * (3 - 2 * x);
+function colorGrade(col, dur) {   // vira a tela "anime": saturação alta + véu de cor da habilidade (acento → matiz vizinho)
+  try { const c = new THREE.Color(col), h = {}; c.getHSL(h); const c2 = new THREE.Color().setHSL((h.h + .17) % 1, 1, .5), css = x => '#' + x.getHexString(), cv = renderer.domElement;
+    const d = document.createElement('div'); d.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:4;opacity:0;mix-blend-mode:soft-light;transition:opacity .4s;background:linear-gradient(165deg,' + css(c) + ',' + css(c2) + ')';
+    document.body.appendChild(d); cv.style.transition = 'filter .4s'; cv.style.filter = 'saturate(1.38) contrast(1.07)'; requestAnimationFrame(() => { d.style.opacity = '.62'; });
+    setTimeout(() => { d.style.opacity = '0'; cv.style.filter = ''; }, dur * 1000); setTimeout(() => { d.remove(); cv.style.transition = ''; }, dur * 1000 + 500); } catch (_) { }
+}
+function cineStart(a, shots, o = {}) {
+  if ((a !== me && o.victim !== me) || CIN.s || spaceSt || novaFocus || a.novaSequence || !a.alive) return;
+  let pre = 0; for (const s of shots) if (s.w) pre += s.w; const k = o.pre && pre ? o.pre / pre : 1, list = []; let t = 0;
+  for (const s of shots) { const d = s.w ? s.w * k : s.d; list.push({ ...s, t0: t, t1: t + d }); t += d; }
+  CIN.s = { a, list, t: 0, dur: t, tgt: o.tgt || null, proj: null, lock: true }; letterbox(t + .1); colorGrade(SKINS[a.skin].accent, t);
+}
+function cineApply(dt) {
+  const c = CIN.s; if (!c) return;
+  const a = c.a; c.t += dt; if (!a.alive || c.t >= c.dur || spaceSt) { CIN.s = null; camS.init = false; camS.cur = null; return; }
+  const sh = c.list.find(s => c.t < s.t1) || c.list[c.list.length - 1], u = clamp((c.t - sh.t0) / Math.max(.01, sh.t1 - sh.t0), 0, 1), e = cSm(u), L = lerp, sd = sh.side || 1;
+  a.chest(_cA); _cF.set(Math.sin(a.yaw), 0, Math.cos(a.yaw)); _cS.set(Math.cos(a.yaw), 0, -Math.sin(a.yaw));
+  if (c.tgt && c.tgt.alive) c.tgt.chest(_cT); else _cT.copy(_cA).addScaledVector(_cF, 22);
+  switch (sh.k) {
+    case 'low': _cP.copy(_cA).addScaledVector(_cF, -L(sh.d0, sh.d1, e)).addScaledVector(_cS, sd * 1.3); _cP.y = a.y + L(sh.h0, sh.h1, e); _cL.copy(_cA); _cL.y += .5; break;
+    case 'face': _cP.copy(_cA).addScaledVector(_cF, L(sh.d0, sh.d1, e)).addScaledVector(_cS, sd * .45); _cP.y = _cA.y + .38; _cL.copy(_cA); _cL.y += .4; break;
+    case 'macro': a.hero.getEmitter(_cH); _cP.copy(_cH).addScaledVector(_cF, L(sh.d0, sh.d1, e)).addScaledVector(_cS, sd * .7); _cP.y += .25; _cL.copy(_cH); break;
+    case 'orbit': { const g = L(sh.a0, sh.a1, e); _cP.copy(_cA).addScaledVector(_cF, Math.cos(g) * sh.r).addScaledVector(_cS, Math.sin(g) * sh.r); _cP.y = a.y + sh.h; _cL.copy(_cA); break; }
+    case 'follow': { if (c.proj) _cH.copy(c.proj); else _cH.copy(_cA).addScaledVector(_cF, 5 + e * 38); _cP.copy(_cH).addScaledVector(_cF, -L(sh.d0, sh.d1, e)).addScaledVector(_cS, sd * (sh.lat || 2.4)); _cP.y = Math.max(a.y + 1.2, _cH.y + 1.4); _cL.copy(_cH).addScaledVector(_cF, 6); break; }
+    case 'victim': _cH.subVectors(_cA, _cT); _cH.y = 0; if (_cH.lengthSq() < .01) _cH.copy(_cF).negate(); _cH.normalize(); _cP.copy(_cT).addScaledVector(_cH, L(sh.d0, sh.d1, e)).addScaledVector(_cS, sd * 2.2); _cP.y = _cT.y + sh.h; _cL.copy(_cT); break;
+    case 'wide': _cH.copy(_cA).add(_cT).multiplyScalar(.5); _cP.copy(_cH).addScaledVector(_cS, sd * L(sh.r0, sh.r1, e)); _cP.y = _cH.y + sh.h; _cL.copy(_cH); break;
+    case 'top': _cP.copy(_cA).addScaledVector(_cF, -3); _cP.y = a.y + L(sh.h0, sh.h1, e); _cL.copy(_cA); break;
+  }
+  _cP.y = Math.max(_cP.y, envOf(a).groundAt(_cP.x, _cP.z, _cP.y + 3) + .35);
+  const sk = shake.out; camera.position.copy(_cP); if (sk) camera.position.add(_cH.set(sk.x, sk.y, sk.z)); camera.lookAt(_cL);
+  const fv = sh.fov != null ? sh.fov : L(sh.fov0, sh.fov1, e); camera.fov += (fv - camera.fov) * (1 - Math.exp(-dt * 14)); camera.updateProjectionMatrix(); world.camFov = camera.fov * PI / 180;
+  camS.tx = _cL.x; camS.ty = _cL.y; camS.tz = _cL.z;
+}
+/* ===================================================== ataques especiais inbloqueáveis =====================================================
+   Abismo Estelar, Abismo Eterno, Supernova, super e Ressonância Zero: a cena NÃO pode ser pulada e, enquanto ela roda, só o botão da habilidade de NEGAÇÃO
+   funciona (NEXUS: VELOCIDADE · ATLAS: FENDA SÍSMICA). Ela só salva se estiver carregada E acertar alguém; quem escapa assiste a cena de fora do alvo. */
+function ultCtx(p) {
+  if (!p || !p.alive) return null;
+  if (p.atlasVictim) { const s = actors.get(p.atlasVictim); return s && s.atlasSequence ? { kind: 'fist', src: s } : null; }
+  if (p.atlasSequence || p.novaSequence || p.abyss) return { kind: 'self' };
+  if (p.abyssBy && p.abyssBy.abyss) return { kind: 'abyss', src: p.abyssBy };
+  if (novaFocus && novaFocus.novaSequence && novaFocus !== p) return { kind: 'nova', src: novaFocus };
+  return null;
+}
+function tryEscape(name) {
+  const c = ultCtx(me); if (!c || c.kind === 'self' || me.escUntil > world.time) return;
+  const nex = me.char === 'nexus', atl = me.char === 'atlas';
+  if (!nex && !atl) { banner('SEM HABILIDADE DE NEGAÇÃO · não dá para escapar', 1500); return; }
+  if (!(nex ? name === 'super' : name === 'laser' || name === 'extra')) return;   // só o botão da habilidade de negação
+  const ready = nex ? me.energy >= 100 : name === 'laser' ? me.cd.laser <= 0 : me.cd.vel <= 0;
+  if (!ready) { banner((nex ? 'ABISMO ESTELAR' : name === 'laser' ? 'RESSONÂNCIA' : 'FENDA SÍSMICA') + ' NÃO ESTÁ CARREGADO · não dá para escapar', 1600); return; }
+  const rng = nex ? 15 : 11, near = enemiesOf(me).filter(e => e.alive && !e.drop && !e.dim && Math.hypot(e.x - me.x, e.z - me.z) < rng && Math.abs(e.y - me.y) < 4);
+  const src = c.src, tgt = c.kind === 'nova' ? near[0] : src;
+  if (!tgt || (c.kind === 'nova' && !near.length)) { banner('NINGUÉM AO ALCANCE · a habilidade não salva', 1700); return; }   // precisa acertar alguém
+  const free = () => { me.busyMove = 0; me.stunT = 0; faceTo(me, tgt); };
+  const run = () => nex ? doAbyss(me) : name === 'extra' ? doAtlasRift(me) : doAtlasGuard(me);
+  if (c.kind === 'nova') { free(); if (!run()) { banner('NÃO FOI POSSÍVEL ESCAPAR', 1400); return; } }
+  else {
+    if (c.kind === 'fist') { finishAtlasFist(src, src.atlasSequence, true); sendFx(me, 'esc', { by: src.id, k: 'fist' }); }
+    else if (src.abyss && src.abyss.finish) { src.abyss.finish(); sendFx(me, 'esc', { by: src.id, k: 'abyss' }); }
+    free(); run();
+  }
+  me.escUntil = world.time + (c.kind === 'nova' ? 16 : 2.6);
+  cineStart(me, [{ k: 'wide', d: 1.1, r0: 20, r1: 26, h: 7, fov0: 52, fov1: 62 }, { k: 'victim', d: .9, d0: 9, d1: 6, h: 1.8, fov: 50, side: -1 }], { tgt, lock: true });
+}
+/* quem seria atingido por um ataque escapável (calculado na hora): só aí a cena toca, para quem ataca e para quem é atingido */
+function cineVictim(a, kind, t, rdir) {
+  const foes = enemiesOf(a).filter(e => e.alive && !e.drop); let best = null;
+  if (kind === 'sing') { if (t && t.alive) return t; let bd = 40; for (const e of foes) { const d = Math.hypot(e.x - a.x, e.z - a.z); if (d < bd && Math.abs(e.y - a.y) < 12) { bd = d; best = e; } } return best; }
+  if (kind === 'flash') { const dx = rdir ? rdir[0] : Math.sin(a.yaw), dz = rdir ? rdir[2] : Math.cos(a.yaw), l = Math.hypot(dx, dz) || 1; let bd = 46;
+    for (const e of foes) { const rx = e.x - a.x, rz = e.z - a.z, al = (rx * dx + rz * dz) / l, lat = Math.abs(rx * dz - rz * dx) / l; if (al > 0 && al < 45 && lat < 3.4) { if (e === me) return e; if (al < bd) { bd = al; best = e; } } }
+    return best || (t && t.alive ? t : null); }
+  let bd = 9; for (const e of foes) { const d = Math.hypot(e.x - a.x, e.z - a.z); if (d < 9 && Math.abs(e.y - a.y) < 3) { if (e === me) return e; if (d < bd) { bd = d; best = e; } } } return best;   // 'area'
+}
+/* ---- linguagem de anime na tela: quadro de impacto (branco → negro com linhas), linhas de velocidade e aura de energia ---- */
+function animeFrame() {
+  try { const n = performance.now(); if (G._af && n - G._af < 800) return; G._af = n; if (post) post.kick(.02);
+    const d = document.createElement('div'); d.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:7;background:#fff;opacity:1';
+    const ln = (c) => 'repeating-conic-gradient(from 0deg at 50% 50%,' + c + ' 0 1deg,transparent 1deg 3.9deg)', l = document.createElement('div'), m = 'radial-gradient(circle at 50% 50%,transparent 10%,#000 60%)';
+    l.style.cssText = 'position:absolute;inset:0;opacity:0;-webkit-mask:' + m + ';mask:' + m; d.appendChild(l); document.body.appendChild(d);
+    setTimeout(() => { d.style.background = '#000'; l.style.background = ln('#fff'); l.style.opacity = '1'; }, 55);
+    setTimeout(() => { d.style.background = '#fff'; l.style.background = ln('#000'); }, 105);
+    setTimeout(() => { d.style.transition = 'opacity .25s'; d.style.opacity = '0'; }, 150); setTimeout(() => d.remove(), 460); } catch (_) { }
+}
+function speedLines(dur = 1) {
+  try { if (!document.getElementById('cineSpdCss')) { const st = document.createElement('style'); st.id = 'cineSpdCss'; st.textContent = '@keyframes cineSpd{0%{transform:rotate(0)}100%{transform:rotate(7deg)}}'; document.head.appendChild(st); }
+    const m = 'radial-gradient(circle at 50% 50%,transparent 32%,#000 78%)', d = document.createElement('div');
+    d.style.cssText = 'position:fixed;left:-30%;top:-30%;width:160%;height:160%;pointer-events:none;z-index:5;opacity:.0;transition:opacity .15s;background:repeating-conic-gradient(from 0deg at 50% 50%,rgba(255,255,255,.85) 0 .55deg,transparent .55deg 3.1deg);-webkit-mask:' + m + ';mask:' + m + ';animation:cineSpd .18s steps(2) infinite alternate';
+    document.body.appendChild(d); requestAnimationFrame(() => { d.style.opacity = '.55'; }); setTimeout(() => { d.style.opacity = '0'; }, dur * 1000); setTimeout(() => d.remove(), dur * 1000 + 300); } catch (_) { }
+}
+function aura(a, dur, col) {
+  const c = new THREE.Color(col), rgb = [c.r * .5 + .5, c.g * .5 + .5, c.b * .5 + .5]; let ring = 0;
+  const e = powers.add({ t: 0, update: dt => { if (!a.alive || e.t > dur) return false; if (Math.hypot(camS.tx - a.x, camS.tz - a.z) > 60) return true; ring -= dt;
+    fx.emit(a.x + (Math.random() - .5) * 1.1, a.y + Math.random() * .4, a.z + (Math.random() - .5) * 1.1, 3, { color: rgb, speed: .35, up: 4 + Math.random() * 4, life: .85, size: .15, grav: 0 });
+    if (ring <= 0) { ring = .22; fx.ring(a.x, a.y + .05, a.z, col, 2.6, .5, .1); } return true; } });
+}
+/* camada cinematográfica: pulso de FOV (zoom de impacto), hit-stop curto e faixas de cinema nas ultimates */
+function cineKick(fov, stop) { if (fov >= 5) animeFrame(); G.fovKick = Math.max(G.fovKick || 0, fov); if (stop) G.slowUntil = Math.max(G.slowUntil || 0, performance.now() + stop); }
+function letterbox(dur = 2) {
+  try { if (document.getElementById('cineBars')) return; const w = document.createElement('div'); w.id = 'cineBars'; w.style.cssText = 'position:fixed;inset:0;pointer-events:none;z-index:6;';
+    const bar = top => { const d = document.createElement('div'); d.style.cssText = 'position:absolute;left:0;right:0;height:0;background:#000;transition:height .35s cubic-bezier(.2,.8,.2,1);' + (top ? 'top:0' : 'bottom:0'); w.appendChild(d); return d; }; const A = bar(1), B = bar(0);
+    document.body.appendChild(w); requestAnimationFrame(() => { A.style.height = B.style.height = '9vh'; }); setTimeout(() => { A.style.height = B.style.height = '0'; }, dur * 1000); setTimeout(() => w.remove(), dur * 1000 + 500); } catch (_) { }
+}
 function doLaser(a, target, err = 0) {
   if (a.cd.laser > 0 || a.charges < 1 || a.vault || a.climb || a.drop) return false;
   const t = target || findTarget(a, 28, .62, moveIntent(a)); if (t) faceTo(a, t); else if (a === me) { a.yaw = Math.atan2(...moveIntent(a)); a.aimT = .45; }
@@ -465,7 +574,8 @@ function doLaser(a, target, err = 0) {
 }
 function fireLaser(a, o, dir, authoritative) {
   const col = SKINS[a.skin].accent; sfx('laser', a); a.lastShotT = world.time;
-  const b = fx.laser(o, dir, col, 70, 28); b.owner = a; b.auth = authoritative;
+  const b = fx.laser(o, dir, col, 70, 28); b.owner = a; b.auth = authoritative; powers.plasmaMuzzle(o, dir, col); fx.ring(o.x, o.y, o.z, col, 1.8, .22, .1);
+  if (a === me) { cineKick(2.4, 0); shake.kick(-dir.x, -dir.y, -dir.z, .09); } else if (Math.hypot(camS.tx - o.x, camS.tz - o.z) < 30) shake.kick(-dir.x, -dir.y, -dir.z, .03);
   b.collide = null; return b;
 }
 function laserCollide(prev, cur, b) {
@@ -480,12 +590,13 @@ function doSuper(a) {
   if (a.energy < 100 || a.vault || a.climb || a.drop || a.held || a.dash || a.abyss || a.hero.isBusy()) return false;
   if (a.char === 'nexus') return doAbyss(a); if (a.char === 'cyber') return doNova(a); if (a.char === 'atlas') return doAbyssFist(a);
   const t = findTarget(a, 8, 1.6, moveIntent(a)); if (t) faceTo(a, t);
-  a.energy = 0; const r = a.play('super'); a.busyMove = r.duration; sfx('superCharge', a); a.hero.setGlow(1);
+  a.energy = 0; const r = a.play('super'); a.busyMove = r.duration; sfx('superCharge', a); a.hero.setGlow(1); aura(a, r.impact + .2, SKINS[a.skin].accent);
+  if (t) cineStart(a, [{ k: 'low', w: .45, d0: 5, d1: 2.6, h0: .2, h1: 1, fov0: 62, fov1: 46 }, { k: 'face', w: .55, d0: 1.8, d1: 1.2, fov: 36, side: 1 }, { k: 'victim', d: .55, d0: 6, d1: 3.5, h: 1.2, fov: 44, side: -1 }, { k: 'orbit', d: .6, r: 7, a0: .4, a1: 2.2, h: 2, fov: 54 }], { pre: r.impact, tgt: t, lock: true });
   a.pending.push({ t: r.impact, fn: () => superHit(a) }); sendFx(a, 'super', {}); return true;
 }
 function superHit(a, visualOnly) {
   if (!a.alive) return; const fwd = 1.2, x = a.x + Math.sin(a.yaw) * fwd, z = a.z + Math.cos(a.yaw) * fwd;
-  fx.shock(x, a.y, z, SKINS[a.skin].accent); sfx('super', a); if (Math.hypot(camS.tx - x, camS.tz - z) < 20) G.shake = Math.max(G.shake, .7);
+  fx.shock(x, a.y, z, SKINS[a.skin].accent); sfx('super', a); if (Math.hypot(camS.tx - x, camS.tz - z) < 20) { G.shake = Math.max(G.shake, .7); cineKick(a === me ? 6 : 3, 90); powers.cinemaLight(() => new THREE.Vector3(x, a.y + 1.2, z), .4, SKINS[a.skin].accent, 9, { gain: .9 }); }
   ruin(a, x, z, x, z, 3.4);   // o golpe especial derruba o que estiver à frente
   if (visualOnly) return;
   for (const b of enemiesOf(a)) { const dx = b.x - x, dz = b.z - z, d = Math.hypot(dx, dz); if (d > 6.5 || Math.abs(b.y - a.y) > 2.5) continue; const k = 1 - d / 6.5 * .45; damage(b, Math.round(DMG.super * k), a, 'super', { kx: dx / (d || 1) * 13, kz: dz / (d || 1) * 13, up: 6 }); }
@@ -503,7 +614,8 @@ function doSingularity(a, target, remote) {
   const t = remote ? null : target || nearest(); if (t) faceTo(a, t); else if (a === me) { a.yaw = Math.atan2(...moveIntent(a)); a.aimT = .45; }
   if (!remote) { a.cd.laser = SKILL_CD.nexus; a.charges = 3; a.busyMove = .9; sendFx(a, 'sing', { tx: t ? r2(t.x) : null, tz: t ? r2(t.z) : null }); }
   const r = a.play('singularity'); sfx('charge', a, .8); a.hero.setGlow(1);
-  powers.handOrb(() => a.alive ? a.hero.getEmitter(new THREE.Vector3()) : null, r.impact, .3);
+  powers.handOrb(() => a.alive ? a.hero.getEmitter(new THREE.Vector3()) : null, r.impact, .3); aura(a, r.impact + .2, 0xb07bff);
+  { const hv = cineVictim(a, 'sing', t); if (hv) cineStart(a, [{ k: 'low', w: .5, d0: 6, d1: 3.2, h0: .3, h1: 1, fov0: 62, fov1: 48 }, { k: 'macro', w: .5, d0: 1.6, d1: .9, fov: 40 }, { k: 'follow', d: .9, d0: 5, d1: 8, fov0: 74, fov1: 58 }, { k: 'victim', d: .6, d0: 9, d1: 5, h: 1.4, fov: 48, side: 1 }], { pre: r.impact, tgt: hv, victim: hv }); }
   a.pending.push({ t: r.impact, fn: () => { if (!a.alive) return; const o = a.hero.getEmitter(new THREE.Vector3()); let dir;
     if (t && t.alive) dir = t.chest(_v1).sub(o).normalize(); else dir = new THREE.Vector3(Math.sin(a.yaw), -.05, Math.cos(a.yaw));
     const E = envOf(a), auth = authOf(a); sfx('void', a); let tick = 0; const hitT = new Set();
@@ -512,8 +624,9 @@ function doSingularity(a, target, remote) {
       collide: (p0, p1) => { if (!hT) { const b = E.rayBlocked(p0.x, p0.y, p0.z, p1.x, p1.y, p1.z); if (b) return new THREE.Vector3(b.x, b.y, b.z); } for (const e of enemiesOf(a)) if (Math.hypot(p1.x - e.x, p1.z - e.z) < 1 && p1.y - e.y > 0 && p1.y - e.y < 3.2) return p1.clone(); return null; },
       ground: (x, z) => E.groundAt(x, z, a.y + 6),
       onOpen: p => { if (Math.hypot(camS.tx - p.x, camS.tz - p.z) < 25) G.shake = Math.max(G.shake, .3); },
-      onImplode: p => { ruin(a, p.x, p.z, p.x, p.z, 9); powers.cinemaLight(() => p, .6, 0xb07bff, 14, { gain: 1 }); sfx('implode', a); if (Math.hypot(camS.tx - p.x, camS.tz - p.z) < 30) { G.shake = Math.max(G.shake, .8); if (a === me || hitT.has(me)) powers.screenFlash('rgba(190,140,255,.8)', .5, .7); }
+      onImplode: p => { cineKick(5, 90); ruin(a, p.x, p.z, p.x, p.z, 9); powers.cinemaLight(() => p, .6, 0xb07bff, 14, { gain: 1 }); sfx('implode', a); if (Math.hypot(camS.tx - p.x, camS.tz - p.z) < 30) { G.shake = Math.max(G.shake, .8); if (a === me || hitT.has(me)) powers.screenFlash('rgba(190,140,255,.8)', .5, .7); }
         if (!auth) return; for (const e of enemiesOf(a)) { const dx = e.x - p.x, dz = e.z - p.z, d = Math.hypot(dx, dz); if (d > 8) continue; damage(e, Math.round(45 * (1 - d / 16)), a, 'super', { kx: dx / (d || 1) * 11, kz: dz / (d || 1) * 11, up: 7 }); } } });
+    if (CIN.s && CIN.s.a === a) CIN.s.proj = s.pos;
     // sucção: puxa os inimigos para o centro, gira em volta e causa dano contínuo
     const pull = { t: 0, update: dt => { if (s.dead) return false; if (!s.open) return true; const p = s.pos; tick -= dt; const doTick = tick <= 0; if (doTick) tick = .4;
       for (const e of enemiesOf(a)) { const dx = p.x - e.x, dz = p.z - e.z, d = Math.hypot(dx, dz); if (d > s.radius || !e.simulated) { if (d <= s.radius) hitT.add(e); continue; } hitT.add(e);
@@ -535,7 +648,7 @@ function doAbyss(a, remoteTarget) {
   if (a.abyss) return false;
   if (!remote && (!t || t.dim)) { if (a === me) banner('Nenhum inimigo perto para o ABISMO ESTELAR', 1100); return false; }
   if (t) faceTo(a, t); if (!remote) { a.energy = 0; sendFx(a, 'abyss', { tg: t.id }); }
-  const r = a.play('abyssCast'); a.busyMove = 1.2; a.hero.setGlow(1); sfx('superCharge', a); const auth = authOf(a);
+  const r = a.play('abyssCast'); a.busyMove = 1.2; a.hero.setGlow(1); sfx('superCharge', a); aura(a, 1.5, 0x9a5cff); const auth = authOf(a);
   const startP = { x: a.x, y: a.y, z: a.z }, tStart = t ? { x: t.x, y: t.y, z: t.z } : null, yaw0 = a.yaw;
   if (a === me || t === me) banner('ABISMO ESTELAR', 2200);
   powers.portal(new THREE.Vector3(a.x + Math.sin(a.yaw) * 2.2, a.y + 2, a.z + Math.cos(a.yaw) * 2.2), .4, r.impact + .3, 0x9a5cff);
@@ -560,6 +673,7 @@ function doAbyss(a, remoteTarget) {
       if (a === me || t === me) { camS.init = false; camS.cur = null; powers.screenFlash('#ffffff', .8, .9); banner(t && t.alive ? 'DE VOLTA DO ABISMO' : 'O ABISMO DEVOROU ' + (t ? t.name.toUpperCase() : ''), 1800); }
       if (tStart) fx.ring(tStart.x, tStart.y, tStart.z, 0x9a5cff, 6, .8); fx.ring(cl.x, cl.y, cl.z, 0x9a5cff, 4, .6); sfx('kamui', a, .7);
       if (t) t.abyssBy = null; a.abyss = null; };
+    ab.finish = finish;
     powers.add({ t: 0, update: dt => { const k = ab.t += dt; ab.swapCd -= dt;
       const h = cl.hero, cd = Math.hypot(cl.x - camS.tx, cl.z - camS.tz) + Math.abs(cl.y - camS.ty) * .5; h.setVisible(cd < 170);
       if (cd < 170) { h.object.position.set(cl.x, cl.y, cl.z); h.object.rotation.y = cl.yaw; h.setGlow(.7); h.update(dt, { speed: 0, localVel: { x: 0, z: 0 }, grounded: true, vy: 0, inWater: 0, wind: { x: 0, z: 0, strength: 0 }, slope: 0, scramble: 0 });
@@ -603,11 +717,14 @@ function doFlash(a, target, remote, rdir) {
   if (!remote) { a.cd.laser = SKILL_CD.cyber; a.busyMove = 1.9; a.aimT = 2; }
   const r = a.play('flash'), col = SKINS[a.skin].accent, auth = authOf(a); sfx('novaCharge', a, .8); a.hero.setGlow(1);
   const hands = () => { if (!a.alive) return null; const p = a.hero.getHand('r', new THREE.Vector3()), q = a.hero.getHand('l', new THREE.Vector3()); return p.add(q).multiplyScalar(.5); };
-  powers.charge(hands, r.impact, col);
+  powers.charge(hands, r.impact, col); aura(a, r.impact + .25, col);
+  { const hv = cineVictim(a, 'flash', t, rdir); if (hv) cineStart(a, [{ k: 'low', w: .34, d0: 7, d1: 3.6, h0: .2, h1: 1.1, fov0: 64, fov1: 48 }, { k: 'face', w: .3, d0: 1.9, d1: 1.2, fov: 34, side: -1 }, { k: 'macro', w: .24, d0: 1.5, d1: 1.0, fov: 42 },
+    { k: 'follow', d: .75, d0: 5, d1: 9, lat: 6.5, fov0: 80, fov1: 62 }, { k: 'victim', d: .7, d0: 10, d1: 5, h: 1.3, fov: 46, side: -1 }, { k: 'orbit', d: .6, r: 9, a0: .3, a1: 2.3, h: 2.2, fov: 56 }, { k: 'wide', d: .45, r0: 22, r1: 30, h: 8, fov0: 50, fov1: 60 }], { pre: r.impact, tgt: hv, victim: hv }); }
   if (!remote) { const d = t ? new THREE.Vector3(t.x - a.x, (t.y + 1.6) - (a.y + 2), t.z - a.z).normalize() : new THREE.Vector3(Math.sin(a.yaw), -.03, Math.cos(a.yaw)); rdir = [r2(d.x), r2(d.y), r2(d.z)]; sendFx(a, 'flash', { d: rdir }); }
   a.pending.push({ t: r.impact, fn: () => { if (!a.alive) return; const o = hands(); let dir = new THREE.Vector3(...rdir);
     if (t && t.alive) dir = t.chest(_v1).sub(o).normalize(); dir.y = clamp(dir.y, -.25, .25); dir.normalize();
-    const LEN = 75, R = 2.6, DUR = 1.15; registerFlashShot(a, o, dir); powers.megaBeam(o, dir, LEN, R, DUR, col); powers.cinemaLight(() => o, DUR + .3, col, 13, { gain: 1 }); powers.cinemaLight(() => o.clone().addScaledVector(dir, 6), .5, 0xffffff, 18, { gain: 1 }); sfx('beam', a); sfx('super', a, .8);
+    speedLines(1.2); if (a === me) cineKick(8, 140); else if (Math.hypot(camS.tx - a.x, camS.tz - a.z) < 40) cineKick(3, 0);
+    const LEN = 75, R = 2.6, DUR = 1.15; registerFlashShot(a, o, dir); powers.megaBeam(o, dir, LEN, R, DUR, col); powers.cinemaLight(() => o, DUR + .3, col, 13, { gain: 1 }); powers.cinemaLight(() => o.clone().addScaledVector(dir, 6), .5, 0xffffff, 18, { gain: .4 }); sfx('beam', a); sfx('super', a, .8);
     if (Math.hypot(camS.tx - o.x, camS.tz - o.z) < 45) { G.shake = Math.max(G.shake, a === me ? .9 : 1.1); powers.screenFlash('rgba(220,250,255,.85)', .35, a === me ? .55 : .8); }
     // destruição do cenário ao longo do feixe
     const end = o.clone().addScaledVector(dir, LEN);
@@ -628,6 +745,7 @@ function doFlash(a, target, remote, rdir) {
 function doNova(a, remote = false) {
   if (!a.alive || a.novaSequence || spaceSt || (!remote && a.hero.isBusy())) return false;
   if (!remote) { a.energy = 0; sendFx(a, 'nova', {}); }
+  if (a === me) letterbox(5.5);
   const E=envOf(a), start={x:a.x,y:a.y,z:a.z,yaw:a.yaw,dim:a.dim||null,grounded:a.grounded};
   const foe=enemiesOf(a).filter(e=>inRealm(e)===inRealm(a)&&e.dim===a.dim&&Math.hypot(e.x-a.x,e.z-a.z)<150).sort((p,q)=>Math.hypot(p.x-a.x,p.z-a.z)-Math.hypot(q.x-a.x,q.z-a.z))[0]||null;
   const dir=foe?new THREE.Vector3(foe.x-a.x,0,foe.z-a.z).normalize():new THREE.Vector3(Math.sin(a.yaw),0,Math.cos(a.yaw));
@@ -755,6 +873,7 @@ function startVelocityDuel(a, b, mid) {
   if (spaceSt || !a.alive || !b.alive || a.velocityDuel || b.velocityDuel) return false;
   const start = { a: { x: a.x, y: a.y, z: a.z, yaw: a.yaw, dim: a.dim || null }, b: { x: b.x, y: b.y, z: b.z, yaw: b.yaw, dim: b.dim || null } };
   const c = new THREE.Vector3(mid.x, Math.max(a.y, b.y) + 70, mid.z), s = { t: 0, duration: 6.5, opponent: b, start, center: c, hits: 0, nextHit: .8, done: false };
+  if (a === me || b === me) letterbox(6);
   a.velocityDuel = s; b.velocityDuelBy = a.id; a.pending.length = b.pending.length = 0; a.dash = b.dash = null; a.busyMove = b.busyMove = 6.6;
   const ids = new Set([a.id, b.id]); setSpace(true, ids, true); const dim = powers.dimension(c, 56, 7); dim.D.plat.visible = false; s.dimension = dim;
   solarFocus = a; camS.mode = 'tps'; camS.pitch = .1; camS.dist = 10; camS.init = false; camS.cur = null;
@@ -852,8 +971,9 @@ function doAtlasResonance(a,remote=false) {
   if (!remote) { a.energy=0; sendFx(a,'atlasResonance',{}); }
   const auth=authOf(a), origin=new THREE.Vector3(a.x,a.y,a.z), col=0xb638ff; a.play('super'); a.busyMove=1.25; a.hero.setGlow(1); sfx('superCharge',a,1);
   if(a===me) banner('RESSONÂNCIA ZERO',1700);
-  powers.cinemaLight(()=>new THREE.Vector3(a.x,a.y+1.4,a.z),1.2,col,13,{gain:1.1,streak:1});
-  a.pending.push({t:.48,fn:()=>{ if(!a.alive)return; const p=new THREE.Vector3(a.x,a.y+.12,a.z); fx.ring(p.x,p.y,p.z,0xffffff,16,.7,.45); fx.shock(p.x,p.y,p.z,col); fx.flash(new THREE.Vector3(p.x,p.y+1.2,p.z),col,8,.3); sfx('super',a,1.05); if(Math.hypot(camS.tx-p.x,camS.tz-p.z)<24)G.shake=Math.max(G.shake,.75);
+  powers.cinemaLight(()=>new THREE.Vector3(a.x,a.y+1.4,a.z),1.2,col,13,{gain:1.1,streak:1}); aura(a,.9,col);
+  {const hv=cineVictim(a,'area'); if(hv)cineStart(a,[{k:'low',w:1,d0:6,d1:3,h0:.2,h1:1.2,fov0:64,fov1:50},{k:'top',d:.7,h0:3,h1:15,fov0:48,fov1:66},{k:'orbit',d:.6,r:9,a0:.2,a1:2.6,h:2.4,fov:56}],{pre:.48,lock:true,tgt:hv,victim:hv});}
+  a.pending.push({t:.48,fn:()=>{ if(!a.alive)return; cineKick(a===me?7:3,110); const p=new THREE.Vector3(a.x,a.y+.12,a.z); fx.ring(p.x,p.y,p.z,0xffffff,16,.7,.45); fx.shock(p.x,p.y,p.z,col); fx.flash(new THREE.Vector3(p.x,p.y+1.2,p.z),col,8,.3); sfx('super',a,1.05); if(Math.hypot(camS.tx-p.x,camS.tz-p.z)<24)G.shake=Math.max(G.shake,.75);
     if(auth) for(const e of enemiesOf(a)){const dx=e.x-a.x,dz=e.z-a.z,d=Math.hypot(dx,dz); if(d>9||Math.abs(e.y-a.y)>3)continue; const k=1-d/12; damage(e,Math.round(27*k),a,'super',{kx:dx/(d||1)*(9+5*k),kz:dz/(d||1)*(9+5*k),up:4.5}); if(e.simulated)e.stunT=Math.max(e.stunT||0,.9);}
   }}); return true;
 }
@@ -1203,7 +1323,7 @@ function damage(t, dmg, src, kind, kb) {
   const base = dmg;   // dano-base do ataque (unidade interna); o dano real depende do personagem e do nível de quem ataca
   if (src && dmg > 0 && (src === me || (src.kind === 'bot' && src.simulated))) dmg = CS.dmgOf(src.char, src.lvl || 1, dmg);
   if (TUT && tut) dmg = tut.dmg(t, dmg, src, kind);
-  if (!t.alive || !canFight() || dmg <= 0 || mates(src, t)) return;
+  if (!t.alive || !canFight() || dmg <= 0 || mates(src, t) || t.escUntil > world.time) return;
   if (t.atlasVictim && src && src.id !== t.atlasVictim) return; // o alvo fica preso na coreografia e não pode contra-atacar/interromper
   if (t.char==='atlas' && t.atlasGuardUntil>world.time && src && src.alive) {
     t.atlasGuardUntil=0; const reflected=Math.max(1,Math.round(dmg*.62));
@@ -1236,7 +1356,7 @@ function hitPhysics(t, src, dmg, kind, kb) {
   if (t.hero.J && t.hero.J.head) { t.hero.J.head.getWorldPosition(_hp); phys.sweat(_hp, _hd, 3 + (dmg * .2 | 0), force); }
 }
 function applyDamage(t, dmg, byId, kind, kb) {
-  if (!t.alive) return; const dn = dmg / CS.NORM; /* dn: dano na escala dos efeitos (faíscas, tremor, impacto) */ t.hp -= dmg; t.lastHitT = world.time; t.lastBy = byId; t.healT = 0;
+  if (!t.alive || t.escUntil > world.time) return; const dn = dmg / CS.NORM; /* dn: dano na escala dos efeitos (faíscas, tremor, impacto) */ t.hp -= dmg; t.lastHitT = world.time; t.lastBy = byId; t.healT = 0;
   if (kb) { t.vx += kb.kx || 0; t.vz += kb.kz || 0; if (kb.up && t.grounded) { t.vy = kb.up; t.grounded = false; } }
   const src = actors.get(byId);
   const impactYaw = src ? Math.atan2(src.x - t.x, src.z - t.z) : (t.yaw || 0);
@@ -1605,7 +1725,7 @@ function onSync(r) {
     else if (e.type === 'death') { const v = actors.get(d.victim), k = actors.get(d.killer); if (d.killer === myId && !(v && v.kind === 'bot' && v.simulated)) { me.kills++; sfx('kill'); banner('ELIMINOU ' + String(d.name || 'inimigo').toUpperCase(), 1500); } if (v && v.alive) { v.alive = false; v.hp = 0; v.hero.play('death'); } if (!G.deadSet.has(d.victim)) { G.deadSet.add(d.victim); feed(d.kname || (k ? k.name : 'Zona'), d.name || (v ? v.name : '?'), d.killer === myId); } checkEnd(); }
     else if (e.type === 'fx') { const a = actors.get(d.a); if (!a || a === me || (a.kind === 'bot' && a.simulated)) continue;
       if (d.kind === 'laser' && d.o && d.d) fireLaser(a, new THREE.Vector3(...d.o), new THREE.Vector3(...d.d), false);
-      else if (d.kind === 'super') a.pending.push({ t: .56, fn: () => superHit(a, true) });
+      else if (d.kind === 'super') { a.pending.push({ t: .56, fn: () => superHit(a, true) }); if (Math.hypot(me.x - a.x, me.z - a.z) < 8 && !mates(a, me)) cineStart(a, [{ k: 'low', w: .45, d0: 5, d1: 2.6, h0: .2, h1: 1, fov0: 62, fov1: 46 }, { k: 'face', w: .55, d0: 1.8, d1: 1.2, fov: 36, side: 1 }, { k: 'victim', d: .55, d0: 6, d1: 3.5, h: 1.2, fov: 44, side: -1 }, { k: 'orbit', d: .6, r: 7, a0: .4, a1: 2.2, h: 2, fov: 54 }], { pre: .56, tgt: me, victim: me, lock: true }); }
       else if (d.kind === 'sing') doSingularity(a, null, true);
       else if (d.kind === 'flash' && d.d) doFlash(a, null, true, d.d);
       else if (d.kind === 'nova') doNova(a, true);
@@ -1617,6 +1737,7 @@ function onSync(r) {
       else if (d.kind === 'atlasRift') doAtlasRift(a,true);
       else if (d.kind === 'solar') doSolar(a, actors.get(d.tg) || null, true);
       else if (d.kind === 'atlasFist') doAbyssFist(a, actors.get(d.tg) || null, true);
+      else if (d.kind === 'esc') { const sr = actors.get(d.by); a.escUntil = world.time + 2.6; if (sr && d.k === 'fist' && sr.atlasSequence) finishAtlasFist(sr, sr.atlasSequence, true); else if (sr && d.k === 'abyss' && sr.abyss && sr.abyss.finish) sr.abyss.finish(); }
       else if (d.kind === 'abyss') doAbyss(a, actors.get(d.tg) || null);
       
       else if (d.kind === 'pick') { const list = d.orb ? G.orbs : G.kits, it = list[d.i]; if (it) { it.t = 40; it.m.visible = false; } } }
@@ -1686,7 +1807,8 @@ function updateCamera(dt) {
   if (!spatialCamera) ey = Math.max(ey, envOf(f).groundAt(ex, ez, ey + 2) + .5, inRealm(f) ? -1e9 : WATER_Y + .4);
   G.shake = Math.max(0, G.shake - dt * 2.2); const sk = shake.update(dtS, G.shake); camera.position.set(ex + sk.x, ey + sk.y, ez + sk.z);
   camera.lookAt(camS.tx, camS.ty, camS.tz); if (sk.roll) camera.rotateZ(sk.roll); camS.init = true;
-  const fov = tps ? 60 + clamp(f.spd - 6, 0, 3) * 1.5 : 50; if (Math.abs(camera.fov - fov) > .05) { camera.fov = lerp(camera.fov, fov, 1 - Math.exp(-dt * 4)); camera.updateProjectionMatrix(); world.camFov = camera.fov * PI / 180; }
+  G.fovKick = (G.fovKick || 0) * Math.exp(-dt * 5.5); const fov = (tps ? 60 + clamp(f.spd - 6, 0, 3) * 1.5 : 50) + G.fovKick; if (Math.abs(camera.fov - fov) > .05) { camera.fov = lerp(camera.fov, fov, 1 - Math.exp(-dt * (G.fovKick > .3 ? 16 : 4))); camera.updateProjectionMatrix(); world.camFov = camera.fov * PI / 180; }
+  cineApply(dt);
   // sombra acompanha o foco (alinhada à grade para não tremer)
   // ancorada ao texel do mapa de sombra, no espaço da luz: a sombra não "nada" nem pisca ao andar (antes: grade de 2 m, que não casa com o texel)
   { const sd = U.uSun.value, texel = Q.shadows ? 84 / Q.shadowMap : 1, rl = Math.hypot(sd.x, sd.z) || 1, rx = sd.z / rl, rz = -sd.x / rl,   // eixo "direita" da câmera da luz

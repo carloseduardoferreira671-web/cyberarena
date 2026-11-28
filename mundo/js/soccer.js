@@ -138,9 +138,9 @@ export function createSoccer(api) {
     if (Math.hypot(m.x - px, m.z - pz) > 2.5) { S.cvx = S.cvz = 0; return; }   // teleporte (reinício): não gira
     const k = 1 - Math.exp(-dt * 10); S.cvx = (S.cvx || 0) + ((m.x - px) / dt - (S.cvx || 0)) * k; S.cvz = (S.cvz || 0) + ((m.z - pz) / dt - (S.cvz || 0)) * k;
     cs.manT = Math.max(0, (cs.manT || 0) - dt);
-    const sp = Math.hypot(S.cvx, S.cvz); if (sp < 1.7 || S.ch || S.thr || cs.manT > 0 || S.state !== 'play' || S.mode === 'pen') return;
-    const d = angDiff(Math.atan2(S.cvx, S.cvz), cs.yaw), w = Math.abs(d) > 2.3 ? 0 : Math.max(.12, Math.cos(d));
-    cs.yaw += d * (1 - Math.exp(-dt * 3.4 * w * clamp(sp / 6, .45, 1.1)));
+    const sp = Math.hypot(S.cvx, S.cvz); if (sp < .9 || S.ch || S.thr || cs.manT > 0 || S.state !== 'play' || S.mode === 'pen') return;
+    const d = angDiff(Math.atan2(S.cvx, S.cvz), cs.yaw), w = Math.abs(d) > 2.5 ? 0 : Math.max(.35, Math.cos(d));
+    cs.yaw += d * (1 - Math.exp(-dt * 5.2 * w * clamp(sp / 5, .6, 1.2)));
   }
 
   /* ============================== utilidades de jogo ============================== */
@@ -274,7 +274,7 @@ export function createSoccer(api) {
     const bx = ball.x - m.x, bz = ball.z - m.z, bd = Math.hypot(bx, bz), inc = bd < 16 && ball.speed > 3 && (bx * (ball.vx - m.vx) + bz * (ball.vz - m.vz)) < 0;   // bola vindo na minha direção
     const roll = ball.speed > 1.2 && bd < 9 && ball.y < 3, carrying = S.car && bd < 1.7;
     if (!inc && !roll && !carrying && (bd > 3.6 || ball.y > 3)) { api.doDodge(m); snd.whoosh(); return true; }
-    const near = !inc && bd < 2.6 && ball.y < .9;   // bola no pé: o botão abre a RODA DE DRIBLES; bola chegando/longe: domínio (como antes)
+    const near = !inc && bd < 2.6 && ball.y < .9 && (S.car || S.last === m || S.last == null || ball.speed < .3 && bd < 1.2);   // bola de outro jogador: raio = carrinho para roubar   // bola no pé: o botão abre a RODA DE DRIBLES; bola chegando/longe: domínio (como antes)
     S.tr = { t: 0, held: true, rel: null, done: false, dx: null, dz: null, h: [], lunged: false, mode: near ? 'drib' : 'trap', armed: true, pick: null, pickT: 0 }; return true;
   }
   function trapRelease() { if (S.tr) S.tr.held = false; return true; }
@@ -294,9 +294,9 @@ export function createSoccer(api) {
     const vxm = m.dash ? pvx : m.vx, vzm = m.dash ? pvz : m.vz;   // durante o drible (movimento programado) a velocidade vem do deslocamento real
     const l = L(m), sp = Math.hypot(vxm, vzm), dx = ball.x - m.x, dz = ball.z - m.z, d = Math.hypot(dx, dz);
     const ok = S.noCtl <= 0 && S.kickT <= 0 && !S.thr && m.grounded && m.alive && !m.down && S.state === 'play' && S.mode !== 'pen' && !S.pk && S.sp !== 'lateral';
-    S.tcd = Math.max(0, (S.tcd || 0) - dt);
+    S.tcd = Math.max(0, (S.tcd || 0) - dt); if (S.slT > 0 && (S.slT -= dt) <= 0) slideEnd(m);
     S.cobT = Math.max(0, (S.cobT || 0) - dt);   // CORREÇÃO: o recarregamento da cobertinha tem que correr SEMPRE (antes só corria conduzindo, e conduzir exigia ele zerado: travava para sempre)
-    if (!ok) { S.ctl = 0; S.car = false; S.hd = 0; S.stp = null; S.pin = null; S.tr = null; S.mv = null; S.rdash = false; return; }
+    if (!ok) { if (S.slT > 0) slideEnd(m); S.ctl = 0; S.car = false; S.hd = 0; S.stp = null; S.pin = null; S.tr = null; S.mv = null; S.rdash = false; return; }
     const tr = S.tr; if (tr) { tr.t += dt; if (!tr.held && tr.rel == null) tr.rel = tr.t; if ((!tr.held && tr.t > tr.rel + .3) || tr.t > 6 || (tr.done && !tr.held)) { S.tr = null; if (S.rdash && m.dash && !S.mv) m.dash = null; S.rdash = false; } }
     const mv = api.readMove(), mag = mv[2] || 0, want = mag > .1, fx = sp > .7 ? vxm / sp : Math.sin(m.yaw), fz = sp > .7 ? vzm / sp : Math.cos(m.yaw);
     const hx = want ? mv[0] / mag : fx, hz = want ? mv[1] / mag : fz;                       // direção em que o jogador quer ir
@@ -314,7 +314,7 @@ export function createSoccer(api) {
     if (tr && tr.mode !== 'drib' && tr.held && !tr.done && atFeet && !S.mv && !m.dash && (sp < 2.5 || S.pin) && !S.stp) {          // parado com o raio apertado: o jogador fica no lugar enquanto faz o gesto
       if (!S.pin) S.pin = { x: m.x, z: m.z }; m.x = S.pin.x; m.z = S.pin.z; if (m.hero && m.hero.object) { m.hero.object.position.x = m.x; m.hero.object.position.z = m.z; }
     } else S.pin = null;
-    if (tr && tr.mode !== 'drib' && !tr.done && l && !tr.lunged && !S.car && ball.speed > 1.5 && d > 1.4) { tr.lunged = true; lunge(m); }
+    if (tr && tr.mode !== 'drib' && !tr.done && l && !tr.lunged && !S.car && d < 4.6 && !S.mv && !m.dash) { tr.lunged = true; lunge(m); }
     if (tr && tr.pick) {   // drible escolhido na roda (arrastar o botão do raio até ele)
       if (tr.t - tr.pickT > .7) tr.pick = null;                                     // não deu para fazer a tempo: descarta
       else if (!S.mv && S.mvCd <= 0) {
@@ -325,7 +325,7 @@ export function createSoccer(api) {
     // --- domínio pedido no botão: amortece a bola que chega (chão, coxa ou peito) e a deixa onde o jogador quer ---
     if (tr && tr.mode !== 'drib' && !tr.done && d < Math.min(2.3, 1.15 + rs * dt * 1.3) && ball.y < 1.95 && S.tcd <= 0 && (!S.car || ball.y > .5) && !S.mv && ((toward > .8 && rs > 2) || (rs < 2.2 && ball.y > .35) || (tr.lunged && (d < 1.3 || !m.dash) && d < 2.3) || (ball.speed > .6 && rs > .6 && d < 1.4 && ball.y < .6))) {
       const tdx = tr.dx != null ? tr.dx : want ? hx : 0, tdz = tr.dz != null ? tr.dz : want ? hz : 0, push = (tdx || tdz) ? .5 + (tr.dx != null ? .8 : mag) * .9 : .15;
-      const dsh = !!m.dash && !S.mv, bvx = dsh ? 0 : vxm, bvz = dsh ? 0 : vzm, qx = dsh ? ball.vx : rvx, qz = dsh ? ball.vz : rvz; if (dsh) { m.dash = null; S.rdash = false; }   // chegou na bola: a corrida programada acaba
+      const dsh = !!m.dash && !S.mv, bvx = dsh ? 0 : vxm, bvz = dsh ? 0 : vzm, qx = dsh ? ball.vx : rvx, qz = dsh ? ball.vz : rvz; if (dsh) { m.dash = null; S.rdash = false; } if (S.slT > 0) slideEnd(m);   // chegou na bola: a corrida programada acaba
       ball.vx = bvx + qx * .06 + tdx * push; ball.vz = bvz + qz * .06 + tdz * push;
       ball.vy = ball.y > .5 ? Math.min(ball.vy, 0) * .12 - .2 : 0; if (ball.y < .3) { ball.wx = ball.vz / R; ball.wz = -ball.vx / R; }
       tr.done = true; S.tcd = .22; touchBall(m); S.last = m; S.lastTeam = 0; if (l && !l.busy('trap')) l.play('trap', { foot: pickF() });
@@ -392,12 +392,14 @@ export function createSoccer(api) {
   }
 
   /* ---- interceptar (raio sem a bola): corre até onde a bola vai estar e domina ---- */
-  function lunge(m) {
-    const V = 8.6; let tgt = null;
-    for (let t = .15; t <= 1.4; t += .05) { const f = Math.max(0, 1 - .12 * t), px = ball.x + ball.vx * t * f, pz = ball.z + ball.vz * t * f, dd = Math.hypot(px - m.x, pz - m.z); if (dd <= V * t + .3) { tgt = { x: px, z: pz, t, dd }; break; } }
-    if (!tgt || tgt.dd < .8) return;
-    const ux = (tgt.x - m.x) / tgt.dd, uz = (tgt.z - m.z) / tgt.dd, stop = Math.max(0, tgt.dd - .1);
-    m.dash = { segs: [{ x0: m.x, z0: m.z, x1: m.x + ux * stop, z1: m.z + uz * stop, du: Math.max(.12, stop / V), hold: 0 }], i: 0, t: 0 };
+  function slideEnd(m) { S.slT = 0; const l = L(m); if (l) { l.setTilt(0, false, 9); l.setDivePose(null); } }
+  function lunge(m) {   // CARRINHO (raio sem a bola): desliza curto na direção da bola, rouba a posse e domina; sem corrida forçada nem poeira
+    const V = 10.5; let tgt = null;
+    for (let t = .1; t <= 1.0; t += .05) { const f = Math.max(0, 1 - .12 * t), px = ball.x + ball.vx * t * f, pz = ball.z + ball.vz * t * f, dd = Math.hypot(px - m.x, pz - m.z); if (dd <= V * t + .3) { tgt = { x: px, z: pz, t, dd }; break; } }
+    if (!tgt || tgt.dd < .9 || tgt.dd > 4.6) return false;
+    const ux = (tgt.x - m.x) / tgt.dd, uz = (tgt.z - m.z) / tgt.dd, stop = Math.min(4.2, tgt.dd + .35), du = Math.max(.22, stop / V);
+    m.dash = { segs: [{ x0: m.x, z0: m.z, x1: m.x + ux * stop, z1: m.z + uz * stop, du, hold: .06 }], i: 0, t: 0, h: 0, nodust: true }; S.slT = du + .4;
+    const l = L(m); if (l) { l.setReady(false); l.setDivePose('low'); l.setTilt(68, true, 14); } snd.whoosh(); return true;
   }
 
   /* ---- dribles por gesto do analógico (raio apertado + movimento) ---- */
@@ -431,7 +433,8 @@ export function createSoccer(api) {
         const sp0 = Math.hypot(vxm, vzm), mv0 = api.readMove(), dir = mv0[2] > .1 ? [mv0[0] / mv0[2], mv0[1] / mv0[2]] : sp0 > .8 ? [vxm / sp0, vzm / sp0] : [bx, bz], fwd = 3.9 + Math.min(sp0, 7.2) * .28;
         ball.launch(dir[0] * fwd, 6.6, dir[1] * fwd, 0, 0, 0); S.cobT = .55; S.car = false; touchBall(m); if (l) l.play('touch', { foot: 'R', scale: .8 });
         snd.kick(.45); if (fx && fx.emit) fx.emit(ball.x, ball.y, ball.z, 8, { color: [1, 1, 1], speed: 1.8, life: .3, size: .09 });
-        S.mv = { k: 'cober', t: 0, dur: .25, side: 0 }; S.mvCd = .8;
+        const run = 3.6 + Math.min(sp0, 7.2) * .3, q = lim(m.x + dir[0] * run, m.z + dir[1] * run); m.dash = { segs: [{ x0: m.x, z0: m.z, x1: q.x, z1: q.z, du: .62, hold: 0 }], i: 0, t: 0, h: 0 }; S.rdash = false;
+        S.mv = { k: 'cober', t: 0, dur: .62, side: 0 }; S.mvCd = .9;
       } return;
     }
     if (g.k === 'elastico') {                    // elástico: empurra a bola para um lado e puxa para o outro, saindo em frente
@@ -483,10 +486,11 @@ export function createSoccer(api) {
     const g = K.g, st = K.st, sd = K.sd; if (!g || !st) return; const br = g.brain, l = L(g), rig = g.hero.atlasRig; br.mx = br.mz = 0;
     if (!K.on()) return; if (!l) return; const skill = S.x1 ? (S.x1.bot && S.bot ? (sd > 0 ? .5 + .42 * S.bot.skill : .72) : .74) : S.mode === 'pen' ? .56 : .7; st.cool -= dt; st.think -= dt; st.t += dt;
     const toB = Math.atan2(ball.x - g.x, ball.z - g.z); g.aimT = .2; g.yaw += angDiff(toB, g.yaw) * Math.min(1, 10 * dt);
+    const fr = friendOf(K); if (fr && (st.mode === 'hold' || st.mode === 'throw' || st.mode === 'kick')) g.yaw = Math.atan2(fr.x - g.x, fr.z - g.z);
     const hp = tmpP, hold = () => { if (!owns()) return; l.handsPos(hp); ball.frozen = true; ball.place(hp.x, Math.max(R, hp.y), hp.z); ball.frozen = true; };
     if (st.mode === 'hold') {
       rig.forceSpd = 0; l.setReady(false); hold();
-      if (st.punt && S.mode !== 'pen') g.yaw = sd > 0 ? PI : 0;   // de frente para o campo
+      if (st.punt && S.mode !== 'pen' && !fr) g.yaw = sd > 0 ? PI : 0;   // de frente para o campo
       if (st.t > (st.punt ? .8 : .95)) {
         if (st.punt && S.mode !== 'pen' && owns()) {   // solta a bola nos pés, domina e chuta
           const fx = Math.sin(g.yaw), fz = Math.cos(g.yaw); ball.frozen = false; ball.vx = ball.vy = ball.vz = 0; ball.place(g.x + fx * 1.05, R, g.z + fz * 1.05); touchBall(g);
@@ -513,14 +517,14 @@ export function createSoccer(api) {
     const out = danger ? clamp(bd * .5 - 1.5, 1, 9.5) : clamp(bd * .075, .5, 4.2);
     let tx = clamp(gx + bdx / bd * out * 1.3, cx - GW + .6, cx + GW - .6), tz = sd * clamp(sd * (gz + bdz / bd * out), HL - (danger ? 10.5 : 4.4), HL - .5), run = false;
     // bola solta, rasteira ou nos pés do atacante dentro da área: vai ATÉ ela, domina e depois joga com a mão ou chuta
-    const pursue = live && inBox && ball.y < 1.25 && ball.speed < 12;
+    const mineInc = live && !!fr && S.last === fr && ball.vz * sd > .4 && depth > HL - 32, pursue = live && (inBox && ball.y < 1.25 && ball.speed < 12 || mineInc && ball.y < 1.6 && ball.speed < 15);   // passe do meu time (recuo): o goleiro vai buscar e encaixa
     if (pursue) { st.chase = (st.chase || 0) + dt; tx = ball.x; tz = ball.z; run = true; } else st.chase = 0;
     // bola alta/cruzamento que vai descer na área: corre até o ponto de queda
     if ((st.lpT = (st.lpT || 0) - dt) <= 0) { st.lpT = .15; st.lp = (!pursue && live && depth > HL - 32 && ball.y > .9 && ball.speed > 3 && hb > 2.2) ? predictLand() : null; }
     if (!pursue && st.lp && st.lp.t > .15 && sd * st.lp.z > HL - 17 && Math.abs(st.lp.x - cx) < 19) { tx = st.lp.x; tz = st.lp.z; run = true; }
-    if (live && owns() && !ball.frozen && st.mode === 'ready' && (pursue || st.lp) && Math.hypot(ball.x - g.x, ball.z - g.z) < 1.45 && ball.y < 1.75 && ball.speed < 12 && (!S.ctl || st.chase > .4) && gkGather(K)) return;
+    if (live && owns() && !ball.frozen && st.mode === 'ready' && (pursue || st.lp) && Math.hypot(ball.x - g.x, ball.z - g.z) < 1.45 && ball.y < 1.75 && ball.speed < (mineInc ? 15 : 12) && (!S.ctl || st.chase > .4 || mineInc) && gkGather(K)) return;
     if (st.plan) { /* seguindo uma jogada */ }
-    else if (st.think <= 0 && ball.vz * sd > 3 && ball.speed > 7 && isHuman(S.last) && st.cool <= 0) {
+    else if (st.think <= 0 && ball.vz * sd > 3 && ball.speed > (mineInc ? 15 : 7) && isHuman(S.last) && st.cool <= 0) {
       st.think = .06; const pr = predict(sd);
       if (pr && Math.abs(pr.x - cx) < GW + 1 && pr.y < GH + .5 && pr.t > .08) {
         /* bola no corpo/meio do gol: sem erro de propósito (antes ele errava o lado e "liberava o caminho"); só erra um pouco nos cantos */
@@ -554,17 +558,24 @@ export function createSoccer(api) {
     const g = K.g, st = K.st, sd = K.sd, l = L(g); if (!owns() || ball.frozen || S.last === g || ball.speed < .5) return;
     const ext = diving ? 1.15 : .4, dirx = diving ? (D.x1 - D.x0 >= 0 ? 1 : -1) : 0, hx = g.x + dirx * ext, hy = g.y + (diving ? (D.kind === 'low' ? .7 : D.kind === 'mid' ? 1.3 : 2.1) : 1.3), hz = g.z;
     const dd = Math.hypot(ball.x - hx, ball.y - hy, ball.z - hz); if (dd > (diving ? 1.6 : 1.35)) return;
-    const sp = ball.speed, spn = sp / SB, pCatch = clamp(1.05 - spn / 22, .12, .95) * (S.mode === 'pen' ? .8 : .9), catchable = spn < 9 || (spn < 19 && hashf(sp * 7.3 + ball.x * 3.7 + ball.y * 5.1) < pCatch);   // força na escala do HUD
+    const sp = ball.speed, spn = sp / SB, pCatch = clamp(1.05 - spn / 22, .12, .95) * (S.mode === 'pen' ? .8 : .9), catchable = (friendOf(K) && S.last === friendOf(K)) || spn < 9 || (spn < 19 && hashf(sp * 7.3 + ball.x * 3.7 + ball.y * 5.1) < pCatch);   // força na escala do HUD
     if (sd > 0) { S.saved++; resolveShot('save'); } S.hitPost = false; updateScoreHud();
     if (catchable) { ball.vx = ball.vy = ball.vz = 0; ball.frozen = true; banner('DEFESA!', 900); snd.save(); stadium.cheerUp(.25); if (diving) { st.dive.hold = 9; } l.setTilt(0, false, 9); l.setDivePose(null); l.play('catch'); gkSetMode(st, 'hold'); st.throwing = false; st.punt = Math.random() < .5; }
     else { const nx = (ball.x - hx) / (dd || 1), out = Math.sign(ball.x - cx) || (hashf(ball.z * 9.1) < .5 ? -1 : 1); ball.vx = (nx * .45 + out * .55) * sp * .5; ball.vz = -sd * (Math.abs(ball.vz) * .4 + 2); ball.vy = Math.abs(ball.vy) * .4 + 2.8; banner('ESPALMOU!', 800); snd.save(); touchBall(g); if (!diving) l.play('punch'); if (diving) st.dive.hold = 0; }
     if (!diving) st.plan = null;
   }
-  function gkRelease(K) {   // arremesso do goleiro depois de encaixar
-    const g = K.g, st = K.st; if (!ball.frozen || !owns()) return; ball.frozen = false; const dir = (Math.random() - .5) * .8, short = Math.random() < .35, v = short ? 11 : 18, el = d2r(short ? 12 : 38);
-    ball.launch(Math.sin(dir) * v * Math.cos(el), v * Math.sin(el), -K.sd * Math.cos(dir) * v * Math.cos(el), 0, 0, 0); touchBall(g); snd.kick(.4); S.noCtl = .3;
+  const friendOf = K => K.sd < 0 ? me() : S.x1 ? (S.x1.oppA || (S.bot && S.bot.a) || null) : null;   // companheiro de time do goleiro (para quem ele distribui)
+  function gkAim(K, el) {
+    const g = K.g, f = friendOf(K); let dx, dz, dist = 16;
+    if (f && f.alive !== false) { dx = f.x + (f.vx || 0) * .5 - g.x; dz = f.z + (f.vz || 0) * .5 - g.z; dist = Math.hypot(dx, dz) || 1; dx /= dist; dz /= dist; }
+    else { const a = (Math.random() - .5) * .7; dx = Math.sin(a); dz = -K.sd * Math.cos(a); }
+    return { dx, dz, v: clamp(Math.sqrt(Math.max(dist, 6) * 9.8 * 1.15 / Math.sin(2 * el)), 8, 24), f };
   }
-  function gkKickImpact(K) { const g = K.g, st = K.st; st.kicking = false; if (!owns()) return; ball.frozen = false; const dir = (Math.random() - .5) * .7, v = 22; ball.launch(Math.sin(dir) * v * .85, v * .52, -K.sd * Math.cos(dir) * v * .85, 0, 0, 0); touchBall(g); snd.kick(.8); }
+  function gkRelease(K) {   // arremesso do goleiro depois de encaixar
+    const g = K.g, st = K.st; if (!ball.frozen || !owns()) return; ball.frozen = false; const f0 = friendOf(K), dir = (Math.random() - .5) * .8, short = Math.random() < .35, v = short ? 11 : 18, el = d2r(f0 ? 18 : short ? 12 : 38);
+    if (f0) { const A = gkAim(K, el); ball.launch(A.dx * A.v * Math.cos(el), A.v * Math.sin(el), A.dz * A.v * Math.cos(el), 0, 0, 0); } else ball.launch(Math.sin(dir) * v * Math.cos(el), v * Math.sin(el), -K.sd * Math.cos(dir) * v * Math.cos(el), 0, 0, 0); touchBall(g); snd.kick(.4); S.noCtl = .3;
+  }
+  function gkKickImpact(K) { const g = K.g, st = K.st; st.kicking = false; if (!owns()) return; ball.frozen = false; const dir = (Math.random() - .5) * .7, v = 22, f0 = friendOf(K); if (f0) { const el = d2r(26), A = gkAim(K, el); ball.launch(A.dx * A.v * Math.cos(el), A.v * Math.sin(el), A.dz * A.v * Math.cos(el), 0, 0, 0); } else ball.launch(Math.sin(dir) * v * .85, v * .52, -K.sd * Math.cos(dir) * v * .85, 0, 0, 0); touchBall(g); snd.kick(.8); }
   function resolveShot(res) {   // só os pênaltis precisam do resultado de cada cobrança
     const P = S.pen; if (!P || P.phase !== 'flight' && P.phase !== 'ready' || P.resolved) return; if (P.phase === 'ready' && !P.kicked) return;
     P.resolved = true; P.res[P.round] = res === 'goal' ? 1 : 0; if (res === 'goal') P.goals++; P.round++; P.phase = 'result'; P.t = 0; updateScoreHud();

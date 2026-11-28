@@ -83,13 +83,19 @@ export function createSoccer(api) {
 #spt button{pointer-events:auto;padding:6px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.25);background:rgba(8,12,20,.7);color:#fff;font:800 11px system-ui;letter-spacing:.05em;white-space:nowrap}#spt button.on{background:rgba(255,210,74,.85);color:#111}
 #spi{position:fixed;left:calc(10px + env(safe-area-inset-left,0px));bottom:calc(10px + env(safe-area-inset-bottom,0px));z-index:30;color:#fff;font:700 11px/1.5 system-ui;text-shadow:0 1px 3px #000;pointer-events:none;opacity:.85}
 #scAim{position:fixed;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:50%;background:#fff;box-shadow:0 0 0 1.5px rgba(0,0,0,.7),0 0 6px rgba(0,0,0,.5);z-index:29;pointer-events:none}
-#scRing{position:fixed;left:50%;top:50%;width:0;height:0;transform:translate(-50%,-50%);box-sizing:border-box;border-radius:50%;border:2px solid #ffd24a;z-index:29;pointer-events:none;opacity:0;transition:width .12s,height .12s,opacity .15s,border-color .15s}`;
+#scRing{position:fixed;left:50%;top:50%;width:0;height:0;transform:translate(-50%,-50%);box-sizing:border-box;border-radius:50%;border:2px solid #ffd24a;z-index:29;pointer-events:none;opacity:0;transition:width .12s,height .12s,opacity .15s,border-color .15s}
+#drw{position:fixed;left:0;top:0;width:0;height:0;z-index:31;pointer-events:none;display:none}#drw.on{display:block}
+#drw .dc{position:absolute;left:-44px;top:-44px;width:88px;height:88px;border-radius:50%;background:rgba(8,12,20,.6);border:2px solid rgba(255,210,74,.75);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#fff;font:900 10px/1.2 system-ui,sans-serif;letter-spacing:.04em;box-shadow:0 0 18px rgba(255,210,74,.25)}
+#drw .dc small{opacity:.65;font-size:8px;margin-top:2px}
+#drw i{position:absolute;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;background:rgba(8,12,20,.78);border:2px solid rgba(255,255,255,.4);display:flex;align-items:center;justify-content:center;font-style:normal;transition:transform .08s,background .08s}
+#drw i u{text-decoration:none;color:#fff;font:900 21px/1 system-ui,sans-serif}
+#drw i.sel{background:#ffd24a;border-color:#fff;transform:scale(1.28);box-shadow:0 0 16px rgba(255,210,74,.9)}#drw i.sel u{color:#111}`;
   document.head.appendChild(css);
   const mk = (tag, id, html, parent = document.body) => { const e = document.createElement(tag); e.id = id; e.innerHTML = html; parent.appendChild(e); return e; };
   const $sc = mk('div', 'sc', '<small id="scL">TREINO</small><b id="scA">0</b><small>GOLS</small><span id="scX"></span>');
   const $chg = mk('div', 'chg', '<div class="bar"><i id="chgF"></i></div><div class="lb"><span id="chgK">CHUTE</span><span id="chgV"></span></div><div class="pad"><u id="chgU"></u></div><div class="lb"><span>◄ efeito ►</span><span>▲ altura ▼</span></div>');
   const $spt = mk('div', 'spt', '<button id="spTrain" class="on">TREINO</button><button id="spPen">PÊNALTIS</button><button id="spGk">GOLEIRO: SIM</button><button id="spRst">REPOR BOLA</button>');
-  const $spi = mk('div', 'spi', api.touch ? 'CHUTE: segure e solte · arraste o dedo no botão: efeito e altura · ponto no centro = mira · RAIO: segure p/ dominar; com a bola, segure o RAIO e mova o analógico: círculo = giro · trás→frente = cobertinha · esq→dir / dir→esq = corte · frente→trás = puxada' : 'J/H chute · K passe · L cruzar · R domínio (segure; com a bola: R + setas = dribles) · segure para carregar · U/O efeito · I/N altura · ponto no centro = mira · RAIO: segure p/ dominar; com a bola, segure o RAIO e mova o analógico: círculo = giro · trás→frente = cobertinha · esq→dir / dir→esq = corte · frente→trás = puxada');
+  const $spi = mk('div', 'spi', api.touch ? 'CHUTE: segure e solte · arraste o dedo no botão: efeito e altura · ponto no centro = mira · RAIO: segure p/ dominar; com a bola, segure o RAIO e ARRASTE o dedo até um drible da roda (carretilha, roleta, corte, elástico, puxada)' : 'J/H chute · K passe · L cruzar · R domínio (segure; com a bola: R + 1-8 = dribles da roda) · segure para carregar · U/O efeito · I/N altura · ponto no centro = mira · RAIO: segure p/ dominar; com a bola, segure o RAIO e arraste até um drible da roda');
   { const st = document.createElement('style'); st.textContent = '#scMv{position:fixed;left:50%;top:calc(96px + env(safe-area-inset-top,0px));transform:translateX(-50%);z-index:31;padding:5px 14px;border-radius:999px;background:rgba(255,210,74,.95);color:#111;font:900 14px system-ui;letter-spacing:.08em;pointer-events:none;opacity:0;transition:opacity .25s}'; document.head.appendChild(st); }
   const $mv = mk('div', 'scMv', ''); let mvT = 0;
   const showMove = t => { $mv.textContent = t; $mv.style.opacity = 1; clearTimeout(mvT); mvT = setTimeout(() => { $mv.style.opacity = 0; }, 1300); };
@@ -97,6 +103,45 @@ export function createSoccer(api) {
   const el = id => document.getElementById(id);
   el('spTrain').onclick = () => setMode('train'); el('spPen').onclick = () => setMode('pen'); el('spRst').onclick = () => resetBall(true);
   el('spGk').onclick = () => { if (S.x1) return; S.keeperOn = !S.keeperOn; el('spGk').textContent = 'GOLEIRO: ' + (S.keeperOn ? 'SIM' : 'NÃO'); if (S.gk) { S.gk.hero.object.visible = S.keeperOn; } placeKeeper(); };
+
+  /* ============================== roda de dribles (botão do raio) ==============================
+     Segure o RAIO com a bola no pé: aparece uma roda de dribles em volta. Arraste o dedo (como um segundo analógico) até o drible e ele acontece. */
+  const DRB = [   // sentido horário a partir de cima (45° cada)
+    { nm: 'CARRETILHA', ic: '⤒', g: { k: 'cober' } },
+    { nm: 'ROLETA ›', ic: '↻', g: { k: 'giro', sg: 1 } },
+    { nm: 'CORTE ›', ic: '→', g: { k: 'corte', sg: -1 } },
+    { nm: 'ELÁSTICO ›', ic: '⇄', g: { k: 'elastico', sg: -1 } },
+    { nm: 'PUXADA', ic: '⤓', g: { k: 'puxada', sg: 1 } },
+    { nm: '‹ ELÁSTICO', ic: '⇄', g: { k: 'elastico', sg: 1 } },
+    { nm: '‹ CORTE', ic: '←', g: { k: 'corte', sg: 1 } },
+    { nm: '‹ ROLETA', ic: '↺', g: { k: 'giro', sg: -1 } },
+  ];
+  const $drw = mk('div', 'drw', '<div class="dc"><b id="drN">DRIBLE</b><small>arraste</small></div>' + DRB.map((d, i) => { const a = i * PI / 4; return `<i data-i="${i}" style="left:${(Math.sin(a) * 80).toFixed(1)}px;top:${(-Math.cos(a) * 80).toFixed(1)}px"><u>${d.ic}</u></i>`; }).join(''));
+  function setSel(i) { if (S.wSel === i) return; S.wSel = i; for (const n of $drw.querySelectorAll('i')) n.classList.toggle('sel', +n.dataset.i === i); document.getElementById('drN').textContent = i >= 0 ? DRB[i].nm : 'DRIBLE'; }
+  function syncWheel() {
+    const on = !!(S.tr && S.tr.mode === 'drib' && S.tr.held); if (on === !!S.wOn) return; S.wOn = on; $drw.classList.toggle('on', on);
+    if (on) { const b = document.getElementById('bVel'), r = b ? b.getBoundingClientRect() : null, x = r ? r.left + r.width / 2 : innerWidth - 90, y = r ? r.top + r.height / 2 : innerHeight - 120; $drw.style.left = clamp(x, 112, Math.max(112, innerWidth - 112)) + 'px'; $drw.style.top = clamp(y, 112, Math.max(112, innerHeight - 112)) + 'px'; S.wSel = -2; setSel(-1); }
+  }
+  const wheelIdx = (ex, ey) => { let i = Math.round(Math.atan2(ex, -ey) / (PI / 4)); if (i < 0) i += 8; return i % 8; };   // 0 = cima, sentido horário
+  function dragWheel(t, ex, ey, ln) {
+    if (ln < 14) { t.armed = true; setSel(-1); return; }
+    const i = wheelIdx(ex, ey); setSel(i);
+    if (ln >= 34 && t.armed) { t.armed = false; t.pick = DRB[i].g; t.pickT = t.t; }
+  }
+
+  /* ============================== câmera acompanha o jogador (futebol) ==============================
+     A câmera gira sozinha para ficar atrás de quem corre, então a mira (ponto no centro) já aponta para onde você vai. Correr de lado/de costas quase não gira;
+     arrastar a tela para olhar em volta tem prioridade por ~1,4 s. */
+  function camFollow(dt, m) {
+    const cs = api.camState; if (!cs || dt < 1e-4) return;
+    const px = S.cpx == null ? m.x : S.cpx, pz = S.cpz == null ? m.z : S.cpz; S.cpx = m.x; S.cpz = m.z;
+    if (Math.hypot(m.x - px, m.z - pz) > 2.5) { S.cvx = S.cvz = 0; return; }   // teleporte (reinício): não gira
+    const k = 1 - Math.exp(-dt * 10); S.cvx = (S.cvx || 0) + ((m.x - px) / dt - (S.cvx || 0)) * k; S.cvz = (S.cvz || 0) + ((m.z - pz) / dt - (S.cvz || 0)) * k;
+    cs.manT = Math.max(0, (cs.manT || 0) - dt);
+    const sp = Math.hypot(S.cvx, S.cvz); if (sp < 1.7 || S.ch || S.thr || cs.manT > 0 || S.state !== 'play' || S.mode === 'pen') return;
+    const d = angDiff(Math.atan2(S.cvx, S.cvz), cs.yaw), w = Math.abs(d) > 2.3 ? 0 : Math.max(.12, Math.cos(d));
+    cs.yaw += d * (1 - Math.exp(-dt * 3.4 * w * clamp(sp / 6, .45, 1.1)));
+  }
 
   /* ============================== utilidades de jogo ============================== */
   const me = () => api.me();
@@ -229,7 +274,8 @@ export function createSoccer(api) {
     const bx = ball.x - m.x, bz = ball.z - m.z, bd = Math.hypot(bx, bz), inc = bd < 16 && ball.speed > 3 && (bx * (ball.vx - m.vx) + bz * (ball.vz - m.vz)) < 0;   // bola vindo na minha direção
     const roll = ball.speed > 1.2 && bd < 9 && ball.y < 3, carrying = S.car && bd < 1.7;
     if (!inc && !roll && !carrying && (bd > 3.6 || ball.y > 3)) { api.doDodge(m); snd.whoosh(); return true; }
-    S.tr = { t: 0, held: true, rel: null, done: false, dx: null, dz: null, h: [], lunged: false }; return true;
+    const near = !inc && bd < 2.6 && ball.y < .9;   // bola no pé: o botão abre a RODA DE DRIBLES; bola chegando/longe: domínio (como antes)
+    S.tr = { t: 0, held: true, rel: null, done: false, dx: null, dz: null, h: [], lunged: false, mode: near ? 'drib' : 'trap', armed: true, pick: null, pickT: 0 }; return true;
   }
   function trapRelease() { if (S.tr) S.tr.held = false; return true; }
   /* lateral com as duas mãos */
@@ -264,18 +310,20 @@ export function createSoccer(api) {
     const fx0 = Math.sin(m.yaw), fz0 = Math.cos(m.yaw), atFeet = ball.y < .4 && d < 1.6 && dx * fx0 + dz * fz0 > -.3;
     S.mvCd = Math.max(0, (S.mvCd || 0) - dt);
     if (S.mv) { S.mv.t += dt; if (S.mv.t >= S.mv.dur) { S.mv = null; S.mvCd = .35; S.cph = 2; if (S.car && ball.y < .4) { const rv = want ? Math.max(mag, .9) * RUNV * .95 : 0; ball.vx = want ? hx * rv : pvx; ball.vz = want ? hz * rv : pvz; if (!want) { S.lsp = Math.hypot(pvx, pvz); S.ldx = pvx / (S.lsp || 1); S.ldz = pvz / (S.lsp || 1); } ball.wx = ball.vz / R; ball.wz = -ball.vx / R; } } }
-    if (tr && S.car && tr.held && !S.mv && !m.dash && !tr.frz && sp > 2.5) { tr.frz = true; S.rdash = true; const ux = vxm / sp, uz = vzm / sp; m.dash = { segs: [{ x0: m.x, z0: m.z, x1: m.x + ux * sp, z1: m.z + uz * sp, du: 1, hold: 0 }], i: 0, t: 0, h: 0 }; }
-    if (tr && tr.held && !tr.done && atFeet && !S.mv && !m.dash && (sp < 2.5 || S.pin) && !S.stp) {          // parado com o raio apertado: o jogador fica no lugar enquanto faz o gesto
+    if (tr && tr.mode !== 'drib' && S.car && tr.held && !S.mv && !m.dash && !tr.frz && sp > 2.5) { tr.frz = true; S.rdash = true; const ux = vxm / sp, uz = vzm / sp; m.dash = { segs: [{ x0: m.x, z0: m.z, x1: m.x + ux * sp, z1: m.z + uz * sp, du: 1, hold: 0 }], i: 0, t: 0, h: 0 }; }
+    if (tr && tr.mode !== 'drib' && tr.held && !tr.done && atFeet && !S.mv && !m.dash && (sp < 2.5 || S.pin) && !S.stp) {          // parado com o raio apertado: o jogador fica no lugar enquanto faz o gesto
       if (!S.pin) S.pin = { x: m.x, z: m.z }; m.x = S.pin.x; m.z = S.pin.z; if (m.hero && m.hero.object) { m.hero.object.position.x = m.x; m.hero.object.position.z = m.z; }
     } else S.pin = null;
-    if (tr && !tr.done) {
-      if (l && !tr.lunged && !S.car && ball.speed > 1.5 && d > 1.4) { tr.lunged = true; lunge(m); }
-      const cam = api.camera; let cy = 0; if (cam) { cam.getWorldDirection(vD); cy = Math.atan2(vD.x, vD.z); }
-      const sc = Math.sin(cy), cc = Math.cos(cy); tr.h.push([S.clock, want ? -mv[0] * cc + mv[1] * sc : 0, want ? mv[0] * sc + mv[1] * cc : 0]); while (tr.h.length && S.clock - tr.h[0][0] > 1.2) tr.h.shift();
-      const g = (S.car || atFeet) && !S.mv && !S.stp && S.mvCd <= 0 ? gesture(tr.h) : null; if (g) { tr.done = true; tr.h.length = 0; startMove(g, m, cy, S.pin ? 0 : vxm, S.pin ? 0 : vzm); }
+    if (tr && tr.mode !== 'drib' && !tr.done && l && !tr.lunged && !S.car && ball.speed > 1.5 && d > 1.4) { tr.lunged = true; lunge(m); }
+    if (tr && tr.pick) {   // drible escolhido na roda (arrastar o botão do raio até ele)
+      if (tr.t - tr.pickT > .7) tr.pick = null;                                     // não deu para fazer a tempo: descarta
+      else if (!S.mv && S.mvCd <= 0) {
+        const pk = tr.pick; tr.pick = null; const cam = api.camera; let cy = m.yaw; if (cam) { cam.getWorldDirection(vD); cy = Math.atan2(vD.x, vD.z); }
+        if (d < 2.1 && ball.y < .6) { if (S.stp) { S.stp = null; if (m.dash && !S.mv) m.dash = null; S.rdash = false; } startMove(pk, m, cy, S.pin ? 0 : vxm, S.pin ? 0 : vzm); if (!S.car) return; }   // carretilha: a bola já saiu lançada; não deixa o resto do quadro apagar essa velocidade
+      }
     }
     // --- domínio pedido no botão: amortece a bola que chega (chão, coxa ou peito) e a deixa onde o jogador quer ---
-    if (tr && !tr.done && d < Math.min(2.3, 1.15 + rs * dt * 1.3) && ball.y < 1.95 && S.tcd <= 0 && (!S.car || ball.y > .5) && !S.mv && ((toward > .8 && rs > 2) || (rs < 2.2 && ball.y > .35) || (tr.lunged && (d < 1.3 || !m.dash) && d < 2.3) || (ball.speed > .6 && rs > .6 && d < 1.4 && ball.y < .6))) {
+    if (tr && tr.mode !== 'drib' && !tr.done && d < Math.min(2.3, 1.15 + rs * dt * 1.3) && ball.y < 1.95 && S.tcd <= 0 && (!S.car || ball.y > .5) && !S.mv && ((toward > .8 && rs > 2) || (rs < 2.2 && ball.y > .35) || (tr.lunged && (d < 1.3 || !m.dash) && d < 2.3) || (ball.speed > .6 && rs > .6 && d < 1.4 && ball.y < .6))) {
       const tdx = tr.dx != null ? tr.dx : want ? hx : 0, tdz = tr.dz != null ? tr.dz : want ? hz : 0, push = (tdx || tdz) ? .5 + (tr.dx != null ? .8 : mag) * .9 : .15;
       const dsh = !!m.dash && !S.mv, bvx = dsh ? 0 : vxm, bvz = dsh ? 0 : vzm, qx = dsh ? ball.vx : rvx, qz = dsh ? ball.vz : rvz; if (dsh) { m.dash = null; S.rdash = false; }   // chegou na bola: a corrida programada acaba
       ball.vx = bvx + qx * .06 + tdx * push; ball.vz = bvz + qz * .06 + tdz * push;
@@ -372,20 +420,23 @@ export function createSoccer(api) {
     return null;
   }
   const limP = (x, z) => ({ x: clamp(x, cx - HW - 1.5, cx + HW + 1.5), z: clamp(z, -HL - 1.5, HL + 1.5) });
-  const MVN = { giro: 'GIRO', cober: 'COBERTINHA', puxada: 'PUXADA' };
+  const MVN = { giro: 'ROLETA', cober: 'CARRETILHA', puxada: 'PUXADA', elastico: 'ELÁSTICO' };
   function startMove(g, m, cy, vxm, vzm) {
     showMove(g.k === 'corte' ? (g.sg > 0 ? 'CORTE PELA ESQUERDA' : 'CORTE PELA DIREITA') : MVN[g.k]); if (!S.fp) S.fp = { R: { v: 0, dv: 0 }, L: { v: 0, dv: 0 } }; S.cph = 1; S.pin = null;
     const bx = Math.sin(m.yaw), bz = Math.cos(m.yaw), lx = Math.cos(cy), lz = -Math.sin(cy);     // frente do corpo e ESQUERDA da tela (mundo)
     const P = { x: m.x, z: m.z }, l = L(m), lim = (x, z) => ({ x: clamp(x, cx - HW - 1.5, cx + HW + 1.5), z: clamp(z, -HL - 1.5, HL + 1.5) });
     const segs = []; let cur = P; const add = (x, z, du) => { const q = lim(x, z); segs.push({ x0: cur.x, z0: cur.z, x1: q.x, z1: q.z, du, hold: 0 }); cur = q; };
-    if (g.k === 'cober') {                       // cobertinha: o pé passa por baixo e levanta a bola, que sobe e cai à frente; o corpo segue
-      if (ball.y < .4 && Math.hypot(ball.x - m.x, ball.z - m.z) < 1.5) {
-        const dir = Math.hypot(vxm, vzm) > .5 ? [vxm / Math.hypot(vxm, vzm), vzm / Math.hypot(vxm, vzm)] : [bx, bz];
-        ball.vx = vxm + dir[0] * .6; ball.vz = vzm + dir[1] * .6; ball.vy = 4.7; ball.wx = ball.wz = 0; S.cobT = .35; S.car = false; touchBall(m); if (l) l.play('touch', { foot: 'R', scale: .8 });
-        S.mv = { k: 'cober', t: 0, dur: .2, side: 0 }; S.mvCd = .6;
+    if (g.k === 'cober') {                       // CARRETILHA: o pé passa por baixo e lança a bola por cima, ALTA, à frente (dá para driblar por cima de quem marca)
+      if (ball.y < .5 && Math.hypot(ball.x - m.x, ball.z - m.z) < 1.9) {
+        const sp0 = Math.hypot(vxm, vzm), mv0 = api.readMove(), dir = mv0[2] > .1 ? [mv0[0] / mv0[2], mv0[1] / mv0[2]] : sp0 > .8 ? [vxm / sp0, vzm / sp0] : [bx, bz], fwd = 3.9 + Math.min(sp0, 7.2) * .28;
+        ball.launch(dir[0] * fwd, 6.6, dir[1] * fwd, 0, 0, 0); S.cobT = .55; S.car = false; touchBall(m); if (l) l.play('touch', { foot: 'R', scale: .8 });
+        snd.kick(.45); if (fx && fx.emit) fx.emit(ball.x, ball.y, ball.z, 8, { color: [1, 1, 1], speed: 1.8, life: .3, size: .09 });
+        S.mv = { k: 'cober', t: 0, dur: .25, side: 0 }; S.mvCd = .8;
       } return;
     }
-    if (g.k === 'corte') {                       // corta para o lado e volta para a linha de onde saiu
+    if (g.k === 'elastico') {                    // elástico: empurra a bola para um lado e puxa para o outro, saindo em frente
+      const sg = g.sg || 1; add(P.x + bx * .5 + lx * .75 * sg, P.z + bz * .5 + lz * .75 * sg, .13); add(P.x + bx * 1.05 - lx * .7 * sg, P.z + bz * 1.05 - lz * .7 * sg, .17); add(P.x + bx * 2.0 - lx * .25 * sg, P.z + bz * 2.0 - lz * .25 * sg, .16); S.mv = { k: 'elastico', t: 0, dur: .5, side: sg };
+    } else     if (g.k === 'corte') {                       // corta para o lado e volta para a linha de onde saiu
       const sg = g.sg; add(P.x + bx * .65 + lx * .95 * sg, P.z + bz * .65 + lz * .95 * sg, .17); add(P.x + bx * 1.5, P.z + bz * 1.5, .17); S.mv = { k: 'corte', t: 0, dur: .36, side: sg };
     } else {                                     // giro (roleta, 360°) e puxada (meia-volta, 180°)
       const half = g.k === 'puxada', sg = g.sg || 1, r = .62, n = half ? 4 : 8, du = half ? .09 : .075, th = half ? Math.PI : 2 * Math.PI, rx = -bz * sg, rz = bx * sg;   // lado do giro: sg>0 = direita
@@ -574,15 +625,16 @@ export function createSoccer(api) {
   }
   function x1OutTouch(sx) { const X = S.x1, z = clamp(ball.z, -HL + 4, HL - 4), p = rotXZ(cx + sx * (HW - .35), z), mi = X.host ? 0 : 1, tkL = 1 - S.lastTeam; emit({ k: 'out', kind: 'lateral', tk: tkL === 0 ? mi : 1 - mi, x: p.x, z: p.z, sd: 0 }); }
   function x1OutEnd(sd) {
-    const X = S.x1, mi = X.host ? 0 : 1, mine = S.lastTeam === 0; let kind, tkL, xl, zl;
-    if (sd > 0) { if (mine) { kind = 'goalkick'; tkL = 1; } else { kind = 'corner'; tkL = 0; } } else { if (mine) { kind = 'goalkick'; tkL = 0; } else { kind = 'corner'; tkL = 1; } }
+    // posse: quem DEFENDE aquele fundo tocou por último = ESCANTEIO de quem ataca; senão = TIRO DE META de quem defende (no lado do seu gol isto estava invertido)
+    const X = S.x1, mi = X.host ? 0 : 1, def = sd > 0 ? 1 : 0, kind = S.lastTeam === def ? 'corner' : 'goalkick', tkL = kind === 'corner' ? 1 - def : def; let xl, zl;
     if (kind === 'corner') { xl = cx + (Math.sign(ball.x - cx) || 1) * (HW - .35); zl = sd * (HL - .35); } else { xl = cx + (Math.random() - .5) * 4; zl = sd * (HL - 5.5); }
     const p = rotXZ(xl, zl); emit({ k: 'out', kind, tk: tkL === 0 ? mi : 1 - mi, x: p.x, z: p.z, sd: X.host ? sd : -sd });
   }
   function applyEv(ev) {
     const X = S.x1; if (!X || ev.n <= X.evN && X.ev !== ev) return; X.evN = Math.max(X.evN, ev.n); const age = clamp((api.serverNow() - ev.t) / 1000, 0, 3), mi = X.host ? 0 : 1; X.n = Math.max(X.n, ev.n * 100);
     if (ev.k === 'goal') {
-      X.sc = ev.sc; X.hs = ev.hs; X.h = ev.h; const mine = ev.by === mi; S.state = 'wait'; S.timer = Math.max(.4, (ev.end ? 4.6 : 3.4) - age); S.restartKind = 'center';
+      X.sc = ev.sc; X.hs = ev.hs; X.h = ev.h; X.ck = 1 - ev.by; const mine = ev.by === mi;   // X.ck = quem leva a saída de bola: quem sofreu o gol
+ S.state = 'wait'; S.timer = Math.max(.4, (ev.end ? 4.6 : 3.4) - age); S.restartKind = 'center';
       stadium.goalRipple(mine ? 1 : -1); stadium.cheerUp(1.3); snd.net(); snd.cheer(1.2); snd.whistle(); banner(mine ? 'GOOOL!' : 'GOL DO ADVERSÁRIO', 2000);
       if (fx && fx.emit) fx.emit(ball.x, 1.5, ball.z, 40, { color: mine ? [1, .85, .4] : [.5, .7, 1], speed: 5, up: 4, life: 1.1, size: .2 });
       if (ev.end === 1) { X.h = 2; X.hs = [0, 0]; setTimeout(() => { if (S.x1 === X) banner('FIM DO 1º TEMPO · ' + X.sc[mi] + ' × ' + X.sc[1 - mi] + ' — 2º TEMPO: primeiro a 5', 3200); }, 1800); }
@@ -590,14 +642,14 @@ export function createSoccer(api) {
       else if (ev.end === 2) { X.over = true; S.timer = 99; setTimeout(() => { if (S.x1 === X) banner(ev.w === mi ? 'VOCÊ VENCEU! ' + X.sc[mi] + ' × ' + X.sc[1 - mi] : 'VOCÊ PERDEU · ' + X.sc[mi] + ' × ' + X.sc[1 - mi], 4000); }, 1800); setTimeout(() => { if (S.x1 === X) x1End(); }, 6400); }
     } else if (ev.k === 'out') {
       S.state = 'wait'; S.timer = Math.max(.4, 1.4 - age); S.restartKind = ev.kind; X.tk = ev.tk; const p = rotXZ(ev.x, ev.z); X.rx = p.x; X.rz = p.z; X.rsd = X.host ? ev.sd : -ev.sd; snd.whistle();
-      banner(ev.kind === 'lateral' ? 'LATERAL' : ev.kind === 'corner' ? 'ESCANTEIO' : 'TIRO DE META', 1100);
+      banner((ev.kind === 'lateral' ? 'LATERAL' : ev.kind === 'corner' ? 'ESCANTEIO' : 'TIRO DE META') + ' · ' + (ev.tk === mi ? 'SEU' : 'ADVERSÁRIO'), 1300);
     }
     updateScoreHud();
   }
   function x1Restart() {
-    const X = S.x1, k = S.restartKind, mi = X.host ? 0 : 1, iTake = k === 'center' ? X.host : X.tk === mi, m = me();
+    const X = S.x1, k = S.restartKind, mi = X.host ? 0 : 1, iTake = k === 'center' ? (X.ck != null ? X.ck === mi : X.host) : X.tk === mi, m = me();
     S.state = 'play'; S.free = 0; ball.frozen = false; S.hitPost = false; S.sp = null; S.thr = null; S.pk = null; X.own = iTake || !!X.bot; if (X.bot) botReset();
-    if (k === 'center') { resetBall(false); if (X.bot) botKickoff(); return; }
+    if (k === 'center') { resetBall(false); place(m, cx, iTake ? -1.5 : -9, 0); if (X.bot) botKickoff(iTake); return; }   // quem cobra a saída fica perto da bola; o outro recua
     const sxl = Math.sign(X.rx - cx) || 1; ball.place(X.rx, R, X.rz);
     if (k === 'lateral') { if (iTake) { S.sp = 'lateral'; S.spX = ball.x; S.spZ = ball.z; place(m, cx + sxl * (HW + 1.0), X.rz, -sxl * PI / 2); } else if (X.bot) botSetPiece('lateral', sxl); }
     else if (k === 'corner') { if (iTake) place(m, cx + sxl * (HW + .9), X.rsd * (HL + .7), Math.atan2(-sxl * 1.2, -X.rsd)); else if (X.bot) botSetPiece('corner', sxl); }
@@ -662,7 +714,7 @@ export function createSoccer(api) {
   }
   function botClear() { const B = S.bot; if (!B) return; S.bot = null; layers.delete(B.a); try { api.removeActor && api.removeActor(B.a.id); } catch (_) { } }
   function botReset() { const B = S.bot; if (B) { B.mv = null; B.sp = null; B.pk = null; B.touchCd = .3; } }
-  function botKickoff() { const B = S.bot; if (B) place(B.a, cx, 7.5, PI); }
+  function botKickoff(meTakes = true) { const B = S.bot; if (B) place(B.a, cx, meTakes ? 9 : 1.6, PI); }
   function botOnGoal(mine) { const B = S.bot; if (B) B.skill = clamp(B.skill + (mine ? .075 : .02), 0, .98); }
   function botSetPiece(kind, sxl) {
     const B = S.bot, X = S.x1; if (!B) return;
@@ -779,9 +831,10 @@ export function createSoccer(api) {
   function outGoalLine(sd) {
     if (S.x1) return x1OutEnd(sd);
     if (S.mode === 'pen') return missPen();
-    S.state = 'wait'; S.timer = 1.5; snd.whistle();
-    if (sd > 0) { S.restartKind = 'goalkick'; banner('TIRO DE META', 1100); }
-    else { S.restartKind = 'corner'; S.restartX = Math.sign(ball.x - cx) || 1; banner('ESCANTEIO', 1100); }
+    S.state = 'wait'; S.timer = 1.5; snd.whistle(); S.restartEnd = sd; S.restartX = Math.sign(ball.x - cx) || 1;
+    if (sd > 0 && S.lastTeam === 1) { S.restartKind = 'corner'; banner('ESCANTEIO · SEU', 1200); }          // o goleiro desviou para fora: escanteio SEU
+    else if (sd > 0) { S.restartKind = 'goalkick'; banner('TIRO DE META · ADVERSÁRIO', 1200); }
+    else { S.restartKind = 'goalkick'; banner('TIRO DE META · SEU', 1200); }                                  // saiu pelo fundo do SEU lado: tiro de meta seu
   }
   function missPen() { const P = S.pen; if (P && !P.resolved && P.kicked) { banner(S.hitPost ? 'NA TRAVE!' : 'PARA FORA!', 1200); resolveShot('miss'); } S.state = 'wait'; S.timer = 99; }
   function doRestart() {
@@ -789,7 +842,8 @@ export function createSoccer(api) {
     const m = me(), k = S.restartKind; S.state = 'play'; S.free = 0; ball.frozen = false; S.hitPost = false; S.sp = null; S.thr = null; S.pk = null;
     if (k === 'center') { resetBall(false); return; }
     if (k === 'lateral') { S.sp = 'lateral'; const sx = S.restartX; ball.place(cx + sx * (HW - .35), R, S.restartZ); S.spX = ball.x; S.spZ = ball.z; place(m, cx + sx * (HW + 1.0), S.restartZ, -sx * PI / 2); }
-    else if (k === 'corner') { const sx = S.restartX; ball.place(cx + sx * (HW - .35), R, -HL + .35); place(m, cx + sx * (HW + .9), -HL - .7, Math.atan2(-sx * 1.2, 1)); }
+    else if (k === 'corner') { const sx = S.restartX; ball.place(cx + sx * (HW - .35), R, HL - .35); place(m, cx + sx * (HW + .9), HL + .7, Math.atan2(-sx * 1.2, -1)); S.lastTeam = 0; }   // escanteio SEU, no lado do gol adversário
+    else if (k === 'goalkick' && S.restartEnd < 0) { placeKeeper(); ball.place(cx + (Math.random() - .5) * 4, R, -HL + 5.5); place(m, cx, -HL + 3.2, 0); S.lastTeam = 0; }   // tiro de meta SEU: bola na sua pequena área
     else if (k === 'goalkick') { ball.place(cx + (Math.random() - .5) * 4, R, HL - 5.5); place(m, cx, 6, PI); placeKeeper(); const g = S.gk; if (g && S.keeperOn) { g.x = ball.x; g.z = ball.z + 1.15; S.gkState.kicking = true; setTimeout(() => { if (S.state !== 'play' || S.mode !== 'train') return; const l = L(g); if (l) l.play('shot'); else gkKickImpact(KS[0]); }, 900); } }
   }
 
@@ -798,6 +852,7 @@ export function createSoccer(api) {
     dt = Math.min(dt, .05); S.t += dt; S.clock += dt; const m = me(); if (!m) return;
     if (S.sp === 'lateral' && !S.thr && !S.ch && (Math.hypot(ball.x - S.spX, ball.z - S.spZ) > 1.2 || Math.abs(m.x - cx) < HW - .8)) S.sp = null;   // a mão só vale na cobrança do lateral: saiu do ponto, acabou
     S.lock = Math.max(0, S.lock - dt); S.drib = Math.max(0, S.drib - dt); S.free += dt; S.kickT = Math.max(0, S.kickT - dt); S.noCtl = Math.max(0, S.noCtl - dt); L(m); for (const K of KS) K.g && L(K.g);
+    camFollow(dt, m); syncWheel();
     // carga do chute
     if (S.ch) { const c = S.ch, K = KICK[c.kind]; c.t += dt; const K2 = api.keysDown, kx = (K2.has('o') ? 1 : 0) - (K2.has('u') ? 1 : 0), ky = (K2.has('i') ? 1 : 0) - (K2.has('n') ? 1 : 0); if (kx || ky) { c.spin = clamp(c.spin + kx * dt * 2.5, -1, 1); c.lift = clamp(c.lift + ky * dt * 2.5, -1, 1); }
       const p = clamp(c.t / K.full, 0, 1); el('chgF').style.width = p * 100 + '%'; el('chgV').textContent = Math.round(lerp(K.v0, K.v1, Math.max(.24, p)) * 3.6) + ' km/h'; el('chgU').style.left = 50 + c.spin * 42 + '%'; el('chgU').style.top = 50 - c.lift * 38 + '%'; }
@@ -842,11 +897,13 @@ export function createSoccer(api) {
     b.addEventListener('pointerup', () => onRelease(kind)); b.addEventListener('pointercancel', () => onRelease(kind));
   }
   addEventListener('pointermove', e => { const c = S.ch; if (!c || c.pid !== e.pointerId || c.x0 == null) return; c.spin = clamp((e.clientX - c.x0) / 55, -1, 1); c.lift = clamp(-(e.clientY - c.y0) / 55, -1, 1); });
+  addEventListener('keydown', e => { if (S.tr && S.tr.mode === 'drib' && S.tr.held && /^[1-8]$/.test(e.key)) { S.tr.pick = DRB[+e.key - 1].g; S.tr.pickT = S.tr.t; setSel(+e.key - 1); } });
   addEventListener('keyup', e => { const kk = e.key.toLowerCase(), k = KEYS[kk]; if (k) onRelease(k); else if (kk === 'r') trapRelease(); });
   { const b = document.getElementById('bVel');   // botão do raio: soltar = fim do domínio; arrastar = direção do primeiro toque
     if (b) { b.addEventListener('pointerdown', e => { S.ptrB = { pid: e.pointerId, x0: e.clientX, y0: e.clientY }; }); b.addEventListener('pointerup', () => trapRelease()); b.addEventListener('pointercancel', () => trapRelease()); }
     addEventListener('pointermove', e => {
       const t = S.tr, p = S.ptrB; if (!t || !p || p.pid !== e.pointerId || !api.camera) return; const ex = e.clientX - p.x0, ey = e.clientY - p.y0, ln = Math.hypot(ex, ey);
+      if (t.mode === 'drib') { dragWheel(t, ex, ey, ln); return; }   // bola no pé: arrastar escolhe o drible na roda
       if (ln < 22) { t.dx = t.dz = null; return; }
       const cam = api.camera; cam.updateMatrixWorld(); cam.getWorldDirection(vD); const fl = Math.hypot(vD.x, vD.z) || 1, fxx = vD.x / fl, fzz = vD.z / fl, e0 = cam.matrixWorld.elements, rl = Math.hypot(e0[0], e0[2]) || 1, rxx = e0[0] / rl, rzz = e0[2] / rl;
       t.dx = (fxx * -ey + rxx * ex) / ln; t.dz = (fzz * -ey + rzz * ex) / ln;
@@ -856,6 +913,6 @@ export function createSoccer(api) {
   api.setKeeper = g => { S.gk = g; KS[0] = { g, st: null, sd: 1, on: () => S.keeperOn || !!S.x1 }; placeKeeper(); };
   api.setKeeper2 = g => { KS[1] = { g, st: null, sd: -1, on: () => !!S.x1 }; placeKeeper(KS[1]); };
   function start(mode) { setMode(mode || 'train'); }
-  function dispose() { botClear(); for (const e of [$sc, $chg, $spt, $spi, $xh, $xr, css, $sx1, $sx1b]) e.remove(); scene.remove(mesh, blob, ringM, totem); for (const t of targets) scene.remove(t.m); }
+  function dispose() { botClear(); for (const e of [$sc, $chg, $spt, $spi, $xh, $xr, $drw, css, $sx1, $sx1b]) e.remove(); scene.remove(mesh, blob, ringM, totem); for (const t of targets) scene.remove(t.m); }
   return { x1Pack, x1Recv, x1Same, x1Rot: () => !!S.x1 && !S.x1.host, rotS, update, act, start, setMode, ball, S, dispose, resetBall, onRelease, L, me, preview(name, t, foot) { const l = L(me()); if (!l) return; l.preview = name ? { name, t, foot } : null; if (!name) l.stop(); } };
 }
